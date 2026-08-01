@@ -1,0 +1,402 @@
+[
+  {
+    "id": "goa-in",
+    "name": "Goa, India",
+    "lat": 15.2993,
+    "lng": 74.124,
+    "type": ["beach", "culture"],
+    "season": ["monsoon", "winter"],
+    "budgetTier": "budget",
+    "crowdLevel": "medium",
+    "bestTimeToVisit": "Nov–Feb",
+    "description": "Sun-kissed beaches, Portuguese heritage, and vibrant nightlife on India's western coast.",
+    "activities": [
+      { "name": "Beach hopping", "cost": 0, "durationHrs": 3 },
+      { "name": "Fort Aguada visit", "cost": 200, "durationHrs": 2 },
+      { "name": "Spice plantation tour", "cost": 800, "durationHrs": 4 },
+      { "name": "Dudhsagar Falls trek", "cost": 1500, "durationHrs": 6 },
+      { "name": "Old Goa churches walk", "cost": 0, "durationHrs": 3 },
+      { "name": "Sunset cruise on Mandovi", "cost": 500, "durationHrs": 2 }
+    ]
+  },
+  {
+    "id": "bali-id",
+    "name": "Bali, Indonesia",
+    "lat": -8.3405,
+    "lng": 115.092,
+    "type": ["beach", "culture", "adventure"],
+    "season": ["summer", "spring"],
+    "budgetTier": "mid",
+    "crowdLevel": "high",
+    "bestTimeToVisit": "Apr–Oct",
+    "description": "Island of the Gods — terraced rice paddies, ancient temples, and world-class surf.",
+    "activities": [
+      { "name": "Ubud Monkey Forest", "cost": 8, "durationHrs": 2 },
+      { "name": "Tegallalang Rice Terraces", "cost": 5, "durationHrs": 3 },
+      { "name": "Mount Batur sunrise trek", "cost": 45, "durationHrs": 6 },
+      { "name": "Tanah Lot Temple sunset", "cost": 3, "durationHrs": 2 },
+      { "name": "Uluwatu surf session", "cost": 15, "durationHrs": 4 },
+      { "name": "Seminyak beach club", "cost": 30, "durationHrs": 5 }
+    ]
+  },
+  {
+    "id": "kyoto-jp",
+    "name": "Kyoto, Japan",
+    "lat": 35.0116,
+    "lng": 135.7681,
+    "type": ["culture", "heritage"],
+    "season": ["spring", "autumn"],
+    "budgetTier": "premium",
+    "crowdLevel": "medium",
+    "bestTimeToVisit": "Mar–May, Oct–Nov",
+    "description": "Ancient capital of Japan — thousand temples, bamboo groves, and geisha districts.",
+    "activities": [
+      { "name": "Fushimi Inari shrine hike", "cost": 0, "durationHrs": 3 },
+      { "name": "Arashiyama Bamboo Grove", "cost": 0, "durationHrs": 2 },
+      { "name": "Kinkaku-ji Golden Pavilion", "cost": 5, "durationHrs": 1.5 },
+      { "name": "Tea ceremony experience", "cost": 40, "durationHrs": 2 },
+      { "name": "Nishiki Market food tour", "cost": 30, "durationHrs": 3 },
+      { "name": "Gion geisha district walk", "cost": 0, "durationHrs": 2 }
+    ]
+  },
+  {
+    "id": "santorini-gr",
+    "name": "Santorini, Greece",
+    "lat": 36.3932,
+    "lng": 25.4615,
+    "type": ["beach", "culture"],
+    "season": ["summer", "spring"],
+    "budgetTier": "premium",
+    "crowdLevel": "high",
+    "bestTimeToVisit": "May–Sep",
+    "description": "Iconic white-washed villages perched on volcanic cliffs over the deep blue Aegean.",
+    "activities": [
+      { "name": "Oia sunset viewing", "cost": 0, "durationHrs": 2 },
+      { "name": "Caldera boat tour", "cost": 60, "durationHrs": 5 },
+      { "name": "Red Beach hike", "cost": 0, "durationHrs": 3 },
+      { "name": "Wine tasting tour", "cost": 45, "durationHrs": 3 },
+      { "name": "Akrotiri archaeological site", "cost": 12, "durationHrs": 2 },
+      { "name": "Fira to Oia cliff walk", "cost": 0, "durationHrs": 4 }
+    ]
+  },
+  {
+    "id": "reykjavik-is",
+    "name": "Reykjavík, Iceland",
+    "lat": 64.1466,
+    "lng": -21.9426,
+    "type": ["adventure", "nature"],
+    "season": ["summer", "winter"],
+    "budgetTier": "premium",
+    "crowdLevel": "low",
+    "bestTimeToVisit": "Jun–Aug (midnight sun), Sep–Mar (northern lights)",
+    "description": "Gateway to fire and ice — geysers, glaciers, volcanoes, and the northern lights.",
+    "activities": [
+      { "name": "Golden Circle day tour", "cost": 80, "durationHrs": 8 },
+      { "name": "Blue Lagoon soak", "cost": 70, "durationHrs": 3 },
+      { "name": "Northern Lights chase", "cost": 60, "durationHrs": 5 },
+      { "name": "Glacier hiking", "cost": 90, "durationHrs": 6 },
+      { "name": "Whale watching", "cost": 75, "durationHrs": 3 },
+      { "name": "Snorkeling Silfra fissure", "cost": 120, "durationHrs": 4 }
+    ]
+  },
+  {
+    "id": "machu-picchu-pe",
+    "name": "Machu Picchu, Peru",
+    "lat": -13.1631,
+    "lng": -72.545,
+    "type": ["adventure", "heritage", "nature"],
+    "season": ["winter", "spring"],
+    "budgetTier": "mid",
+    "crowdLevel": "medium",
+    "bestTimeToVisit": "May–Sep (dry season)",
+    "description": "Lost city of the Incas — dramatic Andean ruins perched above the Urubamba Valley.",
+    "activities": [
+      { "name": "Machu Picchu guided tour", "cost": 50, "durationHrs": 4 },
+      { "name": "Huayna Picchu hike", "cost": 20, "durationHrs": 3 },
+      { "name": "Inca Trail day hike", "cost": 35, "durationHrs": 6 },
+      { "name": "Aguas Calientes hot springs", "cost": 8, "durationHrs": 2 },
+      { "name": "Sacred Valley tour", "cost": 40, "durationHrs": 8 },
+      { "name": "Cusco city walk", "cost": 0, "durationHrs": 3 }
+    ]
+  },
+  {
+    "id": "marrakech-ma",
+    "name": "Marrakech, Morocco",
+    "lat": 31.6295,
+    "lng": -7.9811,
+    "type": ["culture", "adventure"],
+    "season": ["spring", "autumn"],
+    "budgetTier": "budget",
+    "crowdLevel": "high",
+    "bestTimeToVisit": "Mar–May, Sep–Nov",
+    "description": "Sensory overload in the Red City — labyrinthine souks, spice-scented riads, and the Atlas Mountains.",
+    "activities": [
+      { "name": "Jemaa el-Fnaa market", "cost": 0, "durationHrs": 3 },
+      { "name": "Majorelle Garden", "cost": 10, "durationHrs": 2 },
+      { "name": "Souk shopping tour", "cost": 15, "durationHrs": 4 },
+      { "name": "Atlas Mountains day trip", "cost": 45, "durationHrs": 8 },
+      { "name": "Traditional hammam", "cost": 25, "durationHrs": 2 },
+      { "name": "Moroccan cooking class", "cost": 35, "durationHrs": 4 }
+    ]
+  },
+  {
+    "id": "queenstown-nz",
+    "name": "Queenstown, New Zealand",
+    "lat": -45.0312,
+    "lng": 168.6626,
+    "type": ["adventure", "nature"],
+    "season": ["summer", "winter"],
+    "budgetTier": "premium",
+    "crowdLevel": "low",
+    "bestTimeToVisit": "Dec–Feb (summer), Jun–Aug (skiing)",
+    "description": "Adventure capital of the world — bungee, skiing, and jaw-dropping fjord landscapes.",
+    "activities": [
+      { "name": "Bungee jumping (Kawarau)", "cost": 150, "durationHrs": 2 },
+      { "name": "Milford Sound cruise", "cost": 120, "durationHrs": 8 },
+      { "name": "Skyline gondola & luge", "cost": 50, "durationHrs": 3 },
+      { "name": "Jet boat ride", "cost": 100, "durationHrs": 1.5 },
+      { "name": "Ben Lomond track hike", "cost": 0, "durationHrs": 6 },
+      { "name": "Wine trail tasting", "cost": 40, "durationHrs": 4 }
+    ]
+  },
+  {
+    "id": "paris-fr",
+    "name": "Paris, France",
+    "lat": 48.8566,
+    "lng": 2.3522,
+    "type": ["culture", "heritage"],
+    "season": ["spring", "summer", "autumn"],
+    "budgetTier": "premium",
+    "crowdLevel": "high",
+    "bestTimeToVisit": "Apr–Jun, Sep–Oct",
+    "description": "City of Light — world-class art, iconic architecture, and legendary cuisine.",
+    "activities": [
+      { "name": "Eiffel Tower visit", "cost": 25, "durationHrs": 3 },
+      { "name": "Louvre Museum", "cost": 17, "durationHrs": 4 },
+      { "name": "Montmartre walking tour", "cost": 0, "durationHrs": 3 },
+      { "name": "Seine River cruise", "cost": 15, "durationHrs": 1.5 },
+      { "name": "Versailles day trip", "cost": 20, "durationHrs": 6 },
+      { "name": "Le Marais food tour", "cost": 80, "durationHrs": 3 }
+    ]
+  },
+  {
+    "id": "cape-town-za",
+    "name": "Cape Town, South Africa",
+    "lat": -33.9249,
+    "lng": 18.4241,
+    "type": ["nature", "adventure", "beach"],
+    "season": ["summer", "spring"],
+    "budgetTier": "mid",
+    "crowdLevel": "medium",
+    "bestTimeToVisit": "Nov–Mar",
+    "description": "Where Table Mountain meets the Atlantic — vineyards, penguins, and dramatic coastlines.",
+    "activities": [
+      { "name": "Table Mountain cable car", "cost": 18, "durationHrs": 3 },
+      { "name": "Cape Point drive", "cost": 10, "durationHrs": 6 },
+      { "name": "Boulders Beach penguins", "cost": 8, "durationHrs": 2 },
+      { "name": "Winelands tour", "cost": 50, "durationHrs": 5 },
+      { "name": "Robben Island ferry", "cost": 25, "durationHrs": 4 },
+      { "name": "Camps Bay beach day", "cost": 0, "durationHrs": 4 }
+    ]
+  },
+  {
+    "id": "tokyo-jp",
+    "name": "Tokyo, Japan",
+    "lat": 35.6762,
+    "lng": 139.6503,
+    "type": ["culture", "urban"],
+    "season": ["spring", "autumn"],
+    "budgetTier": "premium",
+    "crowdLevel": "high",
+    "bestTimeToVisit": "Mar–May, Oct–Nov",
+    "description": "Neon-lit megacity where centuries-old temples sit beside futuristic skyscrapers.",
+    "activities": [
+      { "name": "Shibuya Crossing & Harajuku", "cost": 0, "durationHrs": 3 },
+      { "name": "Senso-ji Temple", "cost": 0, "durationHrs": 2 },
+      { "name": "Tsukiji Outer Market", "cost": 20, "durationHrs": 3 },
+      { "name": "TeamLab Borderless", "cost": 30, "durationHrs": 3 },
+      { "name": "Meiji Shrine & park", "cost": 0, "durationHrs": 2 },
+      { "name": "Akihabara exploration", "cost": 0, "durationHrs": 3 }
+    ]
+  },
+  {
+    "id": "dubai-ae",
+    "name": "Dubai, UAE",
+    "lat": 25.2048,
+    "lng": 55.2708,
+    "type": ["urban", "adventure"],
+    "season": ["winter", "autumn"],
+    "budgetTier": "premium",
+    "crowdLevel": "medium",
+    "bestTimeToVisit": "Nov–Mar",
+    "description": "Futuristic desert metropolis — record-breaking towers, luxury shopping, and desert safaris.",
+    "activities": [
+      { "name": "Burj Khalifa observation", "cost": 40, "durationHrs": 2 },
+      { "name": "Desert safari & BBQ", "cost": 60, "durationHrs": 6 },
+      { "name": "Dubai Mall & aquarium", "cost": 35, "durationHrs": 4 },
+      { "name": "Palm Jumeirah tour", "cost": 0, "durationHrs": 3 },
+      { "name": "Gold Souk & spice market", "cost": 0, "durationHrs": 2 },
+      { "name": "Dhow dinner cruise", "cost": 50, "durationHrs": 3 }
+    ]
+  },
+  {
+    "id": "maldives-mv",
+    "name": "Maldives",
+    "lat": 3.2028,
+    "lng": 73.2207,
+    "type": ["beach", "nature"],
+    "season": ["winter", "spring"],
+    "budgetTier": "premium",
+    "crowdLevel": "low",
+    "bestTimeToVisit": "Nov–Apr",
+    "description": "Paradise archipelago — overwater villas, crystal lagoons, and coral reefs teeming with life.",
+    "activities": [
+      { "name": "Snorkeling reef tour", "cost": 40, "durationHrs": 3 },
+      { "name": "Sunset dolphin cruise", "cost": 60, "durationHrs": 2 },
+      { "name": "Underwater restaurant dining", "cost": 150, "durationHrs": 2 },
+      { "name": "Island hopping", "cost": 80, "durationHrs": 6 },
+      { "name": "Spa & wellness day", "cost": 120, "durationHrs": 4 },
+      { "name": "Night fishing", "cost": 50, "durationHrs": 3 }
+    ]
+  },
+  {
+    "id": "rio-br",
+    "name": "Rio de Janeiro, Brazil",
+    "lat": -22.9068,
+    "lng": -43.1729,
+    "type": ["beach", "culture", "adventure"],
+    "season": ["summer", "autumn"],
+    "budgetTier": "mid",
+    "crowdLevel": "high",
+    "bestTimeToVisit": "Dec–Mar",
+    "description": "Cidade Maravilhosa — samba rhythms, golden beaches, and Christ the Redeemer watching over it all.",
+    "activities": [
+      { "name": "Christ the Redeemer", "cost": 15, "durationHrs": 3 },
+      { "name": "Sugarloaf cable car", "cost": 22, "durationHrs": 2 },
+      { "name": "Copacabana beach day", "cost": 0, "durationHrs": 4 },
+      { "name": "Tijuca Forest hike", "cost": 0, "durationHrs": 5 },
+      { "name": "Lapa Arches nightlife", "cost": 10, "durationHrs": 4 },
+      { "name": "Favela walking tour", "cost": 25, "durationHrs": 3 }
+    ]
+  },
+  {
+    "id": "bangkok-th",
+    "name": "Bangkok, Thailand",
+    "lat": 13.7563,
+    "lng": 100.5018,
+    "type": ["culture", "urban"],
+    "season": ["winter", "autumn"],
+    "budgetTier": "budget",
+    "crowdLevel": "high",
+    "bestTimeToVisit": "Nov–Feb",
+    "description": "Temple spires and tuk-tuk chaos — street food paradise with ornate palaces around every corner.",
+    "activities": [
+      { "name": "Grand Palace & Wat Phra Kaew", "cost": 15, "durationHrs": 3 },
+      { "name": "Chatuchak Weekend Market", "cost": 0, "durationHrs": 4 },
+      { "name": "Chao Phraya river boat", "cost": 5, "durationHrs": 2 },
+      { "name": "Street food tour", "cost": 10, "durationHrs": 3 },
+      { "name": "Wat Arun sunset", "cost": 3, "durationHrs": 2 },
+      { "name": "Floating market trip", "cost": 20, "durationHrs": 5 }
+    ]
+  },
+  {
+    "id": "swiss-alps-ch",
+    "name": "Swiss Alps, Switzerland",
+    "lat": 46.8182,
+    "lng": 8.2275,
+    "type": ["adventure", "nature"],
+    "season": ["summer", "winter"],
+    "budgetTier": "premium",
+    "crowdLevel": "medium",
+    "bestTimeToVisit": "Jun–Sep (hiking), Dec–Mar (skiing)",
+    "description": "Legendary peaks — world-class skiing, scenic train rides, and Alpine meadows dotted with wildflowers.",
+    "activities": [
+      { "name": "Jungfraujoch train", "cost": 200, "durationHrs": 6 },
+      { "name": "Paragliding Interlaken", "cost": 180, "durationHrs": 2 },
+      { "name": "Lake Geneva cruise", "cost": 40, "durationHrs": 3 },
+      { "name": "Grindelwald hiking", "cost": 0, "durationHrs": 5 },
+      { "name": "Zermatt & Matterhorn", "cost": 30, "durationHrs": 6 },
+      { "name": "Chocolate factory tour", "cost": 15, "durationHrs": 2 }
+    ]
+  },
+  {
+    "id": "new-york-us",
+    "name": "New York City, USA",
+    "lat": 40.7128,
+    "lng": -74.006,
+    "type": ["urban", "culture"],
+    "season": ["spring", "autumn", "winter"],
+    "budgetTier": "premium",
+    "crowdLevel": "high",
+    "bestTimeToVisit": "Apr–Jun, Sep–Nov",
+    "description": "The city that never sleeps — Broadway shows, Central Park, and a skyline that defines ambition.",
+    "activities": [
+      { "name": "Statue of Liberty ferry", "cost": 24, "durationHrs": 4 },
+      { "name": "Central Park walk", "cost": 0, "durationHrs": 3 },
+      { "name": "Metropolitan Museum of Art", "cost": 25, "durationHrs": 4 },
+      { "name": "Times Square & Broadway show", "cost": 120, "durationHrs": 4 },
+      { "name": "Brooklyn Bridge walk", "cost": 0, "durationHrs": 2 },
+      { "name": "High Line & Chelsea Market", "cost": 0, "durationHrs": 3 }
+    ]
+  },
+  {
+    "id": "cairo-eg",
+    "name": "Cairo, Egypt",
+    "lat": 30.0444,
+    "lng": 31.2357,
+    "type": ["heritage", "culture"],
+    "season": ["winter", "spring"],
+    "budgetTier": "budget",
+    "crowdLevel": "medium",
+    "bestTimeToVisit": "Oct–Apr",
+    "description": "5,000 years of civilization — the Pyramids, the Sphinx, and the treasures of Tutankhamun.",
+    "activities": [
+      { "name": "Pyramids of Giza", "cost": 12, "durationHrs": 4 },
+      { "name": "Egyptian Museum", "cost": 10, "durationHrs": 3 },
+      { "name": "Khan el-Khalili bazaar", "cost": 0, "durationHrs": 3 },
+      { "name": "Nile felucca ride", "cost": 8, "durationHrs": 2 },
+      { "name": "Saqqara & Memphis day trip", "cost": 20, "durationHrs": 6 },
+      { "name": "Islamic Cairo walk", "cost": 0, "durationHrs": 3 }
+    ]
+  },
+  {
+    "id": "phuket-th",
+    "name": "Phuket, Thailand",
+    "lat": 7.8804,
+    "lng": 98.3923,
+    "type": ["beach", "adventure"],
+    "season": ["winter", "spring"],
+    "budgetTier": "budget",
+    "crowdLevel": "medium",
+    "bestTimeToVisit": "Nov–Apr",
+    "description": "Thailand's jewel island — turquoise bays, limestone karsts, and vibrant night markets.",
+    "activities": [
+      { "name": "Phi Phi Island tour", "cost": 30, "durationHrs": 8 },
+      { "name": "Patong Beach day", "cost": 0, "durationHrs": 4 },
+      { "name": "Big Buddha viewpoint", "cost": 0, "durationHrs": 2 },
+      { "name": "Thai cooking class", "cost": 25, "durationHrs": 3 },
+      { "name": "James Bond Island trip", "cost": 35, "durationHrs": 6 },
+      { "name": "Old Phuket Town walk", "cost": 0, "durationHrs": 2 }
+    ]
+  },
+  {
+    "id": "patagonia-ar",
+    "name": "Patagonia, Argentina",
+    "lat": -50.3402,
+    "lng": -72.2646,
+    "type": ["nature", "adventure"],
+    "season": ["summer", "autumn"],
+    "budgetTier": "mid",
+    "crowdLevel": "low",
+    "bestTimeToVisit": "Nov–Mar",
+    "description": "End of the world landscapes — Perito Moreno glacier, Torres del Paine, and endless windswept steppe.",
+    "activities": [
+      { "name": "Perito Moreno glacier walk", "cost": 50, "durationHrs": 6 },
+      { "name": "Torres del Paine day hike", "cost": 25, "durationHrs": 8 },
+      { "name": "Lago Argentino boat tour", "cost": 40, "durationHrs": 4 },
+      { "name": "El Chaltén trekking", "cost": 0, "durationHrs": 7 },
+      { "name": "Penguin colony visit", "cost": 15, "durationHrs": 3 },
+      { "name": "Gaucho ranch experience", "cost": 60, "durationHrs": 5 }
+    ]
+  }
+]
