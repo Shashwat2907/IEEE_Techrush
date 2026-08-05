@@ -40,14 +40,23 @@ export default function GlobeSearch() {
       const result = await geocode(query);
       if (result) {
         flyToDestination({
-          id: `geocoded-${Date.now()}`, name: result.name.split(',').slice(0, 2).join(','),
-          lat: result.lat, lng: result.lng, type: [], season: [],
-          budgetTier: 'mid', crowdLevel: 'medium', activities: [],
+          id: `geocoded-${Date.now()}`,
+          name: result.name.split(',').slice(0, 2).join(','),
+          lat: result.lat,
+          lng: result.lng,
+          type: [],
+          season: [],
+          budgetTier: 'mid',
+          crowdLevel: 'medium',
+          activities: [],
         });
         setQuery(''); setSuggestions([]); setIsFocused(false);
       }
-    } catch (err) { console.warn('Search failed:', err); }
-    finally { setIsSearching(false); }
+    } catch (err) {
+      console.warn('Search failed:', err);
+    } finally {
+      setIsSearching(false);
+    }
   }, [query, flyToDestination]);
 
   const handleSuggestionClick = useCallback((dest) => {
@@ -66,22 +75,25 @@ export default function GlobeSearch() {
 
   return (
     <div className="flex justify-center pt-2 px-4 w-full select-none">
-      <div className="relative w-full max-w-xl"
+      <div
+        className="relative w-full max-w-xl"
         onMouseLeave={() => { if (!isFocused && !query) setHovered(null); }}
       >
-        <div className="relative flex items-center justify-center gap-3 h-14 w-full">
+        <div className="relative flex items-center justify-center gap-2.5 h-13 w-full">
           {/* Search Input */}
           {(!activeMode || activeMode === 'oval') && (
-            <motion.div layout initial={false}
+            <motion.div
+              layout
+              initial={false}
               animate={{ flexGrow: activeMode === 'oval' ? 1 : 1, width: activeMode === 'oval' ? '100%' : 'auto' }}
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               onMouseEnter={() => setHovered('oval')}
               onClick={() => { setHovered('oval'); inputRef.current?.focus(); }}
-              className={`relative flex items-center h-full rounded-full cursor-pointer transition-colors duration-200 ${
+              className={`relative flex items-center h-full rounded-2xl cursor-pointer transition-colors duration-200 ${
                 activeMode === 'oval'
-                  ? 'bg-surface/90 border border-accent-sky/40 shadow-xl shadow-accent-sky/10'
-                  : 'bg-white/5 hover:bg-white/8 border border-white/10 shadow-lg'
-              } backdrop-blur-xl px-4 overflow-hidden flex-1`}
+                  ? 'bg-surface border border-white/20 shadow-xl'
+                  : 'bg-surface/80 hover:bg-surface border border-white/10 shadow-lg'
+              } px-4 overflow-hidden flex-1`}
             >
               <form onSubmit={handleSearch} className="flex items-center w-full h-full">
                 <span className="text-white/60 mr-3 shrink-0">
@@ -96,17 +108,26 @@ export default function GlobeSearch() {
                     </svg>
                   )}
                 </span>
-                <input ref={inputRef} type="text" value={query}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setTimeout(() => setIsFocused(false), 250)}
-                  placeholder="Where to next?"
-                  className="w-full bg-transparent text-white placeholder:text-white/30 font-body text-sm sm:text-base outline-none tracking-wide"
-                  id="globe-search-input" autoComplete="off"
+                  placeholder="Where to next? (e.g. Kyoto, Bali, Paris)"
+                  className="w-full bg-transparent text-white placeholder:text-text-secondary/60 font-body text-sm outline-none tracking-wide"
+                  id="globe-search-input"
+                  autoComplete="off"
                 />
                 {query && (
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setQuery(''); setSuggestions([]); inputRef.current?.focus(); }}
-                    className="p-1 text-white/30 hover:text-white transition-colors">✕</button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setQuery(''); setSuggestions([]); inputRef.current?.focus(); }}
+                    className="p-1 text-white/40 hover:text-white transition-colors"
+                  >
+                    ✕
+                  </button>
                 )}
               </form>
             </motion.div>
@@ -114,50 +135,60 @@ export default function GlobeSearch() {
 
           {/* Quiz Button */}
           {(!activeMode || activeMode === 'quiz') && (
-            <motion.div layout initial={false}
-              animate={{ width: activeMode === 'quiz' ? '100%' : '56px' }}
+            <motion.div
+              layout
+              initial={false}
+              animate={{ width: activeMode === 'quiz' ? '100%' : '52px' }}
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               onMouseEnter={() => setHovered('quiz')}
               onClick={() => { if (activeMode === 'quiz') showQuiz(); }}
-              className={`relative flex items-center justify-center h-full rounded-full cursor-pointer transition-colors duration-200 ${
+              className={`relative flex items-center justify-center h-full rounded-2xl cursor-pointer transition-colors duration-200 ${
                 activeMode === 'quiz'
-                  ? 'bg-surface/90 border border-accent-sky/40 shadow-xl shadow-accent-sky/10 px-6'
-                  : 'w-14 bg-white/5 hover:bg-white/8 border border-white/10 shadow-lg'
-              } backdrop-blur-xl shrink-0 overflow-hidden`}
+                  ? 'bg-surface border border-white/20 shadow-xl px-5'
+                  : 'w-[52px] bg-surface/80 hover:bg-surface border border-white/10 shadow-lg'
+              } shrink-0 overflow-hidden`}
             >
               {activeMode === 'quiz' ? (
-                <button type="button" onClick={showQuiz}
-                  className="flex items-center justify-center gap-3 w-full h-full text-white font-body font-medium text-sm sm:text-base whitespace-nowrap">
-                  <span className="text-xl">🧭</span>
-                  <span>Don't know where to go? <strong className="text-accent-sky font-semibold">Take Quiz →</strong></span>
+                <button
+                  type="button"
+                  onClick={showQuiz}
+                  className="flex items-center justify-center gap-2.5 w-full h-full text-white font-body font-medium text-sm whitespace-nowrap"
+                >
+                  <span className="text-lg">🧭</span>
+                  <span>Not sure where to go? <strong className="text-accent-sky font-semibold">Take Quiz →</strong></span>
                 </button>
               ) : (
-                <span className="text-xl select-none" title="Don't know where to go?">🧭</span>
+                <span className="text-lg select-none" title="Discovery Quiz">🧭</span>
               )}
             </motion.div>
           )}
 
           {/* Random Place */}
           {(!activeMode || activeMode === 'random') && (
-            <motion.div layout initial={false}
-              animate={{ width: activeMode === 'random' ? '100%' : '56px' }}
+            <motion.div
+              layout
+              initial={false}
+              animate={{ width: activeMode === 'random' ? '100%' : '52px' }}
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               onMouseEnter={() => setHovered('random')}
               onClick={() => { if (activeMode === 'random') handleRandomPlace(); }}
-              className={`relative flex items-center justify-center h-full rounded-full cursor-pointer transition-colors duration-200 ${
+              className={`relative flex items-center justify-center h-full rounded-2xl cursor-pointer transition-colors duration-200 ${
                 activeMode === 'random'
-                  ? 'bg-surface/90 border border-accent-amber/40 shadow-xl shadow-accent-amber/10 px-6'
-                  : 'w-14 bg-white/5 hover:bg-white/8 border border-white/10 shadow-lg'
-              } backdrop-blur-xl shrink-0 overflow-hidden`}
+                  ? 'bg-surface border border-white/20 shadow-xl px-5'
+                  : 'w-[52px] bg-surface/80 hover:bg-surface border border-white/10 shadow-lg'
+              } shrink-0 overflow-hidden`}
             >
               {activeMode === 'random' ? (
-                <button type="button" onClick={handleRandomPlace}
-                  className="flex items-center justify-center gap-3 w-full h-full text-white font-body font-medium text-sm sm:text-base whitespace-nowrap">
-                  <span className="text-xl">🎲</span>
+                <button
+                  type="button"
+                  onClick={handleRandomPlace}
+                  className="flex items-center justify-center gap-2.5 w-full h-full text-white font-body font-medium text-sm whitespace-nowrap"
+                >
+                  <span className="text-lg">🎲</span>
                   <span>Surprise Me! <strong className="text-accent-amber font-semibold">Random Place →</strong></span>
                 </button>
               ) : (
-                <span className="text-xl select-none" title="Random destination">🎲</span>
+                <span className="text-lg select-none" title="Random destination">🎲</span>
               )}
             </motion.div>
           )}
@@ -165,15 +196,19 @@ export default function GlobeSearch() {
 
         {/* Suggestions */}
         {isFocused && suggestions.length > 0 && (
-          <div className="absolute top-full mt-3 w-full glass rounded-2xl shadow-2xl overflow-hidden z-50 animate-fade-in">
+          <div className="absolute top-full mt-2.5 w-full bg-surface border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-fade-in">
             {suggestions.map((dest) => (
-              <button key={dest.id} type="button" onClick={() => handleSuggestionClick(dest)}
-                className="w-full text-left px-5 py-3.5 hover:bg-white/5 transition-colors duration-150 flex items-center justify-between border-b border-white/5 last:border-0">
+              <button
+                key={dest.id}
+                type="button"
+                onClick={() => handleSuggestionClick(dest)}
+                className="w-full text-left px-5 py-3 hover:bg-white/5 transition-colors duration-150 flex items-center justify-between border-b border-white/5 last:border-0"
+              >
                 <div>
                   <span className="text-white font-body text-sm font-semibold tracking-wide">{dest.name}</span>
                   <div className="flex items-center gap-2 mt-1">
                     {dest.type.map((t) => (
-                      <span key={t} className="text-[10px] text-accent-sky font-mono uppercase bg-accent-sky/10 px-2 py-0.5 rounded-full">{t}</span>
+                      <span key={t} className="text-[10px] text-accent-sky font-mono uppercase bg-accent-sky/10 border border-accent-sky/20 px-2 py-0.5 rounded-full">{t}</span>
                     ))}
                   </div>
                 </div>

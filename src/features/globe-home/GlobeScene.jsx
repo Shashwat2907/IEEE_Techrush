@@ -11,53 +11,38 @@ import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import { GlobeLoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 
 const GLOBE_RADIUS = 1.0;
-const CLOUD_RADIUS = 1.018;
+const CLOUD_RADIUS = 1.012;
 
-/* Atmosphere Rim Shader */
+/* Atmospheric Rayleigh Scattering Rim Shader (Soft Google Earth glow) */
 const AtmosphereRimShader = {
-  uniforms: { color: { value: new THREE.Color('#60a5fa') } },
+  uniforms: {
+    color: { value: new THREE.Color('#38bdf8') },
+  },
   vertexShader: `
     varying vec3 vNormal;
+    varying vec3 vPosition;
     void main() {
       vNormal = normalize(normalMatrix * normal);
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * vec4(vPosition, 1.0);
     }
   `,
   fragmentShader: `
     uniform vec3 color;
     varying vec3 vNormal;
+    varying vec3 vPosition;
     void main() {
-      float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.8);
-      intensity = clamp(intensity, 0.0, 1.0);
-      gl_FragColor = vec4(color, intensity * 0.6);
+      vec3 viewDir = normalize(-vPosition);
+      float rim = 1.0 - max(0.0, dot(vNormal, viewDir));
+      float intensity = pow(rim, 3.6) * 0.75;
+      intensity = clamp(intensity, 0.0, 0.85);
+      gl_FragColor = vec4(color, intensity);
     }
   `,
 };
 
-/* Atmosphere Halo Shader */
-const AtmosphereHaloShader = {
-  uniforms: { color: { value: new THREE.Color('#3b82f6') } },
-  vertexShader: `
-    varying vec3 vNormal;
-    void main() {
-      vNormal = normalize(normalMatrix * normal);
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform vec3 color;
-    varying vec3 vNormal;
-    void main() {
-      float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.2);
-      intensity = clamp(intensity, 0.0, 1.0);
-      gl_FragColor = vec4(color, intensity * 0.7);
-    }
-  `,
-};
-
-/* Earth Sphere */
-function EarthSphere({ quizActive }) {
-  const meshRef = useRef();
+/* Earth Sphere & Atmosphere Layers */
+function EarthMesh() {
   const cloudsRef = useRef();
 
   const [dayMap, topoMap, specularMap, cloudsMap] = useTexture([
@@ -70,81 +55,98 @@ function EarthSphere({ quizActive }) {
   useMemo(() => {
     if (dayMap) {
       dayMap.colorSpace = THREE.SRGBColorSpace;
-      dayMap.anisotropy = 8;
+      dayMap.anisotropy = 16;
     }
-  }, [dayMap]);
+    if (cloudsMap) {
+      cloudsMap.colorSpace = THREE.SRGBColorSpace;
+      cloudsMap.anisotropy = 8;
+    }
+  }, [dayMap, cloudsMap]);
 
   useFrame((_, delta) => {
-    if (meshRef.current && !quizActive) meshRef.current.rotation.y += delta * 0.035;
-    if (cloudsRef.current && !quizActive) cloudsRef.current.rotation.y += delta * 0.048;
+    // Subtle relative cloud drift
+    if (cloudsRef.current) {
+      cloudsRef.current.rotation.y += delta * 0.006;
+    }
   });
 
   const rimMaterial = useMemo(() => new THREE.ShaderMaterial({
-    ...AtmosphereRimShader, transparent: true, blending: THREE.AdditiveBlending,
-    side: THREE.FrontSide, depthWrite: false,
-  }), []);
-
-  const haloMaterial = useMemo(() => new THREE.ShaderMaterial({
-    ...AtmosphereHaloShader, transparent: true, blending: THREE.AdditiveBlending,
-    side: THREE.BackSide, depthWrite: false,
+    ...AtmosphereRimShader,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    side: THREE.FrontSide,
+    depthWrite: false,
   }), []);
 
   return (
     <>
-      <mesh ref={meshRef}>
+      {/* Base Earth Planet */}
+      <mesh receiveShadow castShadow>
         <sphereGeometry args={[GLOBE_RADIUS, 128, 128]} />
         <meshStandardMaterial
-          map={dayMap} bumpMap={topoMap} bumpScale={0.03}
-          roughnessMap={specularMap} roughness={0.4} metalness={0.05}
+          map={dayMap}
+          bumpMap={topoMap}
+          bumpScale={0.015}
+          roughnessMap={specularMap}
+          roughness={0.68}
+          metalness={0.04}
         />
       </mesh>
+
+      {/* Atmospheric Rim hugging the sphere */}
       <mesh>
-        <sphereGeometry args={[GLOBE_RADIUS * 1.008, 64, 64]} />
+        <sphereGeometry args={[GLOBE_RADIUS * 1.004, 64, 64]} />
         <primitive object={rimMaterial} attach="material" />
       </mesh>
+
+      {/* Clouds Layer */}
       <mesh ref={cloudsRef}>
         <sphereGeometry args={[CLOUD_RADIUS, 96, 96]} />
         <meshStandardMaterial
-          map={cloudsMap} transparent opacity={0.38}
-          depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide}
+          map={cloudsMap}
+          transparent
+          opacity={0.28}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          side={THREE.DoubleSide}
         />
-      </mesh>
-      <mesh>
-        <sphereGeometry args={[GLOBE_RADIUS * 1.15, 64, 64]} />
-        <primitive object={haloMaterial} attach="material" />
       </mesh>
     </>
   );
 }
 
-/* Starfield */
+/* Cosmic Deep-Space Starfield */
 function CosmicStarfield() {
   const { positions, colors } = useMemo(() => {
-    const count = 2500;
+    const count = 3000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const palette = [
       new THREE.Color('#ffffff'),
+      new THREE.Color('#e0f2fe'),
+      new THREE.Color('#bae6fd'),
       new THREE.Color('#cbd5e1'),
-      new THREE.Color('#e2e8f0'),
-      new THREE.Color('#bfdbfe'),
     ];
     for (let i = 0; i < count; i++) {
-      const radius = 35 + Math.random() * 40;
+      const radius = 40 + Math.random() * 45;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
       positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
       positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       positions[i * 3 + 2] = radius * Math.cos(phi);
       const c = palette[Math.floor(Math.random() * palette.length)];
-      colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+      colors[i * 3] = c.r;
+      colors[i * 3 + 1] = c.g;
+      colors[i * 3 + 2] = c.b;
     }
     return { positions, colors };
   }, []);
 
   const pointsRef = useRef();
   useFrame((state) => {
-    if (pointsRef.current) pointsRef.current.rotation.y = state.clock.elapsedTime * 0.002;
+    if (pointsRef.current) {
+      pointsRef.current.rotation.y = state.clock.elapsedTime * 0.001;
+    }
   });
 
   return (
@@ -153,50 +155,98 @@ function CosmicStarfield() {
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
         <bufferAttribute attach="attributes-color" args={[colors, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.06} vertexColors transparent opacity={0.7} sizeAttenuation />
+      <pointsMaterial size={0.055} vertexColors transparent opacity={0.65} sizeAttenuation />
     </points>
   );
 }
 
-/* Subtle Destination Pin — small, palette-matching, no neon */
-function DestinationPin({ destination, isTrending, isFiltered, onClick }) {
+/* Scalable Intelligent Destination Pin */
+function DestinationPin({ destination, isTrending, isFiltered, isProminent, onClick }) {
   const [hovered, setHovered] = useState(false);
-  const meshRef = useRef();
+  const { camera } = useThree();
+  const [visible, setVisible] = useState(true);
 
-  const position = useMemo(
-    () => latLngToVector3(destination.lat, destination.lng, GLOBE_RADIUS + 0.008),
+  const localPos = useMemo(
+    () => latLngToVector3(destination.lat, destination.lng, GLOBE_RADIUS + 0.006),
     [destination.lat, destination.lng]
   );
 
-  const opacity = isFiltered === false ? 0.1 : 1;
-  const color = isTrending ? '#F59E0B' : '#94a3b8';
+  const posVec = useMemo(() => new THREE.Vector3(...localPos), [localPos]);
+
+  // Backface occlusion culling: check if facing the camera
+  useFrame(() => {
+    const camDir = camera.position.clone().normalize();
+    const pinDir = posVec.clone().normalize();
+    const dot = pinDir.dot(camDir);
+    // If dot < 0.12, the pin is on the back or limb of the sphere
+    setVisible(dot > 0.12);
+  });
+
+  if (!visible) return null;
+
+  const color = isTrending ? '#F59E0B' : '#38BDF8';
+  const size = isTrending || isProminent ? 0.009 : 0.0065;
 
   return (
-    <group position={position}>
+    <group position={localPos}>
+      {/* Outer subtle glow ring for trending / prominent destinations */}
+      {(isTrending || isProminent) && (
+        <mesh scale={hovered ? 2.6 : 1.8}>
+          <ringGeometry args={[0.008, 0.012, 24]} />
+          <meshBasicMaterial
+            color={color}
+            transparent
+            opacity={hovered ? 0.8 : 0.35}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+
+      {/* Core Pin Sphere */}
       <mesh
-        ref={meshRef}
-        onPointerEnter={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
-        onPointerLeave={() => { setHovered(false); document.body.style.cursor = 'auto'; }}
-        onClick={(e) => { e.stopPropagation(); onClick(destination); }}
-        scale={hovered ? 1.8 : 1}
+        onPointerEnter={(e) => {
+          e.stopPropagation();
+          setHovered(true);
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerLeave={() => {
+          setHovered(false);
+          document.body.style.cursor = 'auto';
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick(destination);
+        }}
+        scale={hovered ? 2.2 : 1}
       >
-        <sphereGeometry args={[0.008, 12, 12]} />
+        <sphereGeometry args={[size, 16, 16]} />
         <meshStandardMaterial
-          color={color} emissive={color}
-          emissiveIntensity={hovered ? 2.0 : isTrending ? 0.8 : 0.3}
-          transparent opacity={opacity}
+          color={color}
+          emissive={color}
+          emissiveIntensity={hovered ? 2.5 : isTrending ? 1.2 : 0.6}
+          roughness={0.3}
+          transparent
+          opacity={isFiltered === false ? 0.15 : 1}
         />
       </mesh>
 
+      {/* Interactive Tooltip Card */}
       {hovered && (
-        <Html position={[0, 0.035, 0]} center style={{ pointerEvents: 'none' }}>
-          <div className="glass text-white px-3 py-2 rounded-xl text-xs font-body whitespace-nowrap shadow-2xl">
-            <span className="font-semibold text-sm">{destination.name}</span>
-            {isTrending && (
-              <span className="ml-2 text-[10px] text-accent-amber bg-accent-amber/10 px-1.5 py-0.5 rounded-full">
-                Trending
-              </span>
-            )}
+        <Html position={[0, 0.045, 0]} center style={{ pointerEvents: 'none' }}>
+          <div className="glass text-white px-3.5 py-2.5 rounded-2xl text-xs font-body whitespace-nowrap shadow-2xl border border-white/15 animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm tracking-wide font-display">{destination.name}</span>
+              {isTrending && (
+                <span className="text-[10px] text-accent-amber font-mono bg-accent-amber/15 border border-accent-amber/30 px-1.5 py-0.5 rounded-full">
+                  🔥 Trending
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-1 text-[11px] text-text-secondary">
+              <span>{destination.bestTimeToVisit ? `🗓 ${destination.bestTimeToVisit}` : ''}</span>
+              <span>·</span>
+              <span className="capitalize">{destination.budgetTier}</span>
+            </div>
           </div>
         </Html>
       )}
@@ -204,29 +254,52 @@ function DestinationPin({ destination, isTrending, isFiltered, onClick }) {
   );
 }
 
-/* All destination pins */
+/* Scalable Pins Container with LOD filtering */
 function DestinationPins({ onPinClick }) {
   const { filters } = useFilters();
+  const { camera } = useThree();
+  const [camDist, setCamDist] = useState(2.4);
+
   const allDestinations = useMemo(() => getDestinations(), []);
   const trendingIds = useMemo(() => new Set(getTrendingDestinations().map(d => d.id)), []);
+
+  useFrame(() => {
+    setCamDist(camera.position.length());
+  });
 
   const filteredIds = useMemo(() => {
     if (!filters.types.length && !filters.seasons.length && !filters.budgetTier && !filters.crowdLevel) return null;
     const filtered = getDestinations({
       type: filters.types.length ? filters.types : undefined,
       season: filters.seasons.length ? filters.seasons : undefined,
-      budgetTier: filters.budgetTier, crowdLevel: filters.crowdLevel,
+      budgetTier: filters.budgetTier,
+      crowdLevel: filters.crowdLevel,
     });
     return new Set(filtered.map(d => d.id));
   }, [filters]);
 
+  // Scalable LOD Strategy:
+  // - High distance (> 2.3): show trending + top featured + active filtered matches
+  // - Close distance (<= 2.3): show all pins
+  const visibleDestinations = useMemo(() => {
+    if (filteredIds !== null) {
+      return allDestinations.filter(d => filteredIds.has(d.id));
+    }
+    if (camDist > 2.2) {
+      return allDestinations.filter(d => trendingIds.has(d.id) || ['bali-id', 'kyoto-jp', 'santorini-gr', 'reykjavik-is', 'paris-fr', 'nyc-us', 'cairo-eg', 'tokyo-jp', 'rio-br', 'sydney-au'].includes(d.id));
+    }
+    return allDestinations;
+  }, [allDestinations, filteredIds, camDist, trendingIds]);
+
   return (
     <group>
-      {allDestinations.map(dest => (
+      {visibleDestinations.map(dest => (
         <DestinationPin
-          key={dest.id} destination={dest}
+          key={dest.id}
+          destination={dest}
           isTrending={trendingIds.has(dest.id)}
           isFiltered={filteredIds === null ? null : filteredIds.has(dest.id)}
+          isProminent={trendingIds.has(dest.id)}
           onClick={onPinClick}
         />
       ))}
@@ -234,19 +307,38 @@ function DestinationPins({ onPinClick }) {
   );
 }
 
-/* Lighting */
+/* Realistic Google Earth Lighting */
 function GlobeLighting() {
   return (
     <>
-      <ambientLight intensity={0.7} color="#e0f2fe" />
-      <directionalLight position={[5, 3, 5]} intensity={2.8} color="#ffffff" />
-      <directionalLight position={[-5, -2, -3]} intensity={0.7} color="#60a5fa" />
-      <directionalLight position={[0, -4, 2]} intensity={0.3} color="#bfdbfe" />
+      <ambientLight intensity={0.7} color="#ffffff" />
+      {/* Sunlight */}
+      <directionalLight
+        position={[6, 4, 5]}
+        intensity={2.2}
+        color="#ffffff"
+      />
+      {/* Atmospheric space bounce */}
+      <directionalLight
+        position={[-6, -2, -4]}
+        intensity={0.4}
+        color="#93c5fd"
+      />
     </>
   );
 }
 
-/* Camera Controller — preserving all existing animation logic */
+/* Synchronized Globe Group (Earth + Clouds + Pins all lock together) */
+function SynchronizedGlobe({ onPinClick, quizActive }) {
+  return (
+    <group>
+      <EarthMesh />
+      <DestinationPins onPinClick={onPinClick} />
+    </group>
+  );
+}
+
+/* Camera Controller for Flight & Orbit Controls */
 function CameraController({ quizActive }) {
   const { flightTarget, isTransitioning, isReversingTransition, arriveAtDestination, navigateToGlobe } = useApp();
   const controlsRef = useRef();
@@ -263,7 +355,7 @@ function CameraController({ quizActive }) {
       flightProgress.current = 0;
       const targetPos = new THREE.Vector3(...latLngToVector3(flightTarget.lat, flightTarget.lng, 2.5));
       const angle = camera.position.angleTo(targetPos);
-      flightDuration.current = 1.5 + (angle / Math.PI) * 2.0;
+      flightDuration.current = 1.4 + (angle / Math.PI) * 1.8;
     }
   }, [isTransitioning, flightTarget, isReversingTransition, camera, flightStartPos]);
 
@@ -274,7 +366,7 @@ function CameraController({ quizActive }) {
       camera.lookAt(0, 0, 0);
       setFlightStartPos(targetPos.clone());
       flightProgress.current = 0;
-      flightDuration.current = 1.5;
+      flightDuration.current = 1.4;
     }
   }, [isReversingTransition, flightTarget, camera, flightStartPos]);
 
@@ -285,6 +377,7 @@ function CameraController({ quizActive }) {
     }
   }, [isTransitioning, isReversingTransition, camera.position]);
 
+  // Smooth mouse wheel zoom toward sphere intersection
   useEffect(() => {
     const domElement = gl.domElement;
     if (!domElement) return;
@@ -300,10 +393,10 @@ function CameraController({ quizActive }) {
       ndc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       ndc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(ndc, camera);
-      const zoomSpeed = 0.00075;
+      const zoomSpeed = 0.0008;
       const zoomFactor = Math.exp(event.deltaY * zoomSpeed);
       const currentDistance = camera.position.length();
-      const newDistance = THREE.MathUtils.clamp(currentDistance * zoomFactor, 1.15, 4.0);
+      const newDistance = THREE.MathUtils.clamp(currentDistance * zoomFactor, 1.15, 4.2);
       const actualFactor = newDistance / currentDistance;
       const hasIntersection = raycaster.ray.intersectSphere(earthSphere, hitPoint);
 
@@ -340,36 +433,50 @@ function CameraController({ quizActive }) {
       const currentRadius = startRadius + (endRadius - startRadius) * easeT;
       camera.position.copy(currentDir.multiplyScalar(currentRadius));
       camera.lookAt(0, 0, 0);
-      if (t >= 1) { arriveAtDestination(flightTarget); setFlightStartPos(null); }
+      if (t >= 1) {
+        arriveAtDestination(flightTarget);
+        setFlightStartPos(null);
+      }
     } else if (isReversingTransition && flightTarget && flightStartPos) {
       if (controlsRef.current) controlsRef.current.enabled = false;
       flightProgress.current += delta / flightDuration.current;
       const t = Math.min(flightProgress.current, 1);
       const easeT = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       const startDir = flightStartPos.clone().normalize();
-      const currentRadius = CLOUD_RADIUS - 0.01 + (2.5 - (CLOUD_RADIUS - 0.01)) * easeT;
+      const currentRadius = CLOUD_RADIUS - 0.01 + (2.4 - (CLOUD_RADIUS - 0.01)) * easeT;
       camera.position.copy(startDir.multiplyScalar(currentRadius));
       camera.lookAt(0, 0, 0);
-      if (t >= 1) { navigateToGlobe(false); setFlightStartPos(null); }
+      if (t >= 1) {
+        navigateToGlobe(false);
+        setFlightStartPos(null);
+      }
     } else {
       if (controlsRef.current) {
-        controlsRef.current.enabled = true;
+        controlsRef.current.enabled = !quizActive;
         controlsRef.current.autoRotate = !quizActive && !isCustomZooming.current;
       }
       if (isCustomZooming.current) {
         camera.position.lerp(targetCamPos.current, 0.08);
         camera.lookAt(0, 0, 0);
-        if (camera.position.distanceTo(targetCamPos.current) < 0.005) isCustomZooming.current = false;
+        if (camera.position.distanceTo(targetCamPos.current) < 0.005) {
+          isCustomZooming.current = false;
+        }
       }
     }
   });
 
   return (
     <OrbitControls
-      ref={controlsRef} enablePan={false} enableZoom={false}
-      minDistance={1.15} maxDistance={4.0}
-      autoRotate={!quizActive} autoRotateSpeed={0.4}
-      enableDamping dampingFactor={0.06} rotateSpeed={0.5}
+      ref={controlsRef}
+      enablePan={false}
+      enableZoom={false}
+      minDistance={1.15}
+      maxDistance={4.2}
+      autoRotate={!quizActive}
+      autoRotateSpeed={0.35}
+      enableDamping
+      dampingFactor={0.06}
+      rotateSpeed={0.55}
     />
   );
 }
@@ -380,8 +487,7 @@ function GlobeContent({ onPinClick, quizActive }) {
       <GlobeLighting />
       <CosmicStarfield />
       <CameraController quizActive={quizActive} />
-      <EarthSphere quizActive={quizActive} />
-      <DestinationPins onPinClick={onPinClick} />
+      <SynchronizedGlobe onPinClick={onPinClick} quizActive={quizActive} />
     </>
   );
 }
@@ -400,30 +506,32 @@ export default function GlobeScene() {
       const canvas = document.createElement('canvas');
       const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
       if (!gl) setWebglError(true);
-    } catch { setWebglError(true); }
+    } catch {
+      setWebglError(true);
+    }
   }, []);
 
   if (webglError) return <WebGLFallback />;
 
   return (
     <ErrorBoundary name="Globe" fallback={<WebGLFallback />}>
-      <div className="relative w-full h-full bg-bg-base">
-        <div className="absolute inset-0 z-0">
-          <Suspense fallback={<GlobeLoadingSkeleton />}>
-            <Canvas
-              camera={{ position: [0, 0, 2.4], fov: 45 }}
-              gl={{ antialias: true, alpha: true }}
-              dpr={[1, 2]}
-              style={{
-                opacity: quizActive ? 0.25 : 1,
-                transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-                filter: quizActive ? 'blur(3px)' : 'none',
-              }}
-            >
-              <GlobeContent onPinClick={handlePinClick} quizActive={quizActive} />
-            </Canvas>
-          </Suspense>
-        </div>
+      <div className="absolute inset-0 w-full h-full bg-transparent overflow-hidden">
+        <Suspense fallback={<GlobeLoadingSkeleton />}>
+          <Canvas
+            camera={{ position: [0, 0, 2.4], fov: 45 }}
+            gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+            dpr={[1, 2]}
+            style={{
+              width: '100%',
+              height: '100%',
+              opacity: quizActive ? 0.25 : 1,
+              transition: 'opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+              filter: quizActive ? 'blur(3px)' : 'none',
+            }}
+          >
+            <GlobeContent onPinClick={handlePinClick} quizActive={quizActive} />
+          </Canvas>
+        </Suspense>
       </div>
     </ErrorBoundary>
   );
