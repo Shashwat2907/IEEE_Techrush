@@ -1,67 +1,61 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AppProvider, useApp, VIEW_STATES } from './context/AppContext';
 import { FilterProvider } from './context/FilterContext';
-import { ItineraryProvider } from './context/ItineraryContext';
+import { ItineraryProvider, useItinerary } from './context/ItineraryContext';
 import { CompareProvider } from './context/CompareContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 import { GlobeLoadingSkeleton, LoadingSkeleton } from './components/ui/LoadingSkeleton';
 import { isFeatureEnabled } from './config/features';
 import GlobeSearch from './features/globe-home/GlobeSearch';
-import GlobeFilters from './features/globe-home/GlobeFilters';
 
-// Lazy load heavy components for code splitting
 const GlobeScene = lazy(() => import('./features/globe-home/GlobeScene'));
 const DiscoveryQuiz = lazy(() => import('./features/discovery-quiz/DiscoveryQuiz'));
 const DestinationMap = lazy(() => import('./features/destination-map/DestinationMap'));
 const ItineraryBuilder = lazy(() => import('./features/itinerary/ItineraryBuilder'));
+const PackingList = lazy(() => import('./features/itinerary/PackingList'));
+const CompareDrawer = lazy(() => import('./features/destination-map/CompareDrawer'));
 
 function AppContent() {
-  const { viewState, showQuiz, isTransitioning, isReversingTransition } = useApp();
+  const { viewState, isTransitioning, isReversingTransition } = useApp();
   const [itineraryOpen, setItineraryOpen] = useState(false);
+  const [packingOpen, setPackingOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const isGlobeView = viewState === VIEW_STATES.GLOBE_HOME ||
     viewState === VIEW_STATES.DISCOVERY_QUIZ ||
     viewState === VIEW_STATES.FLIGHT_TRANSITION;
 
   const quizActive = viewState === VIEW_STATES.DISCOVERY_QUIZ;
-  
-  // When transitioning, we fade out the header and search
   const isSearchSubmitted = isTransitioning || isReversingTransition;
 
   return (
     <div className="w-full h-full bg-bg-base relative overflow-hidden flex flex-col">
-      {/* ─── Globe View (Zones A, B, C) ─── */}
+      {/* ─── Globe View ─── */}
       {isGlobeView && (
         <div className="w-full h-full flex flex-col absolute inset-0 z-0">
-          
-          {/* ZONE A: Header */}
-          <div className={`transition-all duration-700 ease-in-out ${isSearchSubmitted ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
-            <div className="pt-8 pb-4 text-center">
-              <h1 className="font-display text-4xl font-bold text-text-primary">
-                Trip<span className="text-accent-ochre">Nest</span>
+          <div className={`transition-all duration-700 ease-smooth z-20 ${isSearchSubmitted ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
+            <div className="pt-8 sm:pt-12 pb-2 text-center select-none">
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-[0.14em] text-white/95 uppercase">
+                TRIPNEST
               </h1>
-              <p className="font-mono text-xs text-text-secondary tracking-widest mt-2 uppercase">
-                Your world, explored
+              <p className="text-text-secondary text-sm sm:text-base mt-2 font-body font-light tracking-wide">
+                Explore. Plan. Fly.
               </p>
             </div>
           </div>
 
-          {/* ZONE B: Search Bar */}
-          <div className={`transition-all duration-700 ease-in-out ${isSearchSubmitted ? 'opacity-0 scale-95 h-0 overflow-hidden' : 'opacity-100 scale-100 h-auto'}`}>
+          <div className={`transition-all duration-700 ease-smooth z-20 ${isSearchSubmitted ? 'opacity-0 scale-95 h-0 overflow-hidden' : 'opacity-100 scale-100 h-auto'}`}>
             {!quizActive && (
-              <div className="w-full z-10 px-4">
+              <div className="w-full px-4">
                 <GlobeSearch />
-                <GlobeFilters />
               </div>
             )}
           </div>
 
-          {/* ZONE C: Globe */}
-          <div className="flex-1 relative w-full overflow-hidden mt-4">
-            {/* We translate the globe downwards to crop it at the bottom */}
-            <div className="absolute inset-x-0 w-full" style={{ top: '10%', height: '140%' }}>
+          <div className="flex-1 relative w-full overflow-hidden mt-1">
+            <div className="absolute inset-x-0 w-full" style={{ top: '6%', height: '145%' }}>
               {isFeatureEnabled('globe-home') ? (
                 <Suspense fallback={<GlobeLoadingSkeleton />}>
                   <GlobeScene />
@@ -73,45 +67,21 @@ function AppContent() {
               )}
             </div>
           </div>
-
-          {/* "Not sure yet?" button */}
-          {!quizActive && viewState === VIEW_STATES.GLOBE_HOME && !isSearchSubmitted && (
-            <button
-              onClick={showQuiz}
-              style={{ zIndex: 10 }}
-              className="absolute bottom-8 left-1/2 -translate-x-1/2
-                px-6 py-3 bg-surface/80 backdrop-blur-sm border border-surface-raised
-                rounded-full text-text-secondary text-sm font-body
-                hover:border-accent-trail hover:text-accent-trail
-                transition-all duration-300 ease-field-atlas
-                hover:shadow-lg hover:shadow-accent-trail/20"
-            >
-              <span className="mr-2">🧭</span>
-              Not sure where to go?
-            </button>
-          )}
         </div>
       )}
 
-      {/* ─── Discovery Quiz overlay ─── */}
+      {/* Quiz overlay */}
       <AnimatePresence>
         {viewState === VIEW_STATES.DISCOVERY_QUIZ && isFeatureEnabled('discovery-quiz') && (
-          <Suspense fallback={null}>
-            <DiscoveryQuiz />
-          </Suspense>
+          <Suspense fallback={null}><DiscoveryQuiz /></Suspense>
         )}
       </AnimatePresence>
 
-      {/* ─── Destination Map ─── */}
+      {/* Destination Map */}
       <AnimatePresence>
         {viewState === VIEW_STATES.DESTINATION_MAP && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.0 }}
-            className="absolute inset-0 z-10"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }} transition={{ duration: 1.0 }} className="absolute inset-0 z-10">
             {isFeatureEnabled('destination-map') ? (
               <Suspense fallback={
                 <div className="flex items-center justify-center h-full bg-bg-base">
@@ -119,8 +89,9 @@ function AppContent() {
                 </div>
               }>
                 <DestinationMapWithItinerary
-                  itineraryOpen={itineraryOpen}
-                  setItineraryOpen={setItineraryOpen}
+                  itineraryOpen={itineraryOpen} setItineraryOpen={setItineraryOpen}
+                  packingOpen={packingOpen} setPackingOpen={setPackingOpen}
+                  compareOpen={compareOpen} setCompareOpen={setCompareOpen}
                 />
               </Suspense>
             ) : (
@@ -135,36 +106,60 @@ function AppContent() {
   );
 }
 
-/**
- * Wrapper that combines DestinationMap with ItineraryBuilder
- */
-function DestinationMapWithItinerary({ itineraryOpen, setItineraryOpen }) {
+function DestinationMapWithItinerary({ itineraryOpen, setItineraryOpen, packingOpen, setPackingOpen, compareOpen, setCompareOpen }) {
+  const { selectedDestination } = useApp();
+  const { tripDays } = useItinerary();
+
   return (
     <>
       <DestinationMap />
 
-      {/* Itinerary toggle button (always visible on map) */}
-      {isFeatureEnabled('itinerary') && !itineraryOpen && (
-        <button
-          onClick={() => setItineraryOpen(true)}
-          className="fixed bottom-6 right-6 z-[1000] px-5 py-3 bg-accent-ochre text-bg-base
-            rounded-full font-body font-semibold text-sm shadow-lg shadow-accent-ochre/30
-            hover:shadow-xl hover:shadow-accent-ochre/40 hover:scale-105
-            transition-all duration-200 flex items-center gap-2"
-        >
-          <span>📅</span>
-          Plan Trip
-        </button>
+      {/* Bottom action bar */}
+      {!itineraryOpen && !packingOpen && (
+        <div className="fixed bottom-6 right-6 z-[1000] flex gap-2">
+          {isFeatureEnabled('packing') && (
+            <button onClick={() => setPackingOpen(true)}
+              className="px-4 py-3 glass rounded-full font-body font-medium text-sm
+                text-white hover:border-accent-sky/30 hover:scale-105
+                transition-all duration-200 flex items-center gap-2">
+              <span>🎒</span> Pack
+            </button>
+          )}
+          {isFeatureEnabled('itinerary') && (
+            <button onClick={() => setItineraryOpen(true)}
+              className="px-5 py-3 bg-accent-amber text-bg-base
+                rounded-full font-body font-semibold text-sm shadow-lg shadow-accent-amber/20
+                hover:shadow-xl hover:shadow-accent-amber/30 hover:scale-105
+                transition-all duration-200 flex items-center gap-2">
+              <span>📅</span> Plan Trip
+            </button>
+          )}
+        </div>
       )}
 
-      {/* Itinerary drawer */}
       <AnimatePresence>
         {itineraryOpen && isFeatureEnabled('itinerary') && (
           <Suspense fallback={null}>
-            <ItineraryBuilder
-              isOpen={itineraryOpen}
-              onClose={() => setItineraryOpen(false)}
+            <ItineraryBuilder isOpen={itineraryOpen} onClose={() => setItineraryOpen(false)} />
+          </Suspense>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {packingOpen && isFeatureEnabled('packing') && (
+          <Suspense fallback={null}>
+            <PackingList
+              destination={selectedDestination} weatherData={null}
+              tripDays={tripDays} isOpen={packingOpen} onClose={() => setPackingOpen(false)}
             />
+          </Suspense>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {compareOpen && isFeatureEnabled('compare') && (
+          <Suspense fallback={null}>
+            <CompareDrawer isOpen={compareOpen} onClose={() => setCompareOpen(false)} />
           </Suspense>
         )}
       </AnimatePresence>
@@ -172,15 +167,9 @@ function DestinationMapWithItinerary({ itineraryOpen, setItineraryOpen }) {
   );
 }
 
-export default function App() {
-  useEffect(() => {
-    setTimeout(() => {
-      console.log("=== DOM DUMP START ===");
-      console.log(document.getElementById('root').outerHTML);
-      console.log("=== DOM DUMP END ===");
-    }, 3000);
-  }, []);
+function useApp_() { return useApp(); }
 
+export default function App() {
   return (
     <ErrorBoundary name="TripNest">
       <ThemeProvider>

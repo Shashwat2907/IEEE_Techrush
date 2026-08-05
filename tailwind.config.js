@@ -8,23 +8,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        'bg-base': '#1B2B22',
-        'surface': '#223327',
-        'surface-raised': '#2A3D30',
-        'text-primary': '#E8E3D3',
-        'text-secondary': '#B8B29C',
-        'accent-ochre': '#C9A227',
-        'accent-rust': '#8B4B33',
-        'accent-trail': '#4C8C86',
-        'crowd-low': '#5B8A5A',
-        'crowd-medium': '#C9A227',
-        'crowd-high': '#A34530',
-        // Light theme overrides
-        'light-bg': '#F5F0E8',
-        'light-surface': '#EDE8DC',
+        'bg-base': '#070B14',
+        'surface': '#0F1629',
+        'surface-raised': '#1A2340',
+        'text-primary': '#F1F5F9',
+        'text-secondary': '#64748B',
+        'accent-sky': '#38BDF8',
+        'accent-amber': '#F59E0B',
+        'accent-emerald': '#10B981',
+        'accent-rose': '#F43F5E',
+        'accent-indigo': '#6366F1',
+        'crowd-low': '#10B981',
+        'crowd-medium': '#F59E0B',
+        'crowd-high': '#EF4444',
+        'light-bg': '#F8FAFC',
+        'light-surface': '#F1F5F9',
         'light-surface-raised': '#FFFFFF',
-        'light-text-primary': '#1B2B22',
-        'light-text-secondary': '#4A5A4E',
+        'light-text-primary': '#0F172A',
+        'light-text-secondary': '#475569',
       },
       fontFamily: {
         'display': ['Fraunces', 'serif'],
@@ -32,27 +33,23 @@ export default {
         'mono': ['IBM Plex Mono', 'monospace'],
       },
       borderRadius: {
-        'card': '10px',
+        'card': '12px',
       },
       transitionTimingFunction: {
-        'field-atlas': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
+        'smooth': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
       },
       animation: {
         'spin-slow': 'spin 60s linear infinite',
         'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
-        'trail-draw': 'trailDraw 1.5s ease-in-out forwards',
         'slide-in': 'slideIn 0.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards',
         'slide-out': 'slideOut 0.3s cubic-bezier(0.4, 0.0, 0.2, 1) forwards',
         'fade-in': 'fadeIn 0.3s ease-in-out forwards',
+        'shimmer': 'shimmer 2s infinite',
       },
       keyframes: {
         pulseGlow: {
           '0%, 100%': { opacity: '0.6', transform: 'scale(1)' },
           '50%': { opacity: '1', transform: 'scale(1.2)' },
-        },
-        trailDraw: {
-          '0%': { strokeDashoffset: '1000' },
-          '100%': { strokeDashoffset: '0' },
         },
         slideIn: {
           '0%': { transform: 'translateX(100%)', opacity: '0' },
@@ -65,6 +62,10 @@ export default {
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
         },
       },
     },

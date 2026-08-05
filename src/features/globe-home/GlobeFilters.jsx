@@ -56,7 +56,7 @@ export default function GlobeFilters() {
           ))}
 
           {/* Divider */}
-          <span className="w-px h-6 bg-surface-raised mx-1" />
+          <span className="w-px h-6 bg-white/10 mx-1" />
 
           {/* Season filters */}
           {seasons.map(season => (
@@ -89,7 +89,7 @@ export default function GlobeFilters() {
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="chip border-accent-rust/50 text-accent-rust hover:bg-accent-rust/10"
+              className="chip border-accent-rose/50 text-accent-rose hover:bg-accent-rose/10"
             >
               ✕ Clear
             </button>

@@ -13,18 +13,22 @@ export const ENDPOINTS = {
     `https://tile.openweathermap.org/map/${layer}/${z}/${x}/${y}.png?appid=${apiKey}`,
 };
 
-// Globe textures (NASA public domain / verified CDN)
+// Globe textures (NASA public domain / high-res local assets)
 export const TEXTURES = {
-  EARTH_DAY: 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
-  EARTH_NIGHT: 'https://unpkg.com/three-globe/example/img/earth-night.jpg',
-  EARTH_TOPO: 'https://unpkg.com/three-globe/example/img/earth-topology.png',
-  CLOUDS: 'https://unpkg.com/three-globe/example/img/earth-clouds.png',
+  EARTH_DAY: '/textures/earth_day.jpg',
+  EARTH_NIGHT: '/textures/earth_night.jpg',
+  EARTH_TOPO: '/textures/earth_topo.png',
+  EARTH_SPECULAR: '/textures/earth_specular.jpg',
+  EARTH_NORMAL: '/textures/earth_normal.jpg',
+  CLOUDS: '/textures/earth_clouds.png',
 };
 
 // Map tile providers
 export const MAP_TILES = {
   DARK: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
   DARK_ATTR: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+  VOYAGER: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  VOYAGER_ATTR: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
   SATELLITE: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   SATELLITE_ATTR: 'Tiles &copy; Esri',
 };
