@@ -1,27 +1,39 @@
 import { useFilters } from '../../context/FilterContext';
 import { getAllTypes, getAllSeasons, getBudgetTiers } from '../../services/destinations';
+import {
+  BeachIcon,
+  LandmarkIcon,
+  MountainIcon,
+  TreeIcon,
+  BuildingIcon,
+  SunIcon,
+  RainIcon,
+  LeafIcon,
+  SnowflakeIcon,
+  CloseIcon,
+} from '../../components/ui/Icons';
 
 const TYPE_ICONS = {
-  beach: '🏖️',
-  culture: '🏛️',
-  adventure: '🏔️',
-  nature: '🌿',
-  heritage: '🏰',
-  urban: '🌃',
+  beach: BeachIcon,
+  culture: LandmarkIcon,
+  adventure: MountainIcon,
+  nature: TreeIcon,
+  heritage: LandmarkIcon,
+  urban: BuildingIcon,
 };
 
 const SEASON_ICONS = {
-  spring: '🌸',
-  summer: '☀️',
-  monsoon: '🌧️',
-  autumn: '🍂',
-  winter: '❄️',
+  spring: LeafIcon,
+  summer: SunIcon,
+  monsoon: RainIcon,
+  autumn: LeafIcon,
+  winter: SnowflakeIcon,
 };
 
-const BUDGET_ICONS = {
-  budget: '💚',
-  mid: '💛',
-  premium: '💎',
+const BUDGET_LABELS = {
+  budget: '$',
+  mid: '$$',
+  premium: '$$$',
 };
 
 export default function GlobeFilters() {
@@ -39,49 +51,57 @@ export default function GlobeFilters() {
   const budgets = getBudgetTiers();
 
   return (
-    <div className="flex justify-center px-4 mt-3">
+    <div className="flex justify-center px-2 py-1 w-full select-none">
       <div className="max-w-2xl w-full">
         {/* Filter chips row */}
         <div className="flex flex-wrap items-center justify-center gap-2">
           {/* Type filters */}
-          {types.map(type => (
-            <button
-              key={type}
-              onClick={() => toggleType(type)}
-              className={`chip ${filters.types.includes(type) ? 'active' : ''}`}
-            >
-              <span>{TYPE_ICONS[type] || '📍'}</span>
-              <span className="capitalize">{type}</span>
-            </button>
-          ))}
+          {types.map((type) => {
+            const Icon = TYPE_ICONS[type] || LandmarkIcon;
+            const isActive = filters.types.includes(type);
+            return (
+              <button
+                key={type}
+                onClick={() => toggleType(type)}
+                className={`chip flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="capitalize">{type}</span>
+              </button>
+            );
+          })}
 
           {/* Divider */}
-          <span className="w-px h-6 bg-white/10 mx-1" />
+          <span className="w-px h-5 bg-white/10 mx-1" />
 
           {/* Season filters */}
-          {seasons.map(season => (
-            <button
-              key={season}
-              onClick={() => toggleSeason(season)}
-              className={`chip ${filters.seasons.includes(season) ? 'active' : ''}`}
-            >
-              <span>{SEASON_ICONS[season]}</span>
-              <span className="capitalize">{season}</span>
-            </button>
-          ))}
+          {seasons.map((season) => {
+            const Icon = SEASON_ICONS[season] || SunIcon;
+            const isActive = filters.seasons.includes(season);
+            return (
+              <button
+                key={season}
+                onClick={() => toggleSeason(season)}
+                className={`chip flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="capitalize">{season}</span>
+              </button>
+            );
+          })}
 
           {/* Divider */}
-          <span className="w-px h-6 bg-surface-raised mx-1" />
+          <span className="w-px h-5 bg-white/10 mx-1" />
 
           {/* Budget filters */}
-          {budgets.map(tier => (
+          {budgets.map((tier) => (
             <button
               key={tier}
               onClick={() => setBudgetTier(tier)}
-              className={`chip ${filters.budgetTier === tier ? 'active' : ''}`}
+              className={`chip flex items-center gap-1 font-mono ${filters.budgetTier === tier ? 'active font-bold text-accent-sky' : ''}`}
             >
-              <span>{BUDGET_ICONS[tier]}</span>
-              <span className="capitalize">{tier}</span>
+              <span>{BUDGET_LABELS[tier]}</span>
+              <span className="capitalize font-body text-xs">{tier}</span>
             </button>
           ))}
 
@@ -89,23 +109,26 @@ export default function GlobeFilters() {
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="chip border-accent-rose/50 text-accent-rose hover:bg-accent-rose/10"
+              className="chip border-accent-rose/50 text-accent-rose hover:bg-accent-rose/10 flex items-center gap-1"
             >
-              ✕ Clear
+              <CloseIcon className="w-3 h-3" />
+              <span>Reset</span>
             </button>
           )}
         </div>
 
         {/* Active filter summary */}
         {hasActiveFilters && (
-          <div className="text-center mt-2">
+          <div className="text-center mt-2.5">
             <span className="text-[11px] text-text-secondary font-mono">
-              Showing destinations matching{' '}
+              Filtered by:{' '}
               {[
                 ...filters.types,
                 ...filters.seasons,
                 filters.budgetTier,
-              ].filter(Boolean).join(' + ')}
+              ]
+                .filter(Boolean)
+                .join(' + ')}
             </span>
           </div>
         )}

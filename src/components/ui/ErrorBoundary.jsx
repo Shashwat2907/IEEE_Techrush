@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { WarningIcon } from './Icons';
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -19,8 +20,10 @@ export default class ErrorBoundary extends Component {
       if (this.props.fallback) return this.props.fallback;
       return (
         <div className="flex items-center justify-center h-full bg-bg-base">
-          <div className="glass rounded-card p-6 max-w-sm text-center">
-            <div className="text-2xl mb-2">⚠</div>
+          <div className="glass rounded-2xl p-6 max-w-sm text-center">
+            <div className="flex justify-center mb-3">
+              <WarningIcon className="w-8 h-8 text-accent-amber" />
+            </div>
             <h3 className="font-display text-lg font-bold text-white mb-1">
               {this.props.name || 'Component'} Error
             </h3>

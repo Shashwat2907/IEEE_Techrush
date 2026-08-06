@@ -44,23 +44,23 @@ function AppContent() {
 
       {/* ─── Floating Header & Search on Orbit View ─── */}
       <div
-        className={`absolute inset-x-0 top-0 z-20 pointer-events-none flex flex-col items-center transition-all duration-500 ease-smooth ${
-          isOverlayHidden ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+        className={`absolute inset-x-0 top-0 z-20 pointer-events-none flex flex-col items-center transition-all duration-700 ease-in-out ${
+          isOverlayHidden ? 'opacity-0 -translate-y-3 pointer-events-none' : 'opacity-100 translate-y-0'
         }`}
       >
-        {/* Clean Modern Header */}
-        <div className="pt-6 sm:pt-8 pb-1 text-center pointer-events-auto">
-          <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-[0.15em] text-white uppercase drop-shadow-md">
+        {/* Centered Luxury Brand Header */}
+        <div className="pt-8 sm:pt-10 pb-2 text-center pointer-events-auto flex flex-col items-center">
+          <h1 className="font-brand text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-[0.22em] text-white uppercase drop-shadow-md select-none">
             TRIPNEST
           </h1>
-          <p className="text-text-secondary text-xs sm:text-sm mt-1 font-body font-medium tracking-widest uppercase">
+          <p className="text-text-secondary/80 text-[11px] sm:text-xs mt-1.5 font-body font-semibold tracking-[0.28em] uppercase select-none">
             Explore · Plan · Fly
           </p>
         </div>
 
         {/* Floating Search Bar */}
         {!quizActive && (
-          <div className="w-full px-4 max-w-2xl mt-1 pointer-events-auto">
+          <div className="w-full px-4 max-w-2xl mt-2 pointer-events-auto">
             <GlobeSearch />
           </div>
         )}

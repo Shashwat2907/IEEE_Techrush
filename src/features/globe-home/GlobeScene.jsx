@@ -238,12 +238,12 @@ function DestinationPin({ destination, isTrending, isFiltered, isProminent, onCl
               <span className="font-semibold text-sm tracking-wide font-display">{destination.name}</span>
               {isTrending && (
                 <span className="text-[10px] text-accent-amber font-mono bg-accent-amber/15 border border-accent-amber/30 px-1.5 py-0.5 rounded-full">
-                  🔥 Trending
+                  TRENDING
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-1 text-[11px] text-text-secondary">
-              <span>{destination.bestTimeToVisit ? `🗓 ${destination.bestTimeToVisit}` : ''}</span>
+            <div className="flex items-center gap-2 mt-1 text-[11px] text-text-secondary font-mono">
+              <span>{destination.bestTimeToVisit || ''}</span>
               <span>·</span>
               <span className="capitalize">{destination.budgetTier}</span>
             </div>

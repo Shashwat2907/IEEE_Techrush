@@ -4,9 +4,9 @@
  */
 
 const CROWD_DESCRIPTIONS = {
-  low: { label: 'Low Crowd', description: 'Peaceful and uncrowded — enjoy the space', color: '#10B981', icon: '👤' },
-  medium: { label: 'Moderate', description: 'Comfortably busy — expect some queues', color: '#F59E0B', icon: '👥' },
-  high: { label: 'High Crowd', description: 'Very popular right now — plan ahead', color: '#F43F5E', icon: '👥👥' },
+  low: { label: 'Low Crowd', description: 'Peaceful and uncrowded — enjoy the space', color: '#10B981' },
+  medium: { label: 'Moderate', description: 'Comfortably busy — expect some queues', color: '#F59E0B' },
+  high: { label: 'High Crowd', description: 'Very popular right now — plan ahead', color: '#F43F5E' },
 };
 
 /**

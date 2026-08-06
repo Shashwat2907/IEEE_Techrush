@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useApp, VIEW_STATES } from '../../context/AppContext';
+import { useApp } from '../../context/AppContext';
 import { useFilters } from '../../context/FilterContext';
 import { useItinerary } from '../../context/ItineraryContext';
 import { getDestinations, getTrendingDestinations } from '../../services/destinations';
@@ -11,6 +11,20 @@ import { getCrowdLevel, getCrowdColor } from '../../services/crowd';
 import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import DetailPanel from '../destination-map/DetailPanel';
 import GlobeFilters from './GlobeFilters';
+import {
+  GlobeIcon,
+  SatelliteIcon,
+  MoonIcon,
+  MapIcon,
+  SunIcon,
+  CloudIcon,
+  UsersIcon,
+  CalendarIcon,
+  OverviewIcon,
+  BackpackIcon,
+  ScaleIcon,
+  FilterIcon,
+} from '../../components/ui/Icons';
 
 // ── Tile Providers ──
 const SATELLITE_SOURCE = {
@@ -61,7 +75,6 @@ export default function MapLibreGlobe({
   const isInteractingRef = useRef(false);
 
   const {
-    viewState,
     selectedDestination,
     flightTarget,
     isTransitioning,
@@ -77,8 +90,6 @@ export default function MapLibreGlobe({
   const [activeTileStyle, setActiveTileStyle] = useState('satellite');
   const [weatherData, setWeatherData] = useState(null);
   const [crowdData, setCrowdData] = useState(null);
-  const [showWeather, setShowWeather] = useState(false);
-  const [showCrowd, setShowCrowd] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedPanel, setSelectedPanel] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -108,14 +119,20 @@ export default function MapLibreGlobe({
     }
     let isMounted = true;
     getWeather(activeDest.lat, activeDest.lng)
-      .then((data) => { if (isMounted) setWeatherData(data); })
+      .then((data) => {
+        if (isMounted) setWeatherData(data);
+      })
       .catch((err) => console.warn('Weather fetch error:', err));
 
     getCrowdLevel(activeDest.id)
-      .then((data) => { if (isMounted) setCrowdData(data); })
+      .then((data) => {
+        if (isMounted) setCrowdData(data);
+      })
       .catch((err) => console.warn('Crowd level error:', err));
 
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [activeDest]);
 
   // ─── Initialize MapLibre Globe ───
@@ -209,9 +226,13 @@ export default function MapLibreGlobe({
     });
 
     // Auto-spin idle logic
-    const handleStartInteract = () => { isInteractingRef.current = true; };
+    const handleStartInteract = () => {
+      isInteractingRef.current = true;
+    };
     const handleEndInteract = () => {
-      setTimeout(() => { isInteractingRef.current = false; }, 2000);
+      setTimeout(() => {
+        isInteractingRef.current = false;
+      }, 1500);
     };
 
     map.on('mousedown', handleStartInteract);
@@ -223,23 +244,23 @@ export default function MapLibreGlobe({
 
     mapRef.current = map;
 
-    // Subtle idle orbit rotation
+    // Continuous, buttery-smooth idle globe spin
     let lastSpinTime = performance.now();
-    const spinGlobe = (time) => {
+    const spinGlobe = (now) => {
+      const delta = (now - lastSpinTime) / 1000;
+      lastSpinTime = now;
+
       if (
         mapRef.current &&
         !isInteractingRef.current &&
         !isTransitioning &&
         !selectedDestination &&
         !flightTarget &&
-        mapRef.current.getZoom() <= 2.2
+        mapRef.current.getZoom() <= 2.8
       ) {
-        if (time - lastSpinTime > 50) {
-          const center = mapRef.current.getCenter();
-          center.lng -= 0.08;
-          mapRef.current.setCenter(center);
-          lastSpinTime = time;
-        }
+        const center = mapRef.current.getCenter();
+        center.lng -= 1.8 * delta; // Constant silky smooth rotation
+        mapRef.current.setCenter(center);
       }
       animFrameRef.current = requestAnimationFrame(spinGlobe);
     };
@@ -262,7 +283,7 @@ export default function MapLibreGlobe({
     map.setLayoutProperty('voyager-layer', 'visibility', activeTileStyle === 'voyager' ? 'visible' : 'none');
   }, [activeTileStyle, mapLoaded]);
 
-  // ─── Handle Flight Animations ───
+  // ─── Seamless Slow-to-Fast Camera Flight Easing ───
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -272,17 +293,18 @@ export default function MapLibreGlobe({
       map.flyTo({
         center: [flightTarget.lng, flightTarget.lat],
         zoom: 12.5,
-        pitch: 40,
+        pitch: 42,
         bearing: 0,
-        speed: 1.2,
-        curve: 1.4,
+        speed: 0.85, // Starts gently, accelerates smoothly
+        curve: 1.4,  // Parabolic trajectory
+        easing: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t), // Smooth ease-in-out curve
         essential: true,
       });
 
       const timer = setTimeout(() => {
         arriveAtDestination(flightTarget);
         isInteractingRef.current = false;
-      }, 2500);
+      }, 2600);
 
       return () => clearTimeout(timer);
     }
@@ -290,7 +312,7 @@ export default function MapLibreGlobe({
 
   // ─── Render Destination Markers ───
   const allDestinations = useMemo(() => getDestinations(), []);
-  const trendingIds = useMemo(() => new Set(getTrendingDestinations().map(d => d.id)), []);
+  const trendingIds = useMemo(() => new Set(getTrendingDestinations().map((d) => d.id)), []);
 
   const filteredDestinations = useMemo(() => {
     if (!filters.types.length && !filters.seasons.length && !filters.budgetTier && !filters.crowdLevel) {
@@ -309,7 +331,7 @@ export default function MapLibreGlobe({
     if (!map || !mapLoaded) return;
 
     // Clear old markers
-    markersRef.current.forEach(m => m.remove());
+    markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
     // In destination view, show activity markers instead of global pins
@@ -318,27 +340,26 @@ export default function MapLibreGlobe({
       const baseLng = activeDest.lng;
 
       activeDest.activities.forEach((act, idx) => {
-        // Offset activities slightly around destination center
-        const offsetLat = baseLat + (Math.sin(idx * 1.3) * 0.035);
-        const offsetLng = baseLng + (Math.cos(idx * 1.3) * 0.045);
+        const offsetLat = baseLat + Math.sin(idx * 1.3) * 0.035;
+        const offsetLng = baseLng + Math.cos(idx * 1.3) * 0.045;
 
         const el = document.createElement('div');
         el.className = 'group cursor-pointer select-none';
         el.innerHTML = `
           <div class="relative flex items-center justify-center">
-            <div class="w-8 h-8 rounded-full bg-surface border border-white/20 shadow-xl flex items-center justify-center text-sm transition-transform duration-200 group-hover:scale-125">
-              📍
+            <div class="w-7 h-7 rounded-full bg-surface border border-accent-sky/40 shadow-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-125">
+              <span class="w-2.5 h-2.5 rounded-full bg-accent-sky"></span>
             </div>
-            <div class="absolute bottom-full mb-1.5 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
-              <div class="bg-surface/95 border border-white/10 text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shadow-xl">
+            <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
+              <div class="bg-surface/95 border border-white/10 text-white px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shadow-2xl">
                 <span class="text-white">${act.name}</span>
-                <span class="text-accent-sky ml-1 font-mono">${act.cost > 0 ? `$${act.cost}` : 'Free'}</span>
+                <span class="text-accent-sky ml-1.5 font-mono">${act.cost > 0 ? `$${act.cost}` : 'Free'}</span>
               </div>
             </div>
           </div>
         `;
 
-        const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
           .setLngLat([offsetLng, offsetLat])
           .addTo(map);
 
@@ -347,21 +368,21 @@ export default function MapLibreGlobe({
       return;
     }
 
-    // On Globe View: Add clean destination dot pins
-    filteredDestinations.forEach(dest => {
+    // On Globe View: Add minimalist destination dot pins
+    filteredDestinations.forEach((dest) => {
       const isTrending = trendingIds.has(dest.id);
       const el = document.createElement('div');
       el.className = 'group cursor-pointer select-none';
 
       el.innerHTML = `
         <div class="relative flex items-center justify-center p-2">
-          <div class="w-3.5 h-3.5 rounded-full ${
+          <div class="w-3 h-3 rounded-full ${
             isTrending ? 'bg-accent-amber border-2 border-white' : 'bg-accent-sky border-2 border-white'
           } shadow-md transition-transform duration-200 group-hover:scale-150"></div>
           <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
-            <div class="bg-surface border border-white/10 text-white px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap shadow-xl">
-              ${dest.name}
-              ${isTrending ? ' 🔥' : ''}
+            <div class="bg-surface/95 border border-white/10 text-white px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap shadow-xl flex items-center gap-1.5">
+              <span>${dest.name}</span>
+              ${isTrending ? '<span class="text-[10px] text-accent-amber font-mono">TRENDING</span>' : ''}
             </div>
           </div>
         </div>
@@ -397,8 +418,8 @@ export default function MapLibreGlobe({
       const baseLat = activeDest.lat;
       const baseLng = activeDest.lng;
       const coords = allActivities.map((_, idx) => [
-        baseLng + (Math.cos(idx * 1.3) * 0.045),
-        baseLat + (Math.sin(idx * 1.3) * 0.035),
+        baseLng + Math.cos(idx * 1.3) * 0.045,
+        baseLat + Math.sin(idx * 1.3) * 0.035,
       ]);
 
       source.setData({
@@ -430,12 +451,13 @@ export default function MapLibreGlobe({
         bearing: 0,
         speed: 0.9,
         curve: 1.2,
+        easing: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
         essential: true,
       });
       setTimeout(() => {
         navigateToGlobe(false);
         isInteractingRef.current = false;
-      }, 1800);
+      }, 1900);
     } else {
       navigateToGlobe(false);
     }
@@ -449,7 +471,7 @@ export default function MapLibreGlobe({
         {/* MapLibre Canvas Container */}
         <div ref={mapContainerRef} className="w-full h-full" />
 
-        {/* ─── Destination View Overlays (Only visible when zoomed in to destination) ─── */}
+        {/* ─── Destination View Overlays ─── */}
         <AnimatePresence>
           {isDestinationView && activeDest && (
             <>
@@ -458,7 +480,7 @@ export default function MapLibreGlobe({
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+                transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
                 className="absolute top-0 inset-x-0 z-30 pointer-events-none p-4 sm:p-5"
               >
                 <div className="max-w-7xl mx-auto flex items-start justify-between gap-3">
@@ -468,7 +490,7 @@ export default function MapLibreGlobe({
                     className="pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface/90 border border-white/10 text-white text-sm font-medium hover:border-accent-sky/40 hover:bg-surface-raised transition-all shadow-lg group"
                     title="Return to 3D Globe"
                   >
-                    <span className="text-base group-hover:scale-110 transition-transform">🌍</span>
+                    <GlobeIcon className="w-4 h-4 text-accent-sky group-hover:scale-110 transition-transform" />
                     <span className="font-body">Globe</span>
                   </button>
 
@@ -478,8 +500,9 @@ export default function MapLibreGlobe({
                       {activeDest.name}
                     </span>
                     {activeDest.bestTimeToVisit && (
-                      <span className="hidden sm:inline-flex text-xs font-mono text-accent-sky bg-accent-sky/10 border border-accent-sky/20 px-2 py-0.5 rounded-full">
-                        🗓 {activeDest.bestTimeToVisit}
+                      <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-mono text-accent-sky bg-accent-sky/10 border border-accent-sky/20 px-2.5 py-0.5 rounded-full">
+                        <CalendarIcon className="w-3.5 h-3.5" />
+                        {activeDest.bestTimeToVisit}
                       </span>
                     )}
                   </div>
@@ -490,60 +513,55 @@ export default function MapLibreGlobe({
                       {/* Tile Style Switcher */}
                       <div className="flex items-center bg-surface/90 border border-white/10 rounded-xl p-1 shadow-lg">
                         {[
-                          { key: 'satellite', label: '🛰️', title: 'Satellite' },
-                          { key: 'dark', label: '🌑', title: 'Dark Matter' },
-                          { key: 'voyager', label: '🗺️', title: 'Voyager Atlas' },
-                        ].map(s => (
+                          { key: 'satellite', icon: <SatelliteIcon className="w-4 h-4" />, title: 'Satellite Imagery' },
+                          { key: 'dark', icon: <MoonIcon className="w-4 h-4" />, title: 'Dark Matter Atlas' },
+                          { key: 'voyager', icon: <MapIcon className="w-4 h-4" />, title: 'Voyager Street Map' },
+                        ].map((s) => (
                           <button
                             key={s.key}
                             onClick={() => setActiveTileStyle(s.key)}
                             title={s.title}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
+                            className={`p-2 rounded-lg text-xs font-mono transition-all ${
                               activeTileStyle === s.key
                                 ? 'bg-accent-sky/20 text-accent-sky font-bold border border-accent-sky/30'
                                 : 'text-text-secondary hover:text-white'
                             }`}
                           >
-                            {s.label}
+                            {s.icon}
                           </button>
                         ))}
                       </div>
 
                       {/* Weather Pill */}
                       {weatherData && (
-                        <button
-                          onClick={() => setShowWeather(!showWeather)}
-                          className="px-3.5 py-2 rounded-xl bg-surface/90 border border-white/10 shadow-lg flex items-center gap-2 text-xs font-mono text-white hover:border-white/20 transition-all"
-                        >
-                          <span>{weatherData.icon || '☀️'}</span>
+                        <div className="px-3.5 py-2 rounded-xl bg-surface/90 border border-white/10 shadow-lg flex items-center gap-2 text-xs font-mono text-white">
+                          <SunIcon className="w-4 h-4 text-accent-amber" />
                           <span>{weatherData.temp}°C</span>
-                        </button>
+                        </div>
                       )}
 
                       {/* Crowd Level Badge */}
                       {crowdData && (
-                        <button
-                          onClick={() => setShowCrowd(!showCrowd)}
-                          className="px-3.5 py-2 rounded-xl bg-surface/90 border border-white/10 shadow-lg flex items-center gap-2 text-xs font-mono text-white hover:border-white/20 transition-all"
-                        >
+                        <div className="px-3.5 py-2 rounded-xl bg-surface/90 border border-white/10 shadow-lg flex items-center gap-2 text-xs font-mono text-white">
                           <span
                             className="w-2 h-2 rounded-full"
                             style={{ backgroundColor: crowdColor }}
                           />
                           <span className="capitalize">{crowdData.level} Crowd</span>
-                        </button>
+                        </div>
                       )}
 
                       {/* Filter Toggle */}
                       <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`px-3.5 py-2 rounded-xl border text-xs font-mono transition-all shadow-lg ${
+                        className={`px-3.5 py-2 rounded-xl border text-xs font-mono transition-all shadow-lg flex items-center gap-2 ${
                           showFilters
                             ? 'bg-accent-sky/20 border-accent-sky text-accent-sky font-bold'
                             : 'bg-surface/90 border-white/10 text-text-secondary hover:text-white'
                         }`}
                       >
-                        🔍 Filters
+                        <FilterIcon className="w-3.5 h-3.5" />
+                        <span>Filters</span>
                       </button>
                     </div>
 
@@ -562,7 +580,7 @@ export default function MapLibreGlobe({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+                transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
                 className="absolute bottom-5 inset-x-0 z-30 pointer-events-none flex justify-center px-4"
               >
                 <div className="pointer-events-auto bg-surface/90 border border-white/10 rounded-2xl p-1.5 shadow-2xl flex items-center gap-1">
@@ -574,7 +592,7 @@ export default function MapLibreGlobe({
                         : 'text-text-secondary hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    <span>📋</span>
+                    <OverviewIcon className="w-4 h-4" />
                     <span>Overview</span>
                   </button>
 
@@ -582,7 +600,7 @@ export default function MapLibreGlobe({
                     onClick={onOpenItinerary}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold font-body text-text-secondary hover:text-white hover:bg-white/5 transition-all"
                   >
-                    <span>📅</span>
+                    <CalendarIcon className="w-4 h-4" />
                     <span>Itinerary ({allActivities.length})</span>
                   </button>
 
@@ -590,7 +608,7 @@ export default function MapLibreGlobe({
                     onClick={onOpenPacking}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold font-body text-text-secondary hover:text-white hover:bg-white/5 transition-all"
                   >
-                    <span>🎒</span>
+                    <BackpackIcon className="w-4 h-4" />
                     <span>Packing</span>
                   </button>
 
@@ -598,7 +616,7 @@ export default function MapLibreGlobe({
                     onClick={onOpenCompare}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold font-body text-text-secondary hover:text-white hover:bg-white/5 transition-all"
                   >
-                    <span>⚖️</span>
+                    <ScaleIcon className="w-4 h-4" />
                     <span>Compare</span>
                   </button>
                 </div>
@@ -609,8 +627,10 @@ export default function MapLibreGlobe({
                 {selectedPanel === 'detail' && (
                   <DetailPanel
                     destination={activeDest}
+                    weatherData={weatherData}
+                    crowdData={crowdData}
                     onClose={() => setSelectedPanel(null)}
-                    onOpenItinerary={onOpenItinerary}
+                    onPlanTrip={onOpenItinerary}
                   />
                 )}
               </AnimatePresence>

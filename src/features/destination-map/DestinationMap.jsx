@@ -12,6 +12,19 @@ import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import DetailPanel from './DetailPanel';
 import GlobeFilters from '../globe-home/GlobeFilters';
 import { MAP_TILES } from '../../config/api';
+import {
+  GlobeIcon,
+  SatelliteIcon,
+  MoonIcon,
+  MapIcon,
+  SunIcon,
+  UsersIcon,
+  FilterIcon,
+  OverviewIcon,
+  CalendarIcon,
+  BackpackIcon,
+  ScaleIcon,
+} from '../../components/ui/Icons';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -238,7 +251,13 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
               className="glass pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-white text-sm font-medium hover:border-accent-sky/50 hover:bg-surface-raised transition-all duration-200 shadow-xl group"
               title="Return to 3D Globe (or zoom out)"
             >
-              <span className="text-base group-hover:scale-110 transition-transform">🌍</span>
+            {/* Left: Back to 3D Globe */}
+            <button
+              onClick={() => navigateToGlobe(true)}
+              className="glass pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-white text-sm font-medium hover:border-accent-sky/50 hover:bg-surface-raised transition-all duration-200 shadow-xl group"
+              title="Return to 3D Globe (or zoom out)"
+            >
+              <GlobeIcon className="w-4 h-4 text-accent-sky group-hover:scale-110 transition-transform" />
               <span className="font-body tracking-wide">Globe</span>
             </button>
 
@@ -248,8 +267,9 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
                 {destination.name}
               </span>
               {destination.bestTimeToVisit && (
-                <span className="hidden sm:inline-flex text-[11px] font-mono text-accent-sky bg-accent-sky/10 border border-accent-sky/20 px-2 py-0.5 rounded-full">
-                  🗓 {destination.bestTimeToVisit}
+                <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono text-accent-sky bg-accent-sky/10 border border-accent-sky/20 px-2 py-0.5 rounded-full">
+                  <CalendarIcon className="w-3 h-3" />
+                  {destination.bestTimeToVisit}
                 </span>
               )}
             </div>
@@ -260,9 +280,9 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
                 {/* Tile Layer Selector */}
                 <div className="glass flex items-center rounded-2xl p-1 shadow-xl">
                   {[
-                    { key: 'voyager', label: '🗺️', title: 'Atlas Map' },
-                    { key: 'dark', label: '🌑', title: 'Dark Matter' },
-                    { key: 'satellite', label: '🛰️', title: 'Satellite' },
+                    { key: 'voyager', icon: <MapIcon className="w-3.5 h-3.5" />, title: 'Atlas Map' },
+                    { key: 'dark', icon: <MoonIcon className="w-3.5 h-3.5" />, title: 'Dark Matter' },
+                    { key: 'satellite', icon: <SatelliteIcon className="w-3.5 h-3.5" />, title: 'Satellite' },
                   ].map(s => (
                     <button
                       key={s.key}
@@ -274,7 +294,7 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
                           : 'text-text-secondary hover:text-white'
                       }`}
                     >
-                      {s.label}
+                      {s.icon}
                     </button>
                   ))}
                 </div>
@@ -289,7 +309,7 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
                   }`}
                   title="Toggle Weather Layer"
                 >
-                  <span>🌤️</span>
+                  <SunIcon className="w-3.5 h-3.5 text-accent-amber" />
                   {weatherData && <span className="font-bold">{weatherData.temp}°C</span>}
                 </button>
 
@@ -303,7 +323,7 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
                   }`}
                   title="Toggle Crowd Layer"
                 >
-                  <span>👥</span>
+                  <UsersIcon className="w-3.5 h-3.5" />
                   {crowdData && <span className="font-bold">{crowdData.label}</span>}
                 </button>
 
@@ -317,7 +337,7 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
                   }`}
                   title="Toggle Filters"
                 >
-                  <span>🔍</span>
+                  <FilterIcon className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Filters</span>
                 </button>
               </div>
@@ -357,15 +377,15 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
                     : 'text-text-secondary hover:text-white hover:bg-white/10'
                 }`}
               >
-                <span>📋</span>
+                <OverviewIcon className="w-4 h-4" />
                 <span>Overview</span>
               </button>
 
               <button
                 onClick={onOpenItinerary}
-                className="px-4 py-2.5 bg-accent-amber text-bg-base rounded-full font-body text-xs sm:text-sm font-bold shadow-lg shadow-accent-amber/20 hover:shadow-xl hover:shadow-accent-amber/30 hover:scale-105 transition-all flex items-center gap-2"
+                className="px-4 py-2.5 bg-accent-sky text-bg-base rounded-full font-body text-xs sm:text-sm font-bold shadow-lg shadow-accent-sky/20 hover:shadow-xl hover:shadow-accent-sky/30 hover:scale-105 transition-all flex items-center gap-2"
               >
-                <span>📅</span>
+                <CalendarIcon className="w-4 h-4" />
                 <span>Itinerary ({allActivities.length})</span>
               </button>
 
@@ -373,7 +393,7 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
                 onClick={onOpenPacking}
                 className="px-4 py-2.5 rounded-full font-body text-xs sm:text-sm font-medium text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
               >
-                <span>🎒</span>
+                <BackpackIcon className="w-4 h-4" />
                 <span className="hidden sm:inline">Packing</span>
               </button>
 
@@ -381,7 +401,7 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
                 onClick={onOpenCompare}
                 className="px-4 py-2.5 rounded-full font-body text-xs sm:text-sm font-medium text-text-secondary hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
               >
-                <span>⚖️</span>
+                <ScaleIcon className="w-4 h-4" />
                 <span className="hidden sm:inline">Compare</span>
               </button>
             </div>

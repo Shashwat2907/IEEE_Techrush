@@ -24,7 +24,8 @@ export default {
         'crowd-high': '#EF4444',
       },
       fontFamily: {
-        'display': ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+        'brand': ['Syne', 'Cinzel', 'Plus Jakarta Sans', 'sans-serif'],
+        'display': ['Plus Jakarta Sans', 'Outfit', 'Inter', 'system-ui', 'sans-serif'],
         'body': ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
         'mono': ['JetBrains Mono', 'monospace'],
       },
