@@ -21,9 +21,17 @@ export function AppProvider({ children }) {
   const [isReversingTransition, setIsReversingTransition] = useState(false);
   const [customMarker, setCustomMarker] = useState(null); // { lat, lng, name }
   const [isPremadeOpen, setIsPremadeOpen] = useState(false);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+
+  const openCompare = useCallback(() => setIsCompareOpen(true), []);
+  const closeCompare = useCallback(() => setIsCompareOpen(false), []);
+  const openApiKeyModal = useCallback(() => setIsApiKeyModalOpen(true), []);
+  const closeApiKeyModal = useCallback(() => setIsApiKeyModalOpen(false), []);
 
   const navigateToGlobe = useCallback((withReverseAnim = false) => {
     setIsPremadeOpen(false);
+    setIsCompareOpen(false);
     if (withReverseAnim) {
       setIsReversingTransition(true);
       setTimeout(() => {
@@ -94,6 +102,12 @@ export function AppProvider({ children }) {
         isPremadeOpen,
         openPremade,
         closePremade,
+        isCompareOpen,
+        openCompare,
+        closeCompare,
+        isApiKeyModalOpen,
+        openApiKeyModal,
+        closeApiKeyModal,
         navigateToGlobe,
         showQuiz,
         hideQuiz,

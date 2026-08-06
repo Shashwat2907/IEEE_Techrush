@@ -1,11 +1,39 @@
+// Dynamic API Key and configuration manager with localStorage persistence
+
+export function getStoredApiKey(name) {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(`tripnest_key_${name.toLowerCase()}`);
+    if (stored && stored.trim()) return stored.trim();
+  }
+  return null;
+}
+
+export function setStoredApiKey(name, value) {
+  if (typeof window !== 'undefined') {
+    if (value && value.trim()) {
+      localStorage.setItem(`tripnest_key_${name.toLowerCase()}`, value.trim());
+    } else {
+      localStorage.removeItem(`tripnest_key_${name.toLowerCase()}`);
+    }
+  }
+}
+
 export const API_KEYS = {
-  OPENWEATHERMAP: import.meta.env.VITE_OPENWEATHERMAP_KEY || 'MOCK_OWM_KEY_replace_me',
+  get OPENWEATHERMAP() {
+    return getStoredApiKey('openweathermap') || import.meta.env.VITE_OPENWEATHERMAP_KEY || '';
+  },
+  get LLM() {
+    return getStoredApiKey('llm') || import.meta.env.VITE_LLM_KEY || '';
+  },
+  get CROWD() {
+    return getStoredApiKey('crowd') || import.meta.env.VITE_CROWD_KEY || '';
+  },
   GEOCODING: 'nominatim', // Using Nominatim (free, no key needed)
-  LLM: import.meta.env.VITE_LLM_KEY || 'MOCK_LLM_KEY_replace_me',
 };
 
 // API endpoints
 export const ENDPOINTS = {
+  OPEN_METEO: 'https://api.open-meteo.com/v1/forecast',
   WEATHER: 'https://api.openweathermap.org/data/2.5',
   WEATHER_TILES: 'https://tile.openweathermap.org/map',
   GEOCODING: 'https://nominatim.openstreetmap.org',

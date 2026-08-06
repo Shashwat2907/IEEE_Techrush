@@ -3,14 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { geocode } from '../../services/geocode';
 import { getDestinations } from '../../services/destinations';
-import { SearchIcon, CompassIcon, DiceIcon, CloseIcon } from '../../components/ui/Icons';
+import { SearchIcon, CompassIcon, ScaleIcon, CloseIcon } from '../../components/ui/Icons';
 
 const PLACEHOLDERS = [
   'Where to next? (e.g. Kyoto, Bali, Paris)',
   'Search any city, island, or landmark...',
-  'Need inspiration? Click the Compass for Quiz',
-  'Feeling spontaneous? Click the Dice for a surprise',
-  'Plan your next dream getaway...',
+  'Need AI suggestions? Click the Compass',
+  'Compare dream destinations with Scale icon',
+  'Plan your customized dream itinerary...',
 ];
 
 export default function GlobeSearch() {
@@ -20,7 +20,7 @@ export default function GlobeSearch() {
   const [isFocused, setIsFocused] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
 
-  const { flyToDestination, showQuiz } = useApp();
+  const { flyToDestination, showQuiz, openCompare } = useApp();
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
 
@@ -203,20 +203,20 @@ export default function GlobeSearch() {
             </div>
           </motion.button>
 
-          {/* Random Destination Action Button */}
+          {/* Compare Destinations Action Button */}
           <motion.button
             type="button"
-            onClick={handleRandomPlace}
+            onClick={openCompare}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="group relative flex items-center justify-center h-full w-12 sm:w-14 rounded-2xl bg-[#0A0E17]/80 hover:bg-[#0A0E17]/95 border border-white/10 hover:border-white/20 shadow-xl backdrop-blur-xl transition-all shrink-0 text-text-secondary hover:text-white"
-            title="Surprise Destination"
+            title="Compare Destinations"
           >
-            <DiceIcon className="w-4 sm:w-5 h-4 sm:h-5 transition-transform duration-300 group-hover:rotate-180" />
+            <ScaleIcon className="w-4 sm:w-5 h-4 sm:h-5 transition-transform duration-300 group-hover:scale-110 text-accent-sky/80 group-hover:text-accent-sky" />
             {/* Tooltip on hover */}
             <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
               <div className="bg-[#07090E]/95 border border-white/10 text-white px-2.5 py-1 rounded-lg text-[11px] font-mono whitespace-nowrap shadow-xl">
-                Surprise Me
+                Compare
               </div>
             </div>
           </motion.button>

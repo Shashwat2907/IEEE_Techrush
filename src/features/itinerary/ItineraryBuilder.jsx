@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useItinerary, getDayTotals } from '../../context/ItineraryContext';
-import GlobeFilters from '../globe-home/GlobeFilters';
+import { getDestinationById, getDestinations } from '../../services/destinations';
 import {
   ClockIcon,
   CloseIcon,
@@ -25,11 +25,28 @@ import {
   OverviewIcon,
   PlusIcon,
   FilterIcon,
+  SearchIcon,
+  CheckIcon,
 } from '../../components/ui/Icons';
 
+function formatHour(hour) {
+  if (hour === undefined || hour === null) return '--:--';
+  const h = Math.floor(hour);
+  const m = Math.round((hour - h) * 60);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
 function SortableActivity({ activity, dayId, onRemove }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: activity.uid });
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.35 : 1 };
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: activity.uid,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.35 : 1,
+  };
 
   return (
     <div
@@ -132,7 +149,7 @@ function DayColumn({ day, isExpanded, onToggle, onRemoveActivity }) {
         <div className="px-3 pb-3 pt-1 space-y-2 border-t border-white/5">
           {day.activities.length === 0 ? (
             <div className="text-center py-4 text-text-secondary/50 text-xs font-mono bg-white/[0.02] rounded-xl border border-dashed border-white/5">
-              No activities yet — drop pins on map or add custom
+              No activities yet — discover attractions below or drop pins on map
             </div>
           ) : (
             <SortableContext
@@ -170,7 +187,10 @@ function AddActivityForm({ onAdd, onClose }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-surface-raised/90 rounded-2xl p-3.5 border border-white/10 space-y-2.5 shadow-xl">
+    <form
+      onSubmit={handleSubmit}
+      className="bg-surface-raised/90 rounded-2xl p-3.5 border border-white/10 space-y-2.5 shadow-xl"
+    >
       <div className="flex items-center justify-between">
         <span className="text-xs font-display font-semibold text-white">Add Custom Activity</span>
         <button type="button" onClick={onClose} className="text-text-secondary hover:text-white p-0.5">
@@ -180,7 +200,7 @@ function AddActivityForm({ onAdd, onClose }) {
 
       <input
         type="text"
-        placeholder="e.g. Louvre Museum Tour"
+        placeholder="e.g. Traditional Tea Ceremony"
         value={name}
         onChange={(e) => setName(e.target.value)}
         className="w-full bg-surface px-3 py-2 rounded-xl text-white font-body text-xs outline-none border border-white/10 focus:border-accent-sky transition-colors"
@@ -189,7 +209,9 @@ function AddActivityForm({ onAdd, onClose }) {
 
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] text-text-secondary font-mono uppercase tracking-wider">Duration</label>
+          <label className="text-[10px] text-text-secondary font-mono uppercase tracking-wider">
+            Duration
+          </label>
           <select
             value={durationHrs}
             onChange={(e) => setDurationHrs(e.target.value)}
@@ -205,7 +227,9 @@ function AddActivityForm({ onAdd, onClose }) {
         </div>
 
         <div>
-          <label className="text-[10px] text-text-secondary font-mono uppercase tracking-wider">Cost ($)</label>
+          <label className="text-[10px] text-text-secondary font-mono uppercase tracking-wider">
+            Cost ($)
+          </label>
           <input
             type="number"
             min="0"
@@ -230,6 +254,7 @@ function AddActivityForm({ onAdd, onClose }) {
 
 export default function ItineraryBuilder({ isOpen, onClose }) {
   const {
+    destinationId,
     days,
     tripDays,
     setTripDays,
@@ -240,9 +265,17 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
     clearItinerary,
   } = useItinerary();
 
+  const [activeTab, setActiveTab] = useState('schedule'); // 'schedule' | 'explore'
   const [expandedDays, setExpandedDays] = useState(new Set([days[0]?.id || 'day-1']));
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedTargetDay, setSelectedTargetDay] = useState(days[0]?.id || 'day-1');
+
+  // Attraction Catalog Filters State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedBudget, setSelectedBudget] = useState('all');
+  const [selectedDuration, setSelectedDuration] = useState('all');
+  const [addedAnimationId, setAddedAnimationId] = useState(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -282,6 +315,7 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
     setShowAddForm(false);
   };
 
+  // Grand totals
   const grandTotals = useMemo(() => {
     let activities = 0;
     let cost = 0;
@@ -297,6 +331,65 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
     return { activities, cost, hours: Math.round(hours * 10) / 10, conflicts };
   }, [days]);
 
+  // Curated activity catalog for current destination
+  const availableActivities = useMemo(() => {
+    const dest = getDestinationById(destinationId);
+    let acts = [];
+    if (dest?.activities && dest.activities.length > 0) {
+      acts = dest.activities.map((a, i) => ({
+        id: `dest-act-${i}`,
+        name: a.name,
+        cost: a.cost || 0,
+        durationHrs: a.durationHrs || 2,
+        category: a.category || (a.cost === 0 ? 'nature' : 'culture'),
+      }));
+    } else {
+      // Fallback curated set for custom places
+      acts = [
+        { id: 'act-1', name: 'Historic Old Town Walking Tour', cost: 0, durationHrs: 2.5, category: 'culture' },
+        { id: 'act-2', name: 'Panoramic Viewpoint & Sunset Spot', cost: 0, durationHrs: 1.5, category: 'nature' },
+        { id: 'act-3', name: 'Local Food & Night Market Experience', cost: 25, durationHrs: 2, category: 'food' },
+        { id: 'act-4', name: 'Premier Art & History Museum', cost: 18, durationHrs: 3, category: 'culture' },
+        { id: 'act-5', name: 'Scenic Coastal / River Cruise', cost: 35, durationHrs: 2, category: 'adventure' },
+        { id: 'act-6', name: 'Botanical Gardens & Tea House', cost: 10, durationHrs: 2, category: 'nature' },
+        { id: 'act-7', name: 'Fine Dining Sunset Tasting Menu', cost: 85, durationHrs: 2.5, category: 'food' },
+      ];
+    }
+    return acts;
+  }, [destinationId]);
+
+  // Filtered activity catalog
+  const filteredCatalog = useMemo(() => {
+    return availableActivities.filter((act) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (!act.name.toLowerCase().includes(q)) return false;
+      }
+      if (selectedCategory !== 'all' && act.category !== selectedCategory) {
+        return false;
+      }
+      if (selectedBudget === 'free' && act.cost > 0) return false;
+      if (selectedBudget === 'budget' && (act.cost === 0 || act.cost > 25)) return false;
+      if (selectedBudget === 'luxury' && act.cost < 50) return false;
+
+      if (selectedDuration === 'short' && act.durationHrs > 2) return false;
+      if (selectedDuration === 'long' && act.durationHrs < 3) return false;
+
+      return true;
+    });
+  }, [availableActivities, searchQuery, selectedCategory, selectedBudget, selectedDuration]);
+
+  // Quick add from catalog to specific day
+  const handleQuickAdd = (act, targetDayId) => {
+    addActivity(targetDayId, {
+      name: act.name,
+      cost: act.cost,
+      durationHrs: act.durationHrs,
+    });
+    setAddedAnimationId(act.id);
+    setTimeout(() => setAddedAnimationId(null), 1200);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -304,15 +397,15 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
       initial={{ x: '100%', opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: '100%', opacity: 0 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed top-0 right-0 h-full w-full sm:w-[420px] sm:max-w-[92vw] z-[1002] bg-[#07090E]/95 backdrop-blur-2xl border-l border-white/10 shadow-2xl flex flex-col select-none"
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      className="fixed top-0 right-0 h-full w-full sm:w-[460px] sm:max-w-[94vw] z-[1030] bg-[#07090E]/95 backdrop-blur-2xl border-l border-white/10 shadow-2xl flex flex-col select-none overflow-hidden"
     >
       {/* ─── Header Section ─── */}
-      <div className="sticky top-0 bg-[#07090E]/95 backdrop-blur-xl border-b border-white/10 p-4 sm:p-5 z-20 space-y-3">
+      <div className="sticky top-0 bg-[#0A0E17]/95 backdrop-blur-xl border-b border-white/10 p-4 sm:p-5 z-20 space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-display text-lg sm:text-xl font-bold text-white tracking-wide">
-              Itinerary
+              Itinerary Planner
             </h3>
             {destinationName && (
               <p className="text-text-secondary text-xs font-mono mt-0.5 flex items-center gap-1">
@@ -331,142 +424,291 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Trip Duration Controls */}
-        <div className="flex items-center justify-between bg-surface-raised/60 border border-white/5 px-3 py-2 rounded-xl">
-          <span className="text-xs text-text-secondary font-body font-medium">Trip Duration</span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setTripDays(tripDays - 1)}
-              disabled={tripDays <= 1}
-              className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white disabled:opacity-20 text-sm font-bold transition-colors border border-white/5"
-            >
-              −
-            </button>
-            <span className="min-w-[60px] text-center font-mono text-xs font-bold text-white bg-white/5 px-2 py-1 rounded-lg">
-              {tripDays} {tripDays === 1 ? 'day' : 'days'}
-            </span>
-            <button
-              type="button"
-              onClick={() => setTripDays(tripDays + 1)}
-              disabled={tripDays >= 14}
-              className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white disabled:opacity-20 text-sm font-bold transition-colors border border-white/5"
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        {/* Grand Totals Summary Row */}
-        <div className="grid grid-cols-3 gap-2 py-2 px-3 bg-white/[0.03] border border-white/5 rounded-xl text-center">
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-text-secondary font-mono uppercase">Activities</span>
-            <span className="text-xs font-mono font-bold text-white mt-0.5 flex items-center gap-1">
-              <OverviewIcon className="w-3 h-3 text-accent-sky" />
-              {grandTotals.activities} acts
-            </span>
-          </div>
-          <div className="flex flex-col items-center border-x border-white/5">
-            <span className="text-[10px] text-text-secondary font-mono uppercase">Est. Cost</span>
-            <span className="text-xs font-mono font-bold text-accent-amber mt-0.5">
-              ${grandTotals.cost}
-            </span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[10px] text-text-secondary font-mono uppercase">Total Time</span>
-            <span className="text-xs font-mono font-bold text-white mt-0.5 flex items-center gap-1">
-              <ClockIcon className="w-3 h-3 text-text-secondary" />
-              {grandTotals.hours}h
-            </span>
-          </div>
-        </div>
-
-        {/* Filter Toggle */}
-        <button
-          type="button"
-          onClick={() => setShowFilters(!showFilters)}
-          className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-mono transition-all border ${
-            showFilters
-              ? 'bg-accent-sky/15 border-accent-sky/30 text-accent-sky font-semibold'
-              : 'bg-white/5 border-white/10 text-text-secondary hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <FilterIcon className="w-3.5 h-3.5" />
-          <span>{showFilters ? 'Hide Filters' : 'Filter Destinations'}</span>
-        </button>
-
-        {/* Collapsible Filters */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <GlobeFilters />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ─── Scrollable Days & Activities List ─── */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          {days.map((day) => (
-            <DayColumn
-              key={day.id}
-              day={day}
-              isExpanded={expandedDays.has(day.id)}
-              onToggle={() => toggleDay(day.id)}
-              onRemoveActivity={removeActivity}
-            />
-          ))}
-        </DndContext>
-
-        {/* Add Custom Activity Button */}
-        {!showAddForm ? (
+        {/* Navigation Mode Tabs: Schedule vs Discover */}
+        <div className="grid grid-cols-2 gap-1 p-1 bg-surface-raised/80 border border-white/5 rounded-xl">
           <button
             type="button"
-            onClick={() => setShowAddForm(true)}
-            className="w-full py-2.5 border border-dashed border-white/15 text-text-secondary hover:text-accent-sky hover:border-accent-sky/40 rounded-2xl text-xs font-mono transition-all flex items-center justify-center gap-2 hover:bg-accent-sky/[0.04]"
+            onClick={() => setActiveTab('schedule')}
+            className={`py-1.5 px-3 rounded-lg text-xs font-medium font-body transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'schedule'
+                ? 'bg-accent-sky text-bg-base font-bold shadow-md'
+                : 'text-text-secondary hover:text-white'
+            }`}
           >
-            <PlusIcon className="w-3.5 h-3.5" />
-            <span>Add Custom Activity</span>
+            <span>My Schedule</span>
+            <span className="text-[10px] font-mono opacity-80">({grandTotals.activities})</span>
           </button>
-        ) : (
-          <AddActivityForm
-            onAdd={handleAddCustomActivity}
-            onClose={() => setShowAddForm(false)}
-          />
-        )}
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('explore')}
+            className={`py-1.5 px-3 rounded-lg text-xs font-medium font-body transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'explore'
+                ? 'bg-accent-sky text-bg-base font-bold shadow-md'
+                : 'text-text-secondary hover:text-white'
+            }`}
+          >
+            <FilterIcon className="w-3.5 h-3.5" />
+            <span>Discover & Filter</span>
+          </button>
+        </div>
+
+        {/* Trip Duration Controls & Summary (Always Visible) */}
+        <div className="flex items-center justify-between bg-white/[0.02] border border-white/5 px-3 py-2 rounded-xl text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-text-secondary font-mono">Trip:</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setTripDays(tripDays - 1)}
+                disabled={tripDays <= 1}
+                className="w-6 h-6 flex items-center justify-center rounded-md bg-white/5 hover:bg-white/10 text-white disabled:opacity-20 text-xs font-bold"
+              >
+                −
+              </button>
+              <span className="font-mono text-xs font-bold text-white px-1.5">
+                {tripDays} {tripDays === 1 ? 'day' : 'days'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setTripDays(tripDays + 1)}
+                disabled={tripDays >= 14}
+                className="w-6 h-6 flex items-center justify-center rounded-md bg-white/5 hover:bg-white/10 text-white disabled:opacity-20 text-xs font-bold"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 font-mono text-xs">
+            <span className="text-accent-amber font-bold">${grandTotals.cost}</span>
+            <span className="text-text-secondary">·</span>
+            <span className="text-accent-sky font-bold">{grandTotals.hours}h</span>
+          </div>
+        </div>
       </div>
 
+      {/* ─── TAB 1: DAILY SCHEDULE TIMELINE ─── */}
+      {activeTab === 'schedule' && (
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 custom-scrollbar">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            {days.map((day) => (
+              <DayColumn
+                key={day.id}
+                day={day}
+                isExpanded={expandedDays.has(day.id)}
+                onToggle={() => toggleDay(day.id)}
+                onRemoveActivity={removeActivity}
+              />
+            ))}
+          </DndContext>
+
+          {/* Add Custom Activity Button */}
+          {!showAddForm ? (
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAddForm(true)}
+                className="w-full py-2.5 border border-dashed border-white/15 text-text-secondary hover:text-accent-sky hover:border-accent-sky/40 rounded-2xl text-xs font-mono transition-all flex items-center justify-center gap-2 hover:bg-accent-sky/[0.04]"
+              >
+                <PlusIcon className="w-3.5 h-3.5" />
+                <span>Add Custom Activity</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('explore')}
+                className="w-full py-2.5 bg-accent-sky/15 hover:bg-accent-sky/25 border border-accent-sky/30 text-accent-sky rounded-2xl text-xs font-medium font-body transition-all flex items-center justify-center gap-2"
+              >
+                <FilterIcon className="w-3.5 h-3.5" />
+                <span>Browse Curated Attractions to Add</span>
+              </button>
+            </div>
+          ) : (
+            <AddActivityForm
+              onAdd={handleAddCustomActivity}
+              onClose={() => setShowAddForm(false)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* ─── TAB 2: EXPLORE & FILTER ATTRACTIONS ─── */}
+      {activeTab === 'explore' && (
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar">
+          {/* Target Day Selector */}
+          <div className="bg-surface-raised/80 border border-white/10 p-3 rounded-2xl space-y-2">
+            <label className="text-[11px] font-mono text-text-secondary uppercase tracking-wider block">
+              Add selected activities to:
+            </label>
+            <div className="flex gap-1.5 overflow-x-auto custom-scrollbar">
+              {days.map((day) => (
+                <button
+                  key={day.id}
+                  type="button"
+                  onClick={() => setSelectedTargetDay(day.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono transition-all shrink-0 ${
+                    selectedTargetDay === day.id
+                      ? 'bg-accent-sky text-bg-base font-bold shadow-md'
+                      : 'bg-white/5 text-text-secondary hover:text-white border border-white/5'
+                  }`}
+                >
+                  {day.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <SearchIcon className="w-4 h-4 text-text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Filter sights & attractions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-surface border border-white/10 focus:border-accent-sky rounded-xl text-xs text-white outline-none"
+            />
+          </div>
+
+          {/* Filter Pills: Category, Budget, Duration */}
+          <div className="space-y-2 text-xs">
+            {/* Categories */}
+            <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+              {[
+                { key: 'all', label: 'All Sights' },
+                { key: 'culture', label: '🏛️ Culture' },
+                { key: 'nature', label: '🌿 Nature' },
+                { key: 'food', label: '🍜 Food' },
+                { key: 'adventure', label: '🏄 Adventure' },
+              ].map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setSelectedCategory(c.key)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-mono whitespace-nowrap transition-all ${
+                    selectedCategory === c.key
+                      ? 'bg-accent-sky text-bg-base font-bold'
+                      : 'bg-white/5 text-text-secondary hover:text-white border border-white/5'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Budget Filters */}
+            <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+              {[
+                { key: 'all', label: 'Any Budget' },
+                { key: 'free', label: 'Free ($0)' },
+                { key: 'budget', label: 'Budget (<$25)' },
+                { key: 'luxury', label: 'Luxury ($50+)' },
+              ].map((b) => (
+                <button
+                  key={b.key}
+                  type="button"
+                  onClick={() => setSelectedBudget(b.key)}
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-mono whitespace-nowrap transition-all ${
+                    selectedBudget === b.key
+                      ? 'bg-accent-amber text-bg-base font-bold'
+                      : 'bg-white/5 text-text-secondary hover:text-white'
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Attraction Cards Grid */}
+          <div className="space-y-2.5 pt-1">
+            {filteredCatalog.length === 0 ? (
+              <div className="text-center py-8 text-text-secondary/60 text-xs font-mono bg-white/[0.02] rounded-2xl border border-dashed border-white/10">
+                No attractions matched your filter. Try broadening your search!
+              </div>
+            ) : (
+              filteredCatalog.map((act) => {
+                const isJustAdded = addedAnimationId === act.id;
+                const targetDayLabel = days.find((d) => d.id === selectedTargetDay)?.label || 'Day';
+
+                return (
+                  <div
+                    key={act.id}
+                    className="p-3 bg-surface/80 hover:bg-surface-raised rounded-2xl border border-white/10 hover:border-accent-sky/30 transition-all flex items-center justify-between gap-3 shadow-sm"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-body font-semibold text-white truncate">
+                        {act.name}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-[11px] font-mono">
+                        <span className="text-text-secondary flex items-center gap-1">
+                          <ClockIcon className="w-3 h-3 text-accent-sky" />
+                          {act.durationHrs}h
+                        </span>
+                        <span
+                          className="font-semibold"
+                          style={{ color: act.cost === 0 ? '#10B981' : '#F59E0B' }}
+                        >
+                          {act.cost === 0 ? 'Free' : `$${act.cost}`}
+                        </span>
+                        <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-white/5 text-text-secondary">
+                          {act.category}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleQuickAdd(act, selectedTargetDay)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-medium font-body flex items-center gap-1.5 transition-all shrink-0 ${
+                        isJustAdded
+                          ? 'bg-accent-emerald text-bg-base font-bold'
+                          : 'bg-accent-sky/20 hover:bg-accent-sky/30 text-accent-sky border border-accent-sky/30'
+                      }`}
+                    >
+                      {isJustAdded ? (
+                        <>
+                          <CheckIcon className="w-3.5 h-3.5" />
+                          <span>Added!</span>
+                        </>
+                      ) : (
+                        <>
+                          <PlusIcon className="w-3 h-3" />
+                          <span>+ {targetDayLabel}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ─── Sticky Footer ─── */}
-      <div className="sticky bottom-0 bg-[#07090E]/95 backdrop-blur-xl border-t border-white/10 p-4">
+      <div className="sticky bottom-0 bg-[#0A0E17]/95 backdrop-blur-xl border-t border-white/10 p-4 flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={clearItinerary}
-          className="w-full py-2.5 border border-accent-rose/30 text-accent-rose/90 hover:text-accent-rose hover:bg-accent-rose/10 hover:border-accent-rose/50 rounded-xl text-xs font-mono font-semibold transition-colors"
+          className="py-2 px-3 border border-accent-rose/30 text-accent-rose/90 hover:text-accent-rose hover:bg-accent-rose/10 rounded-xl text-xs font-mono font-semibold transition-colors"
         >
           Clear Itinerary
+        </button>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 py-2 px-4 bg-accent-sky text-bg-base font-bold text-xs rounded-xl hover:bg-accent-sky-dark transition-colors text-center"
+        >
+          Done Planning
         </button>
       </div>
     </motion.div>
   );
 }
-
-function formatHour(hour) {
-  if (hour === undefined || hour === null) return '--:--';
-  const h = Math.floor(hour);
-  const m = Math.round((hour - h) * 60);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
-  return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
-}
-
