@@ -32,6 +32,15 @@ const initialState = {
   tripDays: 3,
 };
 
+// Activity types for visual differentiation
+export const ACTIVITY_TYPES = {
+  activity: { label: 'Activity', color: '#38BDF8', icon: 'compass' },
+  stay: { label: 'Stay', color: '#F59E0B', icon: 'bed' },
+  food: { label: 'Food & Drink', color: '#10B981', icon: 'utensils' },
+  transport: { label: 'Transport', color: '#94A3B8', icon: 'car' },
+  rest: { label: 'Rest', color: '#A78BFA', icon: 'moon' },
+};
+
 function itineraryReducer(state, action) {
   switch (action.type) {
     case 'SET_DESTINATION': {
@@ -82,8 +91,28 @@ function itineraryReducer(state, action) {
                     ...activity,
                     uid: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
                     startHour: getNextAvailableHour(day.activities),
+                    type: activity.type || 'activity',
+                    notes: activity.notes || '',
+                    location: activity.location || '',
                   },
                 ],
+              }
+            : day
+        ),
+      };
+    }
+
+    case 'UPDATE_ACTIVITY': {
+      const { dayId, activityUid, updates } = action.payload;
+      return {
+        ...state,
+        days: state.days.map(day =>
+          day.id === dayId
+            ? {
+                ...day,
+                activities: day.activities.map(a =>
+                  a.uid === activityUid ? { ...a, ...updates } : a
+                ),
               }
             : day
         ),
@@ -155,7 +184,7 @@ function itineraryReducer(state, action) {
 }
 
 function getNextAvailableHour(activities) {
-  if (activities.length === 0) return 9; // Start at 9 AM
+  if (activities.length === 0) return 9;
   const lastActivity = activities[activities.length - 1];
   return (lastActivity.startHour || 9) + (lastActivity.durationHrs || 2);
 }
@@ -168,6 +197,29 @@ export function getDayTotals(day) {
   const hours = day.activities.reduce((sum, a) => sum + (a.durationHrs || 0), 0);
   const hasConflict = checkConflicts(day.activities);
   return { cost, hours, hasConflict };
+}
+
+/**
+ * Get full trip totals broken down by activity type
+ */
+export function getTripBudget(days) {
+  const breakdown = { stay: 0, food: 0, activity: 0, transport: 0, rest: 0 };
+  let total = 0;
+  const perDay = [];
+
+  (days || []).forEach((day) => {
+    let dayTotal = 0;
+    (day.activities || []).forEach((a) => {
+      const cost = a.cost || 0;
+      const type = a.type || 'activity';
+      breakdown[type] = (breakdown[type] || 0) + cost;
+      total += cost;
+      dayTotal += cost;
+    });
+    perDay.push({ dayId: day.id, label: day.label, total: dayTotal });
+  });
+
+  return { total, breakdown, perDay };
 }
 
 /**
@@ -198,7 +250,6 @@ export function ItineraryProvider({ children }) {
   }, [state]);
 
   const setDestination = useCallback((idOrDest, name) => {
-    // Support both setDestination(dest) and setDestination(id, name)
     if (typeof idOrDest === 'object' && idOrDest !== null) {
       dispatch({ type: 'SET_DESTINATION', payload: { id: idOrDest.id, name: idOrDest.name } });
     } else {
@@ -212,6 +263,10 @@ export function ItineraryProvider({ children }) {
 
   const addActivity = useCallback((dayId, activity) => {
     dispatch({ type: 'ADD_ACTIVITY', payload: { dayId, activity } });
+  }, []);
+
+  const updateActivity = useCallback((dayId, activityUid, updates) => {
+    dispatch({ type: 'UPDATE_ACTIVITY', payload: { dayId, activityUid, updates } });
   }, []);
 
   const removeActivity = useCallback((dayId, activityUid) => {
@@ -250,12 +305,14 @@ export function ItineraryProvider({ children }) {
         setDestination,
         setTripDays,
         addActivity,
+        updateActivity,
         removeActivity,
         moveActivity,
         reorderActivities,
         clearItinerary,
         loadPremadeItinerary,
         getDayTotals,
+        getTripBudget,
       }}
     >
       {children}

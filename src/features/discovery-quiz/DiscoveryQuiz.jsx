@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { getDestinations } from '../../services/destinations';
-import { getStoredApiKey } from '../../config/api';
+import { API_KEYS } from '../../config/api';
 import {
   BeachIcon,
   MountainIcon,
@@ -50,7 +50,7 @@ const COMPANIONS = [
 ];
 
 export default function DiscoveryQuiz() {
-  const { hideQuiz, flyToDestination, openApiKeyModal } = useApp();
+  const { hideQuiz, flyToDestination } = useApp();
 
   const [step, setStep] = useState(0);
   const [selectedVibes, setSelectedVibes] = useState([]);
@@ -126,8 +126,8 @@ export default function DiscoveryQuiz() {
     setIsAiLoading(true);
     setStep(4); // Results step
 
-    const openAiKey = getStoredApiKey('OPENAI_API_KEY');
-    const geminiKey = getStoredApiKey('GEMINI_API_KEY');
+    const openAiKey = API_KEYS.OPENAI;
+    const geminiKey = API_KEYS.GEMINI;
 
     if (openAiKey || geminiKey) {
       try {
@@ -518,23 +518,16 @@ export default function DiscoveryQuiz() {
                       className="w-full p-3.5 bg-surface rounded-2xl border border-white/10 focus:border-accent-sky text-xs sm:text-sm text-white placeholder-text-secondary/50 outline-none resize-none"
                     />
 
-                    {/* API Key Status Notice */}
+                    {/* AI Engine Status Notice */}
                     <div className="mt-3 p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <KeyIcon className="w-3.5 h-3.5 text-accent-sky" />
+                        <SparklesIcon className="w-3.5 h-3.5 text-accent-sky" />
                         <span className="text-[11px] font-mono text-text-secondary">
-                          {getStoredApiKey('OPENAI_API_KEY')
-                            ? 'OpenAI API Connected'
-                            : 'Smart Hybrid AI Engine Ready'}
+                          {API_KEYS.OPENAI || API_KEYS.GEMINI
+                            ? 'Live AI Concierge Engine Active'
+                            : 'TripNest Intelligent Matchmaker Active'}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={openApiKeyModal}
-                        className="text-[11px] font-mono text-accent-sky hover:underline"
-                      >
-                        {getStoredApiKey('OPENAI_API_KEY') ? 'Manage Key' : '+ Add Key'}
-                      </button>
                     </div>
 
                     <div className="flex gap-3 mt-6">

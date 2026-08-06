@@ -1,7 +1,8 @@
-import { motion } from 'framer-motion';
+import { useState } from 'react';
 import { useItinerary } from '../../context/ItineraryContext';
+import { useCurrency } from '../../context/CurrencyContext';
+import { getDestinationPhoto } from '../../services/photos';
 import {
-  PinIcon,
   CalendarIcon,
   DollarIcon,
   UsersIcon,
@@ -9,178 +10,222 @@ import {
   ClockIcon,
   PlusIcon,
   CloseIcon,
-  WarningIcon,
+  BedIcon,
+  UtensilsIcon,
+  CompassIcon,
+  CarIcon,
+  MoonIcon,
 } from '../../components/ui/Icons';
 
 export default function DetailPanel({ destination, weatherData, crowdData, onClose, onPlanTrip }) {
   const { addActivity, days } = useItinerary();
+  const { formatPrice } = useCurrency();
+  const [imageError, setImageError] = useState(false);
+  const [addedIndex, setAddedIndex] = useState(null);
 
   if (!destination) return null;
 
-  const handleAddActivity = (activity) => {
+  const handleAddActivity = (activity, index) => {
     const targetDay = days[0];
-    if (targetDay) addActivity(targetDay.id, activity);
+    if (targetDay) {
+      addActivity(targetDay.id, {
+        name: activity.name,
+        durationHrs: activity.durationHrs || 2,
+        cost: activity.cost || 0,
+        type: activity.type || 'activity',
+      });
+      setAddedIndex(index);
+      setTimeout(() => setAddedIndex(null), 1200);
+    }
   };
 
   const crowdColor = crowdData?.color || '#F59E0B';
+  const heroImageUrl = imageError ? null : getDestinationPhoto(destination);
 
   return (
-    <motion.div
-      initial={{ x: '100%', opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: '100%', opacity: 0 }}
-      transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-      className="absolute top-0 right-0 h-full w-full sm:w-[400px] sm:max-w-[90vw] z-[1001] bg-surface/95 backdrop-blur-2xl border-l border-white/10 overflow-y-auto shadow-2xl"
-    >
-      {/* Header */}
-      <div className="sticky top-0 bg-surface/90 backdrop-blur-md border-b border-white/5 p-5 z-10">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-xl font-bold text-white tracking-wide">{destination.name}</h3>
+    <div className="h-full w-full flex flex-col bg-[#0B101B] text-text-primary overflow-hidden select-none">
+      {/* Hero Image & Header */}
+      <div className="relative h-48 sm:h-56 w-full overflow-hidden flex-shrink-0 bg-[#06090F]">
+        <img
+          src={heroImageUrl}
+          alt={destination.name}
+          onError={() => setImageError(true)}
+          className="w-full h-full object-cover brightness-[0.8] transition-transform duration-700 hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0B101B] via-[#0B101B]/40 to-transparent" />
+
+        {/* Close button */}
+        {onClose && (
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-text-secondary hover:text-white transition-colors"
+            className="absolute top-3.5 right-3.5 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/80 text-white/90 hover:text-white backdrop-blur-md transition-all z-10 cursor-pointer"
           >
             <CloseIcon className="w-4 h-4" />
           </button>
+        )}
+
+        {/* Destination Title */}
+        <div className="absolute bottom-3.5 left-4 right-4 z-10">
+          <span className="text-[11px] font-medium text-accent-sky uppercase tracking-wider bg-accent-sky/15 px-2.5 py-0.5 rounded-full border border-accent-sky/20">
+            Overview
+          </span>
+          <h3 className="font-display text-2xl font-bold text-white tracking-wide mt-1.5 drop-shadow-md">
+            {destination.name}
+          </h3>
         </div>
-        <p className="text-text-secondary text-sm mt-1.5 font-body leading-relaxed">{destination.description}</p>
       </div>
 
-      <div className="p-5 space-y-6">
-        {/* Quick info */}
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+        {/* Description */}
+        <p className="text-text-secondary text-xs sm:text-sm font-body leading-relaxed">
+          {destination.description ||
+            `Experience the authentic culture, local flavors, and memorable landmarks of ${destination.name}.`}
+        </p>
+
+        {/* Live Weather & Crowd row */}
         <div className="grid grid-cols-2 gap-3">
-          <InfoCard
-            icon={<PinIcon className="w-4 h-4 text-accent-sky" />}
-            label="Coordinates"
-            value={`${destination.lat.toFixed(2)}°, ${destination.lng.toFixed(2)}°`}
-            mono
-          />
-          <InfoCard
-            icon={<CalendarIcon className="w-4 h-4 text-accent-amber" />}
-            label="Best Time"
-            value={destination.bestTimeToVisit}
-          />
-          <InfoCard
-            icon={<DollarIcon className="w-4 h-4 text-accent-emerald" />}
-            label="Budget"
-            value={destination.budgetTier}
-            capitalize
-          />
-          <InfoCard
-            icon={<UsersIcon className="w-4 h-4" />}
-            label="Crowd"
-            value={crowdData?.label || destination.crowdLevel}
-            color={crowdColor}
-          />
+          {/* Weather Card */}
+          <div className="bg-white/[0.03] rounded-xl p-3 border border-white/[0.06]">
+            <div className="flex items-center gap-1.5 text-text-secondary text-[11px] font-medium uppercase tracking-wider mb-1">
+              <SunIcon className="w-3.5 h-3.5 text-accent-amber" />
+              <span>Weather</span>
+            </div>
+            <div className="text-lg font-bold text-white">
+              {weatherData ? `${weatherData.temp}°C` : '—'}
+            </div>
+            <div className="text-xs text-text-secondary capitalize truncate mt-0.5">
+              {weatherData ? weatherData.description : 'Fetching forecast...'}
+            </div>
+          </div>
+
+          {/* Crowd Card */}
+          <div className="bg-white/[0.03] rounded-xl p-3 border border-white/[0.06]">
+            <div className="flex items-center gap-1.5 text-text-secondary text-[11px] font-medium uppercase tracking-wider mb-1">
+              <UsersIcon className="w-3.5 h-3.5 text-accent-sky" />
+              <span>Crowd Level</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: crowdColor }} />
+              <span className="text-sm font-semibold text-white capitalize">
+                {crowdData?.level || destination.crowdLevel || 'Moderate'}
+              </span>
+            </div>
+            <div className="text-xs text-text-secondary capitalize truncate mt-0.5">
+              {destination.bestTimeToVisit ? `Best: ${destination.bestTimeToVisit}` : 'Seasonal travel'}
+            </div>
+          </div>
         </div>
 
-        {/* Weather */}
-        {weatherData && (
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-            <h4 className="text-xs font-mono text-text-secondary uppercase tracking-wider mb-3">Current Weather</h4>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-surface-raised flex items-center justify-center">
-                <SunIcon className="w-6 h-6 text-accent-amber" />
-              </div>
-              <div>
-                <div className="font-mono text-2xl text-white font-bold">{weatherData.temp}°C</div>
-                <div className="text-xs text-text-secondary capitalize">{weatherData.description}</div>
-                <div className="text-[11px] text-text-secondary/70 font-mono mt-1">
-                  Humidity: {weatherData.humidity}% · Wind: {weatherData.wind} km/h
-                </div>
-              </div>
+        {/* Key Metrics */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white/[0.03] rounded-xl p-3 border border-white/[0.06]">
+            <div className="flex items-center gap-1.5 text-text-secondary text-[11px] font-medium uppercase tracking-wider mb-1">
+              <DollarIcon className="w-3.5 h-3.5 text-accent-emerald" />
+              <span>Budget Tier</span>
             </div>
-            {weatherData.isMock && (
-              <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-accent-amber font-mono">
-                <WarningIcon className="w-3 h-3" />
-                <span>Estimated data</span>
-              </div>
-            )}
+            <div className="text-sm font-semibold text-white capitalize">
+              {destination.budgetTier || 'Mid-range'}
+            </div>
+          </div>
+
+          <div className="bg-white/[0.03] rounded-xl p-3 border border-white/[0.06]">
+            <div className="flex items-center gap-1.5 text-text-secondary text-[11px] font-medium uppercase tracking-wider mb-1">
+              <CalendarIcon className="w-3.5 h-3.5 text-accent-sky" />
+              <span>Best Season</span>
+            </div>
+            <div className="text-sm font-semibold text-white capitalize">
+              {destination.season?.join(', ') || 'All Year'}
+            </div>
+          </div>
+        </div>
+
+        {/* Categories / Tags */}
+        {destination.type && destination.type.length > 0 && (
+          <div>
+            <h4 className="text-[11px] font-medium text-text-secondary uppercase tracking-wider mb-2">
+              Vibe & Highlights
+            </h4>
+            <div className="flex flex-wrap gap-1.5">
+              {destination.type.map((t) => (
+                <span
+                  key={t}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium uppercase bg-white/[0.04] text-text-secondary border border-white/[0.06]"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Tags */}
-        <div>
-          <h4 className="text-xs font-mono text-text-secondary uppercase tracking-wider mb-2">Categories</h4>
-          <div className="flex flex-wrap gap-1.5">
-            {destination.type?.map((t) => (
-              <span key={t} className="chip active text-xs capitalize">
-                {t}
-              </span>
-            ))}
-            {destination.season?.map((s) => (
-              <span key={s} className="chip text-xs capitalize">
-                {s}
-              </span>
-            ))}
-          </div>
-        </div>
+        {/* Suggested Activities */}
+        {destination.activities && destination.activities.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2.5">
+              <h4 className="text-[11px] font-medium text-text-secondary uppercase tracking-wider">
+                Top Experiences
+              </h4>
+              <span className="text-[11px] text-text-secondary">Click + to add</span>
+            </div>
 
-        {/* Activities */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-mono text-text-secondary uppercase tracking-wider">Suggested Activities</h4>
-            <span className="text-[10px] text-text-secondary font-mono">+ to add</span>
-          </div>
-          <div className="space-y-2">
-            {destination.activities?.map((activity, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between p-3.5 bg-white/5 rounded-xl border border-white/5 hover:border-accent-sky/20 transition-colors group"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-white font-body font-medium truncate">{activity.name}</div>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-text-secondary font-mono flex items-center gap-1">
-                      <ClockIcon className="w-3 h-3" />
-                      {activity.durationHrs}h
-                    </span>
-                    <span
-                      className="text-xs font-mono font-semibold"
-                      style={{ color: activity.cost === 0 ? '#10B981' : '#F59E0B' }}
+            <div className="space-y-2">
+              {destination.activities.map((activity, i) => {
+                const isAdded = addedIndex === i;
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-3 bg-white/[0.02] hover:bg-white/[0.05] rounded-xl border border-white/[0.04] transition-colors group"
+                  >
+                    <div className="flex-1 min-w-0 pr-3">
+                      <div className="text-xs font-semibold text-white/95 truncate">
+                        {activity.name}
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-text-secondary mt-1">
+                        <span className="flex items-center gap-1">
+                          <ClockIcon className="w-3 h-3" />
+                          {activity.durationHrs}h
+                        </span>
+                        <span className="text-accent-emerald font-medium">
+                          {formatPrice(activity.cost)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleAddActivity(activity, i)}
+                      className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                        isAdded
+                          ? 'bg-accent-emerald text-slate-950 border-accent-emerald'
+                          : 'bg-white/5 hover:bg-accent-sky/20 text-text-secondary hover:text-accent-sky border-white/5 hover:border-accent-sky/30'
+                      }`}
+                      title="Add to Day 1"
                     >
-                      {activity.cost === 0 ? 'Free' : `$${activity.cost}`}
-                    </span>
+                      {isAdded ? (
+                        <span className="text-xs font-bold px-1">✓</span>
+                      ) : (
+                        <PlusIcon className="w-3.5 h-3.5" />
+                      )}
+                    </button>
                   </div>
-                </div>
-                <button
-                  onClick={() => handleAddActivity(activity)}
-                  className="ml-2 w-7 h-7 flex items-center justify-center rounded-lg bg-accent-sky/10 text-accent-sky text-sm opacity-0 group-hover:opacity-100 hover:bg-accent-sky/20 transition-all duration-200"
-                  title="Add to Itinerary"
-                >
-                  <PlusIcon className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
-        </div>
-
-        <button
-          onClick={onPlanTrip}
-          className="w-full py-3.5 bg-accent-sky text-bg-base rounded-xl font-body font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg"
-        >
-          <CalendarIcon className="w-4 h-4" />
-          <span>Build Itinerary</span>
-        </button>
+        )}
       </div>
-    </motion.div>
-  );
-}
 
-function InfoCard({ icon, label, value, mono, capitalize, color }) {
-  return (
-    <div className="bg-white/5 rounded-xl p-3.5 border border-white/5">
-      <div className="flex items-center gap-2 mb-1.5">
-        <span>{icon}</span>
-        <span className="text-[10px] font-mono text-text-secondary uppercase tracking-wider">{label}</span>
-      </div>
-      <div
-        className={`text-sm text-white font-medium ${mono ? 'font-mono' : 'font-body'} ${
-          capitalize ? 'capitalize' : ''
-        }`}
-        style={color ? { color } : undefined}
-      >
-        {value}
+      {/* Footer Actions */}
+      <div className="p-4 border-t border-white/[0.06] bg-[#0B101B] flex items-center gap-3">
+        {onPlanTrip && (
+          <button
+            onClick={onPlanTrip}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent-sky text-slate-950 text-xs font-bold font-body hover:bg-sky-400 active:scale-[0.98] transition-all shadow-lg shadow-accent-sky/20 cursor-pointer"
+          >
+            <CalendarIcon className="w-4 h-4" />
+            Open Itinerary Planner
+          </button>
+        )}
       </div>
     </div>
   );

@@ -5,24 +5,25 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design Tokens ── */
+/* ── Refined Design Tokens (Subtle Dark Luxury, No Neon) ── */
 :root {
-  --bg-base: #080C14;
-  --surface: #0F172A;
-  --surface-raised: #1E293B;
+  --bg-base: #06090F;
+  --surface: #0B101B;
+  --surface-raised: #121826;
   --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
+  --text-secondary: #8E9BAE;
   --accent-sky: #38BDF8;
   --accent-amber: #F59E0B;
   --accent-emerald: #10B981;
   --accent-rose: #F43F5E;
   --accent-indigo: #6366F1;
+  --accent-purple: #A78BFA;
   --crowd-low: #10B981;
   --crowd-medium: #F59E0B;
   --crowd-high: #EF4444;
-  --ease: cubic-bezier(0.4, 0.0, 0.2, 1);
-  --glass: rgba(15, 23, 42, 0.92);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --glass: rgba(11, 16, 27, 0.94);
+  --glass-border: rgba(255, 255, 255, 0.05);
 }
 
 * {
@@ -35,7 +36,7 @@ html, body, #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   background-color: var(--bg-base);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -43,24 +44,24 @@ html, body, #root {
 }
 
 /* ── Clean Scrollbar ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
 
-/* ── Crisp Card & Surface Utilities (Zero random glows) ── */
+/* ── Refined Clean Cards (Zero generic neon borders) ── */
 .glass {
   background: var(--glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
 }
 
 .glass-subtle {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(18, 24, 38, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 /* ── MapLibre Overrides ── */
@@ -76,136 +77,104 @@ html, body, #root {
 }
 
 .maplibregl-popup-content {
-  background: rgba(15, 23, 42, 0.95) !important;
+  background: rgba(11, 16, 27, 0.96) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   color: #F8FAFC !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 16px !important;
-  padding: 16px !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(56, 189, 248, 0.2) !important;
+  padding: 14px !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.8) !important;
   font-family: 'Plus Jakarta Sans', sans-serif !important;
-  min-width: 260px;
+  min-width: 240px;
   max-width: 320px;
 }
 
 .maplibregl-popup-close-button {
-  color: #94A3B8 !important;
-  font-size: 18px !important;
-  padding: 6px 10px !important;
-  top: 8px !important;
-  right: 8px !important;
-  border-radius: 8px !important;
+  color: #8E9BAE !important;
+  font-size: 16px !important;
+  padding: 4px 8px !important;
+  top: 6px !important;
+  right: 6px !important;
+  border-radius: 6px !important;
   transition: all 0.2s ease !important;
 }
 
 .maplibregl-popup-close-button:hover {
   color: #FFFFFF !important;
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .maplibregl-popup-tip {
-  border-top-color: rgba(15, 23, 42, 0.95) !important;
-  border-bottom-color: rgba(15, 23, 42, 0.95) !important;
+  border-top-color: rgba(11, 16, 27, 0.96) !important;
+  border-bottom-color: rgba(11, 16, 27, 0.96) !important;
 }
 
-/* ── Chip / Pill ── */
+/* ── Clean Pills ── */
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 5px;
+  padding: 5px 12px;
   border-radius: 9999px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s var(--ease);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--text-secondary);
   user-select: none;
 }
 .chip:hover {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.15);
   color: var(--text-primary);
-  background: rgba(30, 41, 59, 0.9);
+  background: rgba(255, 255, 255, 0.06);
 }
 .chip.active {
-  background: rgba(56, 189, 248, 0.15);
-  border-color: var(--accent-sky);
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.35);
   color: var(--accent-sky);
   font-weight: 600;
 }
 
-/* ── Drawer / Panel ── */
-.drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  height: 100%;
-  width: 420px;
-  max-width: 92vw;
-  background: var(--glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-left: 1px solid var(--glass-border);
-  z-index: 1000;
-  overflow-y: auto;
-  padding: 24px;
-}
-
-@media (max-width: 768px) {
-  .drawer {
-    width: 100%;
-    max-width: 100%;
+/* ── Arcade Roll Subtle Animation ── */
+@keyframes arcadeRollUp {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  85% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100%);
+    opacity: 0;
   }
 }
 
-/* ── Mobile Responsive Overrides ── */
-@media (max-width: 640px) {
-  .chip {
-    padding: 4px 10px;
-    font-size: 0.68rem;
-    gap: 4px;
+.animate-arcade-roll {
+  display: inline-block;
+  animation: arcadeRollUp 3.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* ── Liquid Slide Transition Classes ── */
+.liquid-slide-in {
+  animation: liquidSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes liquidSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
   }
-
-  .maplibregl-ctrl-bottom-left,
-  .maplibregl-ctrl-bottom-right {
-    display: none;
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
-
-/* ── Custom Map Marker ── */
-.custom-map-marker {
-  cursor: pointer;
-}
-
-@keyframes markerPulse {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.8); opacity: 0; }
-}
-
-.custom-map-marker .animate-ping {
-  animation: markerPulse 1.5s ease-in-out infinite;
-}
-
-/* ── Smooth panel transitions ── */
-.panel-enter {
-  transform: translateX(100%);
-  opacity: 0;
-}
-.panel-enter-active {
-  transform: translateX(0);
-  opacity: 1;
-  transition: all 0.3s var(--ease);
-}
-.panel-exit {
-  transform: translateX(0);
-  opacity: 1;
-}
-.panel-exit-active {
-  transform: translateX(100%);
-  opacity: 0;
-  transition: all 0.25s var(--ease);
-}
-

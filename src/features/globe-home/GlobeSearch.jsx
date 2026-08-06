@@ -3,14 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { geocode } from '../../services/geocode';
 import { getDestinations } from '../../services/destinations';
-import { SearchIcon, CompassIcon, ScaleIcon, CloseIcon } from '../../components/ui/Icons';
+import { SearchIcon, CloseIcon, SparklesIcon, ScaleIcon } from '../../components/ui/Icons';
 
 const PLACEHOLDERS = [
-  'Where to next? (e.g. Kyoto, Bali, Paris)',
-  'Search any city, island, or landmark...',
-  'Need AI suggestions? Click the Compass',
-  'Compare dream destinations with Scale icon',
-  'Plan your customized dream itinerary...',
+  'Where to next? (e.g. Kyoto, Bali, Amalfi, Paris)...',
+  'Search any city, country, island, or landmark...',
+  'Plan your customized dream itinerary with live weather...',
+  'Discover handcrafted seasonal recommendations...',
 ];
 
 export default function GlobeSearch() {
@@ -24,15 +23,16 @@ export default function GlobeSearch() {
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
 
-  // Subtle rotating placeholder animation
+  // Rotating placeholder animation
   useEffect(() => {
     if (isFocused || query) return;
     const interval = setInterval(() => {
       setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDERS.length);
-    }, 3800);
+    }, 4000);
     return () => clearInterval(interval);
   }, [isFocused, query]);
 
+  // Autocomplete suggestions
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (query.length < 2) {
@@ -41,234 +41,218 @@ export default function GlobeSearch() {
     }
     debounceRef.current = setTimeout(() => {
       setSuggestions(getDestinations({ search: query }).slice(0, 5));
-    }, 160);
+    }, 150);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query]);
 
-  const handleSearch = useCallback(async (e) => {
-    if (e) e.preventDefault();
-    if (!query.trim()) return;
-    setIsSearching(true);
-    const localResults = getDestinations({ search: query });
-    if (localResults.length > 0) {
-      flyToDestination(localResults[0]);
-      setQuery('');
-      setSuggestions([]);
-      setIsSearching(false);
-      setIsFocused(false);
-      return;
-    }
-    try {
-      const result = await geocode(query);
-      if (result) {
-        flyToDestination({
-          id: `geocoded-${Date.now()}`,
-          name: result.name.split(',').slice(0, 2).join(','),
-          lat: result.lat,
-          lng: result.lng,
-          type: [],
-          season: [],
-          budgetTier: 'mid',
-          crowdLevel: 'medium',
-          activities: [],
-        });
+  const handleSearch = useCallback(
+    async (e) => {
+      if (e) e.preventDefault();
+      if (!query.trim()) return;
+      setIsSearching(true);
+
+      const localResults = getDestinations({ search: query });
+      if (localResults.length > 0) {
+        flyToDestination(localResults[0]);
         setQuery('');
         setSuggestions([]);
+        setIsSearching(false);
         setIsFocused(false);
+        return;
       }
-    } catch (err) {
-      console.warn('Search failed:', err);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [query, flyToDestination]);
 
-  const handleSuggestionClick = useCallback((dest) => {
-    flyToDestination(dest);
-    setQuery('');
-    setSuggestions([]);
-    setIsFocused(false);
-  }, [flyToDestination]);
+      try {
+        const result = await geocode(query);
+        if (result) {
+          const cleanName = result.name.split(',').slice(0, 2).join(', ');
 
-  const handleRandomPlace = useCallback(() => {
-    const all = getDestinations();
-    if (all.length > 0) {
-      const randomDest = all[Math.floor(Math.random() * all.length)];
-      flyToDestination(randomDest);
-    }
-  }, [flyToDestination]);
+          let temp = 22;
+          try {
+            const wRes = await fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${result.lat}&longitude=${result.lng}&current=temperature_2m`
+            );
+            const wData = await wRes.json();
+            if (wData.current) {
+              temp = Math.round(wData.current.temperature_2m);
+            }
+          } catch {}
 
-  const budgetLabel = (tier) => {
-    switch (tier) {
-      case 'budget': return '$';
-      case 'mid': return '$$';
-      case 'premium': return '$$$';
-      default: return '$$';
-    }
-  };
+          flyToDestination({
+            id: `geocoded-${Date.now()}`,
+            name: cleanName,
+            lat: result.lat,
+            lng: result.lng,
+            type: ['city', 'custom'],
+            season: ['spring', 'summer', 'autumn', 'winter'],
+            budgetTier: 'mid',
+            crowdLevel: 'medium',
+            bestTimeToVisit: 'Apr–Oct',
+            description: `Explore the vibrant streets, local landmarks, and authentic culture of ${cleanName}.`,
+            activities: [
+              { name: 'City Center & Historic Sights', cost: 0, durationHrs: 3, type: 'activity' },
+              { name: 'Traditional Dining & Market Tour', cost: 30, durationHrs: 2, type: 'food' },
+              { name: 'Local Museum / Scenic Lookout', cost: 15, durationHrs: 2.5, type: 'activity' },
+              { name: 'Evening Stroll & Leisure', cost: 0, durationHrs: 2, type: 'rest' },
+            ],
+          });
+          setQuery('');
+          setSuggestions([]);
+          setIsFocused(false);
+        }
+      } catch (err) {
+        console.warn('Geocoding search failed:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [query, flyToDestination]
+  );
+
+  const handleSuggestionClick = useCallback(
+    (dest) => {
+      flyToDestination(dest);
+      setQuery('');
+      setSuggestions([]);
+      setIsFocused(false);
+    },
+    [flyToDestination]
+  );
 
   return (
-    <div className="flex justify-center w-full select-none">
-      <div className="relative w-full max-w-2xl">
-        {/* Main Floating Capsule */}
-        <div className="relative flex items-center gap-2 sm:gap-2.5 h-12 sm:h-14 w-full">
-          {/* Main Overlapping Search Bar */}
-          <motion.div
-            layout
-            className={`relative flex items-center h-full rounded-2xl transition-all duration-300 ${
-              isFocused || query
-                ? 'flex-1 bg-[#0A0E17]/95 border border-white/25 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10'
-                : 'flex-1 bg-[#0A0E17]/80 hover:bg-[#0A0E17]/95 border border-white/10 shadow-xl backdrop-blur-xl hover:border-white/20'
-            } px-3.5 sm:px-5 overflow-hidden`}
-            onClick={() => inputRef.current?.focus()}
-          >
-            <form onSubmit={handleSearch} className="flex items-center w-full h-full relative">
-              <span className="text-white/60 mr-2.5 sm:mr-3.5 shrink-0 flex items-center justify-center">
-                {isSearching ? (
-                  <svg className="w-4 sm:w-5 h-4 sm:h-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                ) : (
-                  <SearchIcon className="w-4 sm:w-5 h-4 sm:h-5 text-white/70" />
-                )}
-              </span>
-
-              <div className="relative flex-1 h-full flex items-center">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setTimeout(() => setIsFocused(false), 250)}
-                  className="w-full bg-transparent text-white font-body text-xs sm:text-sm outline-none tracking-wide z-10"
-                  id="globe-search-input"
-                  autoComplete="off"
-                />
-
-                {/* Animated Placeholder text */}
-                {!query && (
-                  <div className="absolute inset-0 flex items-center pointer-events-none z-0">
-                    <AnimatePresence mode="wait">
-                      <motion.span
-                        key={placeholderIndex}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -6 }}
-                        transition={{ duration: 0.35, ease: 'easeOut' }}
-                        className="text-text-secondary/60 text-xs sm:text-sm font-body truncate"
-                      >
-                        {PLACEHOLDERS[placeholderIndex]}
-                      </motion.span>
-                    </AnimatePresence>
-                  </div>
-                )}
-              </div>
-
-              {query && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setQuery('');
-                    setSuggestions([]);
-                    inputRef.current?.focus();
-                  }}
-                  className="p-1 text-text-secondary hover:text-white transition-colors z-10"
-                >
-                  <CloseIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
-                </button>
+    <div className="flex flex-col items-center w-full select-none max-w-xl mx-auto px-4">
+      {/* Search Input Bar */}
+      <div className="relative w-full">
+        <motion.div
+          layout
+          className={`relative flex items-center h-12 sm:h-13 w-full rounded-2xl transition-all duration-300 ${
+            isFocused || query
+              ? 'bg-[#0B101B]/95 border border-white/20 shadow-2xl backdrop-blur-2xl'
+              : 'bg-[#0B101B]/75 hover:bg-[#0B101B]/90 border border-white/[0.08] shadow-lg backdrop-blur-xl hover:border-white/15'
+          } px-4 overflow-hidden`}
+          onClick={() => inputRef.current?.focus()}
+        >
+          <form onSubmit={handleSearch} className="flex items-center w-full h-full relative">
+            <span className="text-text-secondary mr-3 shrink-0 flex items-center justify-center">
+              {isSearching ? (
+                <svg className="w-4 h-4 animate-spin text-accent-sky" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <SearchIcon className="w-4 h-4 text-text-secondary" />
               )}
-            </form>
-          </motion.div>
+            </span>
 
-          {/* Discovery Quiz Action Button */}
-          <motion.button
-            type="button"
-            onClick={showQuiz}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="group relative flex items-center justify-center h-full w-12 sm:w-14 rounded-2xl bg-[#0A0E17]/80 hover:bg-[#0A0E17]/95 border border-white/10 hover:border-white/20 shadow-xl backdrop-blur-xl transition-all shrink-0 text-text-secondary hover:text-white"
-            title="Discovery Quiz"
-          >
-            <CompassIcon className="w-4 sm:w-5 h-4 sm:h-5 transition-transform duration-300 group-hover:rotate-45" />
-            {/* Tooltip on hover */}
-            <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
-              <div className="bg-[#07090E]/95 border border-white/10 text-white px-2.5 py-1 rounded-lg text-[11px] font-mono whitespace-nowrap shadow-xl">
-                Discovery Quiz
-              </div>
+            <div className="relative flex-1 h-full flex items-center">
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => {
+                  setTimeout(() => setIsFocused(false), 200);
+                }}
+                className="w-full h-full bg-transparent text-white font-body text-xs sm:text-sm placeholder-transparent focus:outline-none z-10"
+                autoComplete="off"
+                spellCheck="false"
+              />
+
+              {/* Animated Rotating Placeholder */}
+              {!query && (
+                <div className="absolute inset-0 flex items-center pointer-events-none overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={placeholderIndex}
+                      initial={{ y: 14, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -14, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeOut' }}
+                      className="text-xs sm:text-sm text-text-secondary/60 font-body truncate"
+                    >
+                      {PLACEHOLDERS[placeholderIndex]}
+                    </motion.span>
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
-          </motion.button>
 
-          {/* Compare Destinations Action Button */}
-          <motion.button
-            type="button"
-            onClick={openCompare}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="group relative flex items-center justify-center h-full w-12 sm:w-14 rounded-2xl bg-[#0A0E17]/80 hover:bg-[#0A0E17]/95 border border-white/10 hover:border-white/20 shadow-xl backdrop-blur-xl transition-all shrink-0 text-text-secondary hover:text-white"
-            title="Compare Destinations"
-          >
-            <ScaleIcon className="w-4 sm:w-5 h-4 sm:h-5 transition-transform duration-300 group-hover:scale-110 text-accent-sky/80 group-hover:text-accent-sky" />
-            {/* Tooltip on hover */}
-            <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
-              <div className="bg-[#07090E]/95 border border-white/10 text-white px-2.5 py-1 rounded-lg text-[11px] font-mono whitespace-nowrap shadow-xl">
-                Compare
-              </div>
-            </div>
-          </motion.button>
-        </div>
+            {query && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setQuery('');
+                  setSuggestions([]);
+                }}
+                className="p-1 text-text-secondary hover:text-white transition-colors ml-2 cursor-pointer"
+              >
+                <CloseIcon className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </form>
+        </motion.div>
 
-        {/* Floating Auto-suggestions Dropdown */}
+        {/* Autocomplete Dropdown */}
         <AnimatePresence>
-          {isFocused && suggestions.length > 0 && (
+          {suggestions.length > 0 && isFocused && (
             <motion.div
-              initial={{ opacity: 0, y: -4 }}
+              initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.18 }}
-              className="absolute top-full mt-2 sm:mt-2.5 inset-x-0 bg-[#0A0E17]/98 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 divide-y divide-white/5"
+              exit={{ opacity: 0, y: -6 }}
+              className="absolute left-0 right-0 top-full mt-2 bg-[#0B101B]/95 border border-white/[0.08] backdrop-blur-2xl rounded-2xl p-1.5 shadow-2xl z-50 overflow-hidden"
             >
               {suggestions.map((dest) => (
                 <button
                   key={dest.id}
                   type="button"
-                  onClick={() => handleSuggestionClick(dest)}
-                  className="w-full text-left px-4 sm:px-5 py-3 sm:py-3.5 hover:bg-white/5 transition-colors duration-150 flex items-center justify-between group"
+                  onMouseDown={() => handleSuggestionClick(dest)}
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-white/[0.05] transition-colors text-left group cursor-pointer"
                 >
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-white font-body text-sm font-semibold tracking-wide group-hover:text-accent-sky transition-colors truncate">
-                      {dest.name}
-                    </span>
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      {dest.type.slice(0, 3).map((t) => (
-                        <span
-                          key={t}
-                          className="text-[10px] text-text-secondary font-mono uppercase bg-white/5 border border-white/5 px-2 py-0.5 rounded-full"
-                        >
-                          {t}
-                        </span>
-                      ))}
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-text-secondary text-xs">📍</span>
+                    <div>
+                      <div className="text-xs font-semibold text-white group-hover:text-accent-sky transition-colors">
+                        {dest.name}
+                      </div>
+                      <div className="text-[11px] text-text-secondary">
+                        {dest.bestTimeToVisit ? `Best: ${dest.bestTimeToVisit}` : dest.season?.join(', ')}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right flex flex-col items-end flex-shrink-0 ml-2">
-                    <span className="text-xs font-mono text-white/80 font-semibold">
-                      {budgetLabel(dest.budgetTier)}
-                    </span>
-                    <span className="text-[10px] text-text-secondary/60 font-mono mt-0.5 hidden sm:block">
-                      {dest.lat.toFixed(1)}°, {dest.lng.toFixed(1)}°
-                    </span>
-                  </div>
+
+                  <span className="text-xs font-medium text-accent-sky opacity-0 group-hover:opacity-100 transition-opacity">
+                    Fly →
+                  </span>
                 </button>
               ))}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
+
+      {/* Elegant Action Capsules: AI Matchmaker & Compare Places */}
+      <div className="flex items-center gap-2.5 mt-3.5">
+        <button
+          type="button"
+          onClick={showQuiz}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0B101B]/80 hover:bg-[#0B101B]/95 border border-white/[0.08] hover:border-accent-sky/30 text-white/80 hover:text-white text-xs font-medium backdrop-blur-xl shadow-lg transition-all cursor-pointer group"
+        >
+          <SparklesIcon className="w-3.5 h-3.5 text-accent-sky group-hover:rotate-12 transition-transform" />
+          <span>AI Matchmaker</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={openCompare}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0B101B]/80 hover:bg-[#0B101B]/95 border border-white/[0.08] hover:border-white/20 text-white/80 hover:text-white text-xs font-medium backdrop-blur-xl shadow-lg transition-all cursor-pointer group"
+        >
+          <ScaleIcon className="w-3.5 h-3.5 text-text-secondary group-hover:text-white transition-colors" />
+          <span>Compare Places</span>
+        </button>
+      </div>
     </div>
   );
 }
-

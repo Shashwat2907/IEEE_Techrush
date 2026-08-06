@@ -1,34 +1,17 @@
-// Dynamic API Key and configuration manager with localStorage persistence
-
-export function getStoredApiKey(name) {
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem(`tripnest_key_${name.toLowerCase()}`);
-    if (stored && stored.trim()) return stored.trim();
-  }
-  return null;
-}
-
-export function setStoredApiKey(name, value) {
-  if (typeof window !== 'undefined') {
-    if (value && value.trim()) {
-      localStorage.setItem(`tripnest_key_${name.toLowerCase()}`, value.trim());
-    } else {
-      localStorage.removeItem(`tripnest_key_${name.toLowerCase()}`);
-    }
-  }
-}
+// API configuration — reads keys from environment variables (.env.local)
+// To configure: copy .env.example to .env.local and fill in your API keys
 
 export const API_KEYS = {
   get OPENWEATHERMAP() {
-    return getStoredApiKey('openweathermap') || import.meta.env.VITE_OPENWEATHERMAP_KEY || '';
+    return import.meta.env.VITE_OPENWEATHERMAP_KEY || '';
   },
-  get LLM() {
-    return getStoredApiKey('llm') || import.meta.env.VITE_LLM_KEY || '';
+  get OPENAI() {
+    return import.meta.env.VITE_OPENAI_KEY || '';
   },
-  get CROWD() {
-    return getStoredApiKey('crowd') || import.meta.env.VITE_CROWD_KEY || '';
+  get GEMINI() {
+    return import.meta.env.VITE_GEMINI_KEY || '';
   },
-  GEOCODING: 'nominatim', // Using Nominatim (free, no key needed)
+  GEOCODING: 'nominatim',
 };
 
 // API endpoints

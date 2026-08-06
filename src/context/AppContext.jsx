@@ -16,18 +16,15 @@ export const VIEW_STATES = {
 export function AppProvider({ children }) {
   const [viewState, setViewState] = useState(VIEW_STATES.GLOBE_HOME);
   const [selectedDestination, setSelectedDestination] = useState(null);
-  const [flightTarget, setFlightTarget] = useState(null); // { lat, lng, name, id }
+  const [flightTarget, setFlightTarget] = useState(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isReversingTransition, setIsReversingTransition] = useState(false);
-  const [customMarker, setCustomMarker] = useState(null); // { lat, lng, name }
+  const [customMarker, setCustomMarker] = useState(null);
   const [isPremadeOpen, setIsPremadeOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
 
   const openCompare = useCallback(() => setIsCompareOpen(true), []);
   const closeCompare = useCallback(() => setIsCompareOpen(false), []);
-  const openApiKeyModal = useCallback(() => setIsApiKeyModalOpen(true), []);
-  const closeApiKeyModal = useCallback(() => setIsApiKeyModalOpen(false), []);
 
   const navigateToGlobe = useCallback((withReverseAnim = false) => {
     setIsPremadeOpen(false);
@@ -83,7 +80,7 @@ export function AppProvider({ children }) {
   }, []);
 
   const placeMarker = useCallback((marker) => {
-    setCustomMarker(marker); // { lat, lng, name }
+    setCustomMarker(marker);
   }, []);
 
   const clearMarker = useCallback(() => {
@@ -105,9 +102,6 @@ export function AppProvider({ children }) {
         isCompareOpen,
         openCompare,
         closeCompare,
-        isApiKeyModalOpen,
-        openApiKeyModal,
-        closeApiKeyModal,
         navigateToGlobe,
         showQuiz,
         hideQuiz,
@@ -129,4 +123,3 @@ export function useApp() {
 }
 
 export default AppContext;
-
