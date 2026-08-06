@@ -47,7 +47,7 @@ function AppContent() {
       {/* ─── Floating Header & Search on Orbit View ─── */}
       <div
         className={`absolute inset-x-0 top-0 z-20 pointer-events-none flex flex-col items-center transition-all duration-700 ease-in-out ${
-          isOverlayHidden || customMarker ? 'opacity-0 -translate-y-3 pointer-events-none' : 'opacity-100 translate-y-0'
+          isOverlayHidden ? 'opacity-0 -translate-y-3 pointer-events-none' : 'opacity-100 translate-y-0'
         }`}
       >
         {/* Centered Luxury Brand Header */}

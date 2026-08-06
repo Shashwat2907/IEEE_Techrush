@@ -8,6 +8,7 @@ import { useItinerary } from '../../context/ItineraryContext';
 import { getDestinations, getTrendingDestinations } from '../../services/destinations';
 import { getWeather } from '../../services/weather';
 import { getCrowdLevel, getCrowdColor } from '../../services/crowd';
+import { reverseGeocode } from '../../services/geocode';
 import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import DetailPanel from '../destination-map/DetailPanel';
 import {
@@ -16,14 +17,10 @@ import {
   MoonIcon,
   MapIcon,
   SunIcon,
-  UsersIcon,
   CalendarIcon,
   OverviewIcon,
   BackpackIcon,
   ScaleIcon,
-  PinIcon,
-  PlusIcon,
-  CloseIcon,
 } from '../../components/ui/Icons';
 
 // ── Tile Providers ──
@@ -88,6 +85,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const customMarkerRef = useRef(null);
+  const activePopupRef = useRef(null);
   const animFrameRef = useRef(null);
   const isInteractingRef = useRef(false);
 
@@ -98,25 +96,25 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     arriveAtDestination,
     navigateToGlobe,
     flyToDestination,
-    customMarker,
     placeMarker,
     clearMarker,
   } = useApp();
 
   const { filters } = useFilters();
-  const { days, setDestination, addActivity } = useItinerary();
+  const { days, tripDays, setDestination, addActivity } = useItinerary();
 
   const [currentZoom, setCurrentZoom] = useState(1.6);
   const [activeTileStyle, setActiveTileStyle] = useState('satellite');
   const [weatherData, setWeatherData] = useState(null);
   const [crowdData, setCrowdData] = useState(null);
-  const [selectedPanel, setSelectedPanel] = useState(null); // 'detail' only — drawers managed by App
+  const [selectedPanel, setSelectedPanel] = useState(null); // 'detail' only
   const [mapLoaded, setMapLoaded] = useState(false);
   const [projectionMode, setProjectionMode] = useState('globe'); // 'globe' | 'mercator'
   const [isMobile, setIsMobile] = useState(false);
   const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
 
-  const isDestinationView = selectedDestination !== null || (currentZoom >= 6.5 && !isTransitioning);
+  // Destination view is strictly active when selectedDestination is set and flight has arrived
+  const isDestinationView = selectedDestination !== null && !isTransitioning;
 
   // Detect mobile
   useEffect(() => {
@@ -140,7 +138,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     }
   }, [selectedDestination, setDestination]);
 
-  // Fetch weather and crowd data
+  // Fetch weather and crowd data for destination
   useEffect(() => {
     if (!activeDest) {
       setWeatherData(null);
@@ -165,7 +163,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     };
   }, [activeDest]);
 
-  // ─── Initialize MapLibre Globe ───
+  // ─── Initialize MapLibre Map / Globe ───
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -253,21 +251,13 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
       const zoom = map.getZoom();
       setCurrentZoom(zoom);
 
-      // Auto projection switching
+      // Auto projection switching on extreme manual zoom
       if (zoom >= 10 && projectionMode !== 'mercator') {
         try { map.setProjection({ type: 'mercator' }); } catch {}
         setProjectionMode('mercator');
       } else if (zoom < 3 && projectionMode !== 'globe') {
         try { map.setProjection({ type: 'globe' }); } catch {}
         setProjectionMode('globe');
-      }
-    });
-
-    // Map click → place marker in destination view
-    map.on('click', (e) => {
-      // Only allow in destination view (when we have an active destination)
-      if (!isInteractingRef.current) {
-        // We'll handle this with a ref-based check in the click handler effect
       }
     });
 
@@ -278,7 +268,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     const handleEndInteract = () => {
       setTimeout(() => {
         isInteractingRef.current = false;
-      }, 1500);
+      }, 2000);
     };
 
     map.on('mousedown', handleStartInteract);
@@ -290,7 +280,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
 
     mapRef.current = map;
 
-    // Continuous, buttery-smooth idle globe spin
+    // Smooth idle globe spin (only active when zoomed out on globe)
     let lastSpinTime = performance.now();
     const spinGlobe = (now) => {
       const delta = (now - lastSpinTime) / 1000;
@@ -314,58 +304,11 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
 
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (activePopupRef.current) activePopupRef.current.remove();
       map.remove();
       mapRef.current = null;
     };
   }, []);
-
-  // ─── Map click handler for placing custom markers ───
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapLoaded) return;
-
-    const handleMapClick = (e) => {
-      // Only allow marker placement when in destination view
-      if (selectedDestination && !isTransitioning) {
-        const { lng, lat } = e.lngLat;
-        placeMarker({
-          lat,
-          lng,
-          name: `Pin at ${lat.toFixed(3)}°, ${lng.toFixed(3)}°`,
-        });
-      }
-    };
-
-    map.on('click', handleMapClick);
-    return () => map.off('click', handleMapClick);
-  }, [selectedDestination, isTransitioning, mapLoaded, placeMarker]);
-
-  // ─── Render custom marker on map ───
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapLoaded) return;
-
-    // Remove previous custom marker
-    if (customMarkerRef.current) {
-      customMarkerRef.current.remove();
-      customMarkerRef.current = null;
-    }
-
-    if (customMarker) {
-      const el = document.createElement('div');
-      el.className = 'custom-map-marker';
-      el.innerHTML = `
-        <div class="relative flex items-center justify-center">
-          <div class="w-8 h-8 rounded-full bg-accent-sky/30 animate-ping absolute"></div>
-          <div class="w-5 h-5 rounded-full bg-accent-sky border-2 border-white shadow-lg relative z-10"></div>
-        </div>
-      `;
-
-      customMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
-        .setLngLat([customMarker.lng, customMarker.lat])
-        .addTo(map);
-    }
-  }, [customMarker, mapLoaded]);
 
   // ─── Handle Tile Style Switching ───
   useEffect(() => {
@@ -383,7 +326,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     });
   }, [activeTileStyle, mapLoaded]);
 
-  // ─── Manual Projection Toggle ───
+  // ─── Manual Projection Toggle (2D / 3D) ───
   const toggleProjection = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -392,7 +335,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     setProjectionMode(newMode);
   }, [projectionMode]);
 
-  // ─── Seamless Slow-to-Fast Camera Flight Easing ───
+  // ─── Seamless Camera Flight: Full Zoom to Destination ───
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -400,31 +343,295 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     if (flightTarget && isTransitioning) {
       isInteractingRef.current = true;
 
-      // Switch to mercator for the destination zoom level
+      // Close open popups & markers
+      if (activePopupRef.current) {
+        activePopupRef.current.remove();
+        activePopupRef.current = null;
+      }
+      if (customMarkerRef.current) {
+        customMarkerRef.current.remove();
+        customMarkerRef.current = null;
+      }
+
+      // Switch to mercator for detailed city street/satellite level
       try { map.setProjection({ type: 'mercator' }); } catch {}
       setProjectionMode('mercator');
 
+      let completed = false;
+      const onFlightComplete = () => {
+        if (completed) return;
+        completed = true;
+        arriveAtDestination(flightTarget);
+        isInteractingRef.current = false;
+      };
+
+      // Fly camera directly into the destination with smooth cinematic curve
       map.flyTo({
         center: [flightTarget.lng, flightTarget.lat],
-        zoom: 12.5,
+        zoom: 13.2,
         pitch: 42,
         bearing: 0,
-        speed: 0.85,
+        speed: 1.15,
         curve: 1.4,
-        easing: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
         essential: true,
       });
 
-      const timer = setTimeout(() => {
-        arriveAtDestination(flightTarget);
-        isInteractingRef.current = false;
-      }, 2600);
+      // ONLY transition UI after camera has completely arrived and finished zooming
+      map.once('moveend', onFlightComplete);
 
-      return () => clearTimeout(timer);
+      // Safety timeout fallback
+      const timer = setTimeout(onFlightComplete, 4500);
+
+      return () => {
+        clearTimeout(timer);
+        map.off('moveend', onFlightComplete);
+      };
     }
   }, [flightTarget, isTransitioning, mapLoaded, arriveAtDestination]);
 
-  // ─── Render Destination Markers ───
+  // ─── Custom Pin Placement & Real Interactive Popup ───
+  const createPinPopupContent = useCallback(
+    (pinData, onAdd, onRemove) => {
+      const container = document.createElement('div');
+      container.className = 'custom-pin-card flex flex-col gap-2.5 text-left';
+
+      const availableDays = days && days.length > 0 ? days : [{ id: 1, name: 'Day 1' }];
+      let selectedDayId = availableDays[0].id;
+      let durationHrs = 1.5;
+      let cost = 0;
+
+      container.innerHTML = `
+        <div class="flex items-start gap-2 border-b border-white/10 pb-2">
+          <div class="w-7 h-7 rounded-lg bg-accent-sky/20 border border-accent-sky/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <svg class="w-4 h-4 text-accent-sky" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0 pr-4">
+            <h4 class="text-white text-sm font-semibold truncate pin-title">${pinData.name || 'Custom Pin'}</h4>
+            <p class="text-text-secondary text-[11px] font-mono truncate pin-address">${pinData.address || `${pinData.lat.toFixed(4)}°, ${pinData.lng.toFixed(4)}°`}</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[10px] font-mono uppercase text-text-secondary">Add to Day</label>
+          <div class="flex flex-wrap gap-1 day-selector-container">
+            ${availableDays
+              .map(
+                (d, i) => `
+                <button type="button" data-day="${d.id}" class="day-chip px-2.5 py-1 rounded-lg text-xs font-mono transition-colors ${
+                  i === 0
+                    ? 'bg-accent-sky/20 text-accent-sky border border-accent-sky/40 font-semibold'
+                    : 'bg-white/5 text-text-secondary hover:text-white border border-white/5'
+                }">
+                  Day ${d.id.toString().replace('day-', '')}
+                </button>
+              `
+              )
+              .join('')}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <div>
+            <label class="text-[10px] font-mono uppercase text-text-secondary">Duration</label>
+            <select class="duration-select w-full mt-0.5 bg-surface-raised border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-accent-sky">
+              <option value="1">1 hour</option>
+              <option value="1.5" selected>1.5 hours</option>
+              <option value="2">2 hours</option>
+              <option value="3">3 hours</option>
+              <option value="4">Half Day</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-mono uppercase text-text-secondary">Est. Cost</label>
+            <input type="number" min="0" value="0" placeholder="$0" class="cost-input w-full mt-0.5 bg-surface-raised border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-accent-sky" />
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2 border-t border-white/10">
+          <button type="button" class="add-itinerary-btn flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent-sky text-slate-950 text-xs font-semibold font-body hover:bg-sky-400 active:scale-95 transition-all shadow-md shadow-accent-sky/20">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Add to Itinerary
+          </button>
+          <button type="button" class="remove-pin-btn p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-text-secondary hover:text-red-400 border border-white/5 transition-colors" title="Remove Pin">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      `;
+
+      // Day chip selection
+      const dayChips = container.querySelectorAll('.day-chip');
+      dayChips.forEach((chip) => {
+        chip.addEventListener('click', () => {
+          dayChips.forEach((c) => {
+            c.className = 'day-chip px-2.5 py-1 rounded-lg text-xs font-mono transition-colors bg-white/5 text-text-secondary hover:text-white border border-white/5';
+          });
+          chip.className = 'day-chip px-2.5 py-1 rounded-lg text-xs font-mono transition-colors bg-accent-sky/20 text-accent-sky border border-accent-sky/40 font-semibold';
+          selectedDayId = chip.getAttribute('data-day') || availableDays[0].id;
+        });
+      });
+
+      // Duration and cost changes
+      const durationSelect = container.querySelector('.duration-select');
+      durationSelect.addEventListener('change', (e) => {
+        durationHrs = parseFloat(e.target.value) || 1;
+      });
+
+      const costInput = container.querySelector('.cost-input');
+      costInput.addEventListener('input', (e) => {
+        cost = parseFloat(e.target.value) || 0;
+      });
+
+      // Add to itinerary handler
+      const addBtn = container.querySelector('.add-itinerary-btn');
+      addBtn.addEventListener('click', () => {
+        addBtn.innerHTML = `
+          <svg class="w-3.5 h-3.5 text-emerald-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          Added!
+        `;
+        addBtn.className = 'add-itinerary-btn flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-400 text-slate-950 text-xs font-bold font-body transition-all';
+
+        onAdd({
+          name: pinData.name || 'Custom Location',
+          durationHrs,
+          cost,
+          dayId: selectedDayId,
+          lat: pinData.lat,
+          lng: pinData.lng,
+        });
+      });
+
+      // Remove pin handler
+      const removeBtn = container.querySelector('.remove-pin-btn');
+      removeBtn.addEventListener('click', () => {
+        onRemove();
+      });
+
+      return container;
+    },
+    [days]
+  );
+
+  // ─── Map Click Handler for Dropping Custom Pins ───
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    const handleMapClick = async (e) => {
+      // Only drop pins when destination view is active and map is not flying
+      if (!isDestinationView || isTransitioning) return;
+
+      const { lng, lat } = e.lngLat;
+
+      // Center map slightly around the clicked pin
+      map.easeTo({ center: [lng, lat], duration: 400 });
+
+      // Clean up previous marker & popup
+      if (customMarkerRef.current) customMarkerRef.current.remove();
+      if (activePopupRef.current) activePopupRef.current.remove();
+
+      // Create animated custom pin element
+      const pinEl = document.createElement('div');
+      pinEl.className = 'custom-map-marker cursor-pointer select-none';
+      pinEl.innerHTML = `
+        <div class="relative flex items-center justify-center">
+          <div class="w-8 h-8 rounded-full bg-accent-sky/40 animate-ping absolute"></div>
+          <div class="w-5 h-5 rounded-full bg-accent-sky border-2 border-white shadow-xl flex items-center justify-center relative z-10">
+            <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+          </div>
+        </div>
+      `;
+
+      const marker = new maplibregl.Marker({ element: pinEl, anchor: 'center' })
+        .setLngLat([lng, lat])
+        .addTo(map);
+
+      customMarkerRef.current = marker;
+
+      // Initial placeholder data while reverse geocoding
+      const pinData = {
+        lat,
+        lng,
+        name: 'Locating place...',
+        address: `${lat.toFixed(4)}°, ${lng.toFixed(4)}°`,
+      };
+
+      placeMarker(pinData);
+
+      // Create and open interactive popup
+      const popup = new maplibregl.Popup({
+        closeButton: true,
+        closeOnClick: false,
+        offset: 20,
+        className: 'custom-pin-popup',
+      });
+
+      const handleAdd = (activityData) => {
+        addActivity(activityData.dayId, {
+          name: activityData.name,
+          durationHrs: activityData.durationHrs,
+          cost: activityData.cost,
+          lat: activityData.lat,
+          lng: activityData.lng,
+        });
+        onToggleDrawer('itinerary');
+        setTimeout(() => {
+          popup.remove();
+        }, 800);
+      };
+
+      const handleRemove = () => {
+        marker.remove();
+        popup.remove();
+        customMarkerRef.current = null;
+        activePopupRef.current = null;
+        clearMarker();
+      };
+
+      const popupNode = createPinPopupContent(pinData, handleAdd, handleRemove);
+      popup.setLngLat([lng, lat]).setDOMContent(popupNode).addTo(map);
+      activePopupRef.current = popup;
+
+      // Reverse geocode to get REAL location / attraction / street name
+      try {
+        const geoResult = await reverseGeocode(lat, lng);
+        if (geoResult && geoResult.name) {
+          pinData.name = geoResult.name;
+          pinData.address = geoResult.displayName || `${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
+          placeMarker(pinData);
+
+          const titleEl = popupNode.querySelector('.pin-title');
+          const addrEl = popupNode.querySelector('.pin-address');
+          if (titleEl) titleEl.textContent = geoResult.name;
+          if (addrEl) addrEl.textContent = geoResult.displayName || `${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
+        }
+      } catch (err) {
+        console.warn('Reverse geocode error:', err);
+      }
+    };
+
+    map.on('click', handleMapClick);
+    return () => map.off('click', handleMapClick);
+  }, [
+    isDestinationView,
+    isTransitioning,
+    mapLoaded,
+    placeMarker,
+    clearMarker,
+    addActivity,
+    onToggleDrawer,
+    createPinPopupContent,
+  ]);
+
+  // ─── Render Suggested Activity Markers in Destination View ───
   const allDestinations = useMemo(() => getDestinations(), []);
   const trendingIds = useMemo(() => new Set(getTrendingDestinations().map((d) => d.id)), []);
 
@@ -444,11 +651,11 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
-    // Clear old markers
+    // Clear previous destination markers
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // In destination view, show activity markers instead of global pins
+    // In Destination View: Show rich interactive activity markers with popups
     if (isDestinationView && activeDest?.activities) {
       const baseLat = activeDest.lat;
       const baseLng = activeDest.lng;
@@ -461,17 +668,65 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
         el.className = 'group cursor-pointer select-none';
         el.innerHTML = `
           <div class="relative flex items-center justify-center">
-            <div class="w-7 h-7 rounded-full bg-surface border border-accent-sky/40 shadow-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-125">
+            <div class="w-7 h-7 rounded-full bg-surface border border-accent-sky/60 shadow-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-125">
               <span class="w-2.5 h-2.5 rounded-full bg-accent-sky"></span>
             </div>
             <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
               <div class="bg-surface/95 border border-white/10 text-white px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shadow-2xl">
-                <span class="text-white">${act.name}</span>
+                <span>${act.name}</span>
                 <span class="text-accent-sky ml-1.5 font-mono">${act.cost > 0 ? `$${act.cost}` : 'Free'}</span>
               </div>
             </div>
           </div>
         `;
+
+        // Interactive popup on clicking activity marker
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+
+          if (activePopupRef.current) activePopupRef.current.remove();
+
+          const targetDay = days?.[0] || { id: 1 };
+          const popup = new maplibregl.Popup({
+            closeButton: true,
+            closeOnClick: false,
+            offset: 18,
+            className: 'activity-marker-popup',
+          });
+
+          const popupContent = document.createElement('div');
+          popupContent.className = 'flex flex-col gap-2.5 text-left';
+          popupContent.innerHTML = `
+            <div class="border-b border-white/10 pb-2">
+              <h4 class="text-white text-sm font-semibold">${act.name}</h4>
+              <p class="text-text-secondary text-[11px] font-mono mt-0.5">
+                ⏱ ${act.durationHrs || 2}h · 💰 ${act.cost > 0 ? `$${act.cost}` : 'Free'}
+              </p>
+            </div>
+            <button type="button" class="add-act-btn w-full py-2 rounded-xl bg-accent-sky text-slate-950 text-xs font-semibold font-body hover:bg-sky-400 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-accent-sky/20">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Add to Day 1
+            </button>
+          `;
+
+          const addActBtn = popupContent.querySelector('.add-act-btn');
+          addActBtn.addEventListener('click', () => {
+            addActivity(targetDay.id, {
+              name: act.name,
+              durationHrs: act.durationHrs || 2,
+              cost: act.cost || 0,
+              lat: offsetLat,
+              lng: offsetLng,
+            });
+            onToggleDrawer('itinerary');
+            popup.remove();
+          });
+
+          popup.setLngLat([offsetLng, offsetLat]).setDOMContent(popupContent).addTo(map);
+          activePopupRef.current = popup;
+        });
 
         const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
           .setLngLat([offsetLng, offsetLat])
@@ -482,38 +737,50 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
       return;
     }
 
-    // On Globe View: Add minimalist destination dot pins
-    filteredDestinations.forEach((dest) => {
-      const isTrending = trendingIds.has(dest.id);
-      const el = document.createElement('div');
-      el.className = 'group cursor-pointer select-none';
+    // On Globe View: Add minimalist clickable destination dot pins
+    if (!isDestinationView) {
+      filteredDestinations.forEach((dest) => {
+        const isTrending = trendingIds.has(dest.id);
+        const el = document.createElement('div');
+        el.className = 'group cursor-pointer select-none';
 
-      el.innerHTML = `
-        <div class="relative flex items-center justify-center p-2">
-          <div class="w-3 h-3 rounded-full ${
-            isTrending ? 'bg-accent-amber border-2 border-white' : 'bg-accent-sky border-2 border-white'
-          } shadow-md transition-transform duration-200 group-hover:scale-150"></div>
-          <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
-            <div class="bg-surface/95 border border-white/10 text-white px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap shadow-xl flex items-center gap-1.5">
-              <span>${dest.name}</span>
-              ${isTrending ? '<span class="text-[10px] text-accent-amber font-mono">TRENDING</span>' : ''}
+        el.innerHTML = `
+          <div class="relative flex items-center justify-center p-2">
+            <div class="w-3.5 h-3.5 rounded-full ${
+              isTrending ? 'bg-accent-amber border-2 border-white' : 'bg-accent-sky border-2 border-white'
+            } shadow-md transition-transform duration-200 group-hover:scale-150"></div>
+            <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
+              <div class="bg-surface/95 border border-white/10 text-white px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap shadow-xl flex items-center gap-1.5">
+                <span>${dest.name}</span>
+                ${isTrending ? '<span class="text-[10px] text-accent-amber font-mono">TRENDING</span>' : ''}
+              </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
 
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        flyToDestination(dest);
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          flyToDestination(dest);
+        });
+
+        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([dest.lng, dest.lat])
+          .addTo(map);
+
+        markersRef.current.push(marker);
       });
-
-      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-        .setLngLat([dest.lng, dest.lat])
-        .addTo(map);
-
-      markersRef.current.push(marker);
-    });
-  }, [filteredDestinations, isDestinationView, activeDest, trendingIds, flyToDestination, mapLoaded]);
+    }
+  }, [
+    filteredDestinations,
+    isDestinationView,
+    activeDest,
+    trendingIds,
+    flyToDestination,
+    mapLoaded,
+    days,
+    addActivity,
+    onToggleDrawer,
+  ]);
 
   // ─── Update Itinerary Polyline ───
   const allActivities = useMemo(() => {
@@ -554,43 +821,40 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
   const handleReturnToGlobe = useCallback(() => {
     const map = mapRef.current;
     if (map) {
+      // Remove popups and custom pins
+      if (activePopupRef.current) activePopupRef.current.remove();
+      if (customMarkerRef.current) customMarkerRef.current.remove();
+      setSelectedPanel(null);
+      onToggleDrawer(null);
+
       isInteractingRef.current = true;
       try { map.setProjection({ type: 'globe' }); } catch {}
       setProjectionMode('globe');
+
+      let completed = false;
+      const onGlobeArrival = () => {
+        if (completed) return;
+        completed = true;
+        navigateToGlobe(false);
+        isInteractingRef.current = false;
+      };
+
       map.flyTo({
         center: [15, 20],
         zoom: 1.6,
         pitch: 0,
         bearing: 0,
-        speed: 0.9,
+        speed: 1.1,
         curve: 1.2,
-        easing: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
         essential: true,
       });
-      setTimeout(() => {
-        navigateToGlobe(false);
-        isInteractingRef.current = false;
-        setSelectedPanel(null);
-      }, 1900);
+
+      map.once('moveend', onGlobeArrival);
+      setTimeout(onGlobeArrival, 4000);
     } else {
       navigateToGlobe(false);
     }
-  }, [navigateToGlobe]);
-
-  // Add custom marker location to itinerary
-  const handleAddMarkerToItinerary = useCallback(() => {
-    if (!customMarker) return;
-    const targetDay = days?.[0];
-    if (targetDay) {
-      addActivity(targetDay.id, {
-        name: customMarker.name,
-        durationHrs: 1,
-        cost: 0,
-      });
-    }
-    onToggleDrawer('itinerary');
-    clearMarker();
-  }, [customMarker, days, addActivity, onToggleDrawer, clearMarker]);
+  }, [navigateToGlobe, onToggleDrawer]);
 
   const crowdColor = crowdData ? getCrowdColor(crowdData.level) : '#F59E0B';
 
@@ -600,41 +864,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
         {/* MapLibre Canvas Container — fullscreen */}
         <div ref={mapContainerRef} className="w-full h-full" />
 
-        {/* ─── Custom Marker Floating Action ─── */}
-        <AnimatePresence>
-          {customMarker && isDestinationView && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.25 }}
-              className="absolute top-4 inset-x-0 z-40 pointer-events-none flex justify-center px-4"
-            >
-              <div className="pointer-events-auto bg-surface/95 backdrop-blur-xl border border-accent-sky/30 rounded-2xl p-3 sm:p-4 shadow-2xl flex items-center gap-3 max-w-sm">
-                <PinIcon className="w-5 h-5 text-accent-sky flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-body font-medium truncate">{customMarker.name}</p>
-                  <p className="text-text-secondary text-[10px] font-mono mt-0.5">Tap to add to itinerary</p>
-                </div>
-                <button
-                  onClick={handleAddMarkerToItinerary}
-                  className="px-3 py-1.5 rounded-lg bg-accent-sky/20 text-accent-sky text-xs font-mono font-semibold hover:bg-accent-sky/30 transition-colors flex items-center gap-1.5 flex-shrink-0"
-                >
-                  <PlusIcon className="w-3.5 h-3.5" />
-                  Add
-                </button>
-                <button
-                  onClick={clearMarker}
-                  className="p-1.5 rounded-lg text-text-secondary hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
-                >
-                  <CloseIcon className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ─── Destination View Overlays ─── */}
+        {/* ─── Destination View Overlays (Only rendered once flight is 100% completed) ─── */}
         <AnimatePresence>
           {isDestinationView && activeDest && (
             <>
@@ -657,16 +887,16 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
                     <span className="font-body hidden sm:inline">Globe</span>
                   </button>
 
-                  {/* Center: Destination Name (no day/month) */}
+                  {/* Center: Destination Name */}
                   <div className="pointer-events-auto px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-surface/90 border border-white/10 shadow-lg flex items-center gap-2 sm:gap-3 min-w-0">
                     <span className="font-display font-bold text-white text-sm sm:text-base lg:text-lg truncate">
                       {activeDest.name}
                     </span>
                   </div>
 
-                  {/* Right: Controls */}
+                  {/* Right: Map Controls */}
                   <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                    {/* 2D/3D Toggle */}
+                    {/* 2D / 3D Projection Toggle */}
                     <button
                       onClick={toggleProjection}
                       title={projectionMode === 'globe' ? 'Switch to 2D Map' : 'Switch to 3D Globe'}
@@ -709,7 +939,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
                       <MapIcon className="w-4 h-4" />
                     </button>
 
-                    {/* Weather & Crowd — desktop only */}
+                    {/* Weather & Crowd — desktop */}
                     {weatherData && (
                       <div className="hidden md:flex px-3 py-2 rounded-xl bg-surface/90 border border-white/10 shadow-lg items-center gap-2 text-xs font-mono text-white">
                         <SunIcon className="w-4 h-4 text-accent-amber" />
@@ -819,14 +1049,10 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
                         key={item.key}
                         onClick={() => {
                           if (item.isLocal) {
-                            // Overview panel is managed locally
                             setSelectedPanel((prev) => (prev === item.key ? null : item.key));
-                            // Close any drawer when opening overview
                             if (activeDrawer) onToggleDrawer(activeDrawer);
                           } else {
-                            // Drawers are managed by App.jsx
                             onToggleDrawer(item.key);
-                            // Close local overview panel when opening a drawer
                             setSelectedPanel(null);
                           }
                         }}
@@ -849,7 +1075,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
                 </div>
               </motion.div>
 
-              {/* Side Detail Panel (local, not a drawer) */}
+              {/* Side Detail Panel (local overview) */}
               <AnimatePresence>
                 {selectedPanel === 'detail' && (
                   <DetailPanel
@@ -869,7 +1095,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
         </AnimatePresence>
 
         {/* Bottom Coordinates Indicator */}
-        {!isMobile && (
+        {!isMobile && isDestinationView && (
           <div className="absolute bottom-3 left-4 z-10 pointer-events-none">
             <div className="bg-surface/80 border border-white/5 rounded-lg px-2.5 py-1 text-[11px] font-mono text-text-secondary/70">
               {activeDest ? `${activeDest.lat.toFixed(4)}°, ${activeDest.lng.toFixed(4)}°` : 'Globe Orbit Mode'}
