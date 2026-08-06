@@ -137,3 +137,52 @@ html, body, #root {
     max-width: 100%;
   }
 }
+
+/* ── Mobile Responsive Overrides ── */
+@media (max-width: 640px) {
+  .chip {
+    padding: 4px 10px;
+    font-size: 0.68rem;
+    gap: 4px;
+  }
+
+  .maplibregl-ctrl-bottom-left,
+  .maplibregl-ctrl-bottom-right {
+    display: none;
+  }
+}
+
+/* ── Custom Map Marker ── */
+.custom-map-marker {
+  cursor: pointer;
+}
+
+@keyframes markerPulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.8); opacity: 0; }
+}
+
+.custom-map-marker .animate-ping {
+  animation: markerPulse 1.5s ease-in-out infinite;
+}
+
+/* ── Smooth panel transitions ── */
+.panel-enter {
+  transform: translateX(100%);
+  opacity: 0;
+}
+.panel-enter-active {
+  transform: translateX(0);
+  opacity: 1;
+  transition: all 0.3s var(--ease);
+}
+.panel-exit {
+  transform: translateX(0);
+  opacity: 1;
+}
+.panel-exit-active {
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.25s var(--ease);
+}
+

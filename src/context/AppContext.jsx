@@ -19,24 +19,26 @@ export function AppProvider({ children }) {
   const [flightTarget, setFlightTarget] = useState(null); // { lat, lng, name, id }
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isReversingTransition, setIsReversingTransition] = useState(false);
+  const [customMarker, setCustomMarker] = useState(null); // { lat, lng, name }
 
   const navigateToGlobe = useCallback((withReverseAnim = false) => {
     if (withReverseAnim) {
       setIsReversingTransition(true);
-      // Wait for cloud transition before fully resetting
       setTimeout(() => {
         setViewState(VIEW_STATES.GLOBE_HOME);
         setSelectedDestination(null);
         setFlightTarget(null);
         setIsTransitioning(false);
         setIsReversingTransition(false);
-      }, 1000); // the map fade-out and cloud pass-through duration
+        setCustomMarker(null);
+      }, 1000);
     } else {
       setViewState(VIEW_STATES.GLOBE_HOME);
       setSelectedDestination(null);
       setFlightTarget(null);
       setIsTransitioning(false);
       setIsReversingTransition(false);
+      setCustomMarker(null);
     }
   }, []);
 
@@ -60,6 +62,14 @@ export function AppProvider({ children }) {
     setViewState(VIEW_STATES.DESTINATION_MAP);
   }, []);
 
+  const placeMarker = useCallback((marker) => {
+    setCustomMarker(marker); // { lat, lng, name }
+  }, []);
+
+  const clearMarker = useCallback(() => {
+    setCustomMarker(null);
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -68,11 +78,14 @@ export function AppProvider({ children }) {
         flightTarget,
         isTransitioning,
         isReversingTransition,
+        customMarker,
         navigateToGlobe,
         showQuiz,
         hideQuiz,
         flyToDestination,
         arriveAtDestination,
+        placeMarker,
+        clearMarker,
       }}
     >
       {children}
@@ -87,3 +100,4 @@ export function useApp() {
 }
 
 export default AppContext;
+

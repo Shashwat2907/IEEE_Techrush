@@ -10,20 +10,20 @@ import { getWeather } from '../../services/weather';
 import { getCrowdLevel, getCrowdColor } from '../../services/crowd';
 import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import DetailPanel from '../destination-map/DetailPanel';
-import GlobeFilters from './GlobeFilters';
 import {
   GlobeIcon,
   SatelliteIcon,
   MoonIcon,
   MapIcon,
   SunIcon,
-  CloudIcon,
   UsersIcon,
   CalendarIcon,
   OverviewIcon,
   BackpackIcon,
   ScaleIcon,
-  FilterIcon,
+  PinIcon,
+  PlusIcon,
+  CloseIcon,
 } from '../../components/ui/Icons';
 
 // ── Tile Providers ──
@@ -63,14 +63,31 @@ const VOYAGER_SOURCE = {
   maxzoom: 19,
 };
 
-export default function MapLibreGlobe({
-  onOpenItinerary,
-  onOpenPacking,
-  onOpenCompare,
-}) {
+// 2D/3D icon components
+function FlatMapIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 10h18M8 5v14M16 5v14" />
+    </svg>
+  );
+}
+
+function Globe3DIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="9" />
+      <ellipse cx="12" cy="12" rx="4" ry="9" />
+      <path d="M3.5 9h17M3.5 15h17" />
+    </svg>
+  );
+}
+
+export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const customMarkerRef = useRef(null);
   const animFrameRef = useRef(null);
   const isInteractingRef = useRef(false);
 
@@ -81,20 +98,33 @@ export default function MapLibreGlobe({
     arriveAtDestination,
     navigateToGlobe,
     flyToDestination,
+    customMarker,
+    placeMarker,
+    clearMarker,
   } = useApp();
 
   const { filters } = useFilters();
-  const { days, setDestination } = useItinerary();
+  const { days, setDestination, addActivity } = useItinerary();
 
   const [currentZoom, setCurrentZoom] = useState(1.6);
   const [activeTileStyle, setActiveTileStyle] = useState('satellite');
   const [weatherData, setWeatherData] = useState(null);
   const [crowdData, setCrowdData] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedPanel, setSelectedPanel] = useState(null);
+  const [selectedPanel, setSelectedPanel] = useState(null); // 'detail' only — drawers managed by App
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [projectionMode, setProjectionMode] = useState('globe'); // 'globe' | 'mercator'
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
 
   const isDestinationView = selectedDestination !== null || (currentZoom >= 6.5 && !isTransitioning);
+
+  // Detect mobile
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Active destination details
   const activeDest = useMemo(() => {
@@ -143,9 +173,7 @@ export default function MapLibreGlobe({
       container: mapContainerRef.current,
       style: {
         version: 8,
-        projection: {
-          type: 'globe',
-        },
+        projection: { type: 'globe' },
         sources: {
           'esri-satellite': SATELLITE_SOURCE,
           'carto-dark': DARK_SOURCE,
@@ -193,6 +221,9 @@ export default function MapLibreGlobe({
       pitch: 0,
       bearing: 0,
       attributionControl: false,
+      dragRotate: true,
+      touchZoomRotate: true,
+      touchPitch: true,
     });
 
     map.on('load', () => {
@@ -202,10 +233,7 @@ export default function MapLibreGlobe({
       // Add itinerary route source & layer
       map.addSource('itinerary-route', {
         type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: [],
-        },
+        data: { type: 'FeatureCollection', features: [] },
       });
 
       map.addLayer({
@@ -222,7 +250,25 @@ export default function MapLibreGlobe({
     });
 
     map.on('zoom', () => {
-      setCurrentZoom(map.getZoom());
+      const zoom = map.getZoom();
+      setCurrentZoom(zoom);
+
+      // Auto projection switching
+      if (zoom >= 10 && projectionMode !== 'mercator') {
+        try { map.setProjection({ type: 'mercator' }); } catch {}
+        setProjectionMode('mercator');
+      } else if (zoom < 3 && projectionMode !== 'globe') {
+        try { map.setProjection({ type: 'globe' }); } catch {}
+        setProjectionMode('globe');
+      }
+    });
+
+    // Map click → place marker in destination view
+    map.on('click', (e) => {
+      // Only allow in destination view (when we have an active destination)
+      if (!isInteractingRef.current) {
+        // We'll handle this with a ref-based check in the click handler effect
+      }
     });
 
     // Auto-spin idle logic
@@ -259,7 +305,7 @@ export default function MapLibreGlobe({
         mapRef.current.getZoom() <= 2.8
       ) {
         const center = mapRef.current.getCenter();
-        center.lng -= 1.8 * delta; // Constant silky smooth rotation
+        center.lng -= 1.8 * delta;
         mapRef.current.setCenter(center);
       }
       animFrameRef.current = requestAnimationFrame(spinGlobe);
@@ -273,15 +319,78 @@ export default function MapLibreGlobe({
     };
   }, []);
 
+  // ─── Map click handler for placing custom markers ───
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    const handleMapClick = (e) => {
+      // Only allow marker placement when in destination view
+      if (selectedDestination && !isTransitioning) {
+        const { lng, lat } = e.lngLat;
+        placeMarker({
+          lat,
+          lng,
+          name: `Pin at ${lat.toFixed(3)}°, ${lng.toFixed(3)}°`,
+        });
+      }
+    };
+
+    map.on('click', handleMapClick);
+    return () => map.off('click', handleMapClick);
+  }, [selectedDestination, isTransitioning, mapLoaded, placeMarker]);
+
+  // ─── Render custom marker on map ───
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    // Remove previous custom marker
+    if (customMarkerRef.current) {
+      customMarkerRef.current.remove();
+      customMarkerRef.current = null;
+    }
+
+    if (customMarker) {
+      const el = document.createElement('div');
+      el.className = 'custom-map-marker';
+      el.innerHTML = `
+        <div class="relative flex items-center justify-center">
+          <div class="w-8 h-8 rounded-full bg-accent-sky/30 animate-ping absolute"></div>
+          <div class="w-5 h-5 rounded-full bg-accent-sky border-2 border-white shadow-lg relative z-10"></div>
+        </div>
+      `;
+
+      customMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([customMarker.lng, customMarker.lat])
+        .addTo(map);
+    }
+  }, [customMarker, mapLoaded]);
+
   // ─── Handle Tile Style Switching ───
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
-    map.setLayoutProperty('satellite-layer', 'visibility', activeTileStyle === 'satellite' ? 'visible' : 'none');
-    map.setLayoutProperty('dark-layer', 'visibility', activeTileStyle === 'dark' ? 'visible' : 'none');
-    map.setLayoutProperty('voyager-layer', 'visibility', activeTileStyle === 'voyager' ? 'visible' : 'none');
+    const styles = ['satellite', 'dark', 'voyager'];
+    styles.forEach((style) => {
+      const layerId = `${style}-layer`;
+      try {
+        map.setLayoutProperty(layerId, 'visibility', activeTileStyle === style ? 'visible' : 'none');
+      } catch (err) {
+        // Layer might not exist yet
+      }
+    });
   }, [activeTileStyle, mapLoaded]);
+
+  // ─── Manual Projection Toggle ───
+  const toggleProjection = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const newMode = projectionMode === 'globe' ? 'mercator' : 'globe';
+    try { map.setProjection({ type: newMode }); } catch {}
+    setProjectionMode(newMode);
+  }, [projectionMode]);
 
   // ─── Seamless Slow-to-Fast Camera Flight Easing ───
   useEffect(() => {
@@ -290,14 +399,19 @@ export default function MapLibreGlobe({
 
     if (flightTarget && isTransitioning) {
       isInteractingRef.current = true;
+
+      // Switch to mercator for the destination zoom level
+      try { map.setProjection({ type: 'mercator' }); } catch {}
+      setProjectionMode('mercator');
+
       map.flyTo({
         center: [flightTarget.lng, flightTarget.lat],
         zoom: 12.5,
         pitch: 42,
         bearing: 0,
-        speed: 0.85, // Starts gently, accelerates smoothly
-        curve: 1.4,  // Parabolic trajectory
-        easing: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t), // Smooth ease-in-out curve
+        speed: 0.85,
+        curve: 1.4,
+        easing: (t) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t),
         essential: true,
       });
 
@@ -427,10 +541,7 @@ export default function MapLibreGlobe({
         features: [
           {
             type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: coords,
-            },
+            geometry: { type: 'LineString', coordinates: coords },
           },
         ],
       });
@@ -444,6 +555,8 @@ export default function MapLibreGlobe({
     const map = mapRef.current;
     if (map) {
       isInteractingRef.current = true;
+      try { map.setProjection({ type: 'globe' }); } catch {}
+      setProjectionMode('globe');
       map.flyTo({
         center: [15, 20],
         zoom: 1.6,
@@ -457,19 +570,69 @@ export default function MapLibreGlobe({
       setTimeout(() => {
         navigateToGlobe(false);
         isInteractingRef.current = false;
+        setSelectedPanel(null);
       }, 1900);
     } else {
       navigateToGlobe(false);
     }
   }, [navigateToGlobe]);
 
+  // Add custom marker location to itinerary
+  const handleAddMarkerToItinerary = useCallback(() => {
+    if (!customMarker) return;
+    const targetDay = days?.[0];
+    if (targetDay) {
+      addActivity(targetDay.id, {
+        name: customMarker.name,
+        durationHrs: 1,
+        cost: 0,
+      });
+    }
+    onToggleDrawer('itinerary');
+    clearMarker();
+  }, [customMarker, days, addActivity, onToggleDrawer, clearMarker]);
+
   const crowdColor = crowdData ? getCrowdColor(crowdData.level) : '#F59E0B';
 
   return (
     <ErrorBoundary name="MapLibre Globe">
       <div className="relative w-full h-full bg-[#080C14] overflow-hidden select-none">
-        {/* MapLibre Canvas Container */}
+        {/* MapLibre Canvas Container — fullscreen */}
         <div ref={mapContainerRef} className="w-full h-full" />
+
+        {/* ─── Custom Marker Floating Action ─── */}
+        <AnimatePresence>
+          {customMarker && isDestinationView && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.25 }}
+              className="absolute top-4 inset-x-0 z-40 pointer-events-none flex justify-center px-4"
+            >
+              <div className="pointer-events-auto bg-surface/95 backdrop-blur-xl border border-accent-sky/30 rounded-2xl p-3 sm:p-4 shadow-2xl flex items-center gap-3 max-w-sm">
+                <PinIcon className="w-5 h-5 text-accent-sky flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-body font-medium truncate">{customMarker.name}</p>
+                  <p className="text-text-secondary text-[10px] font-mono mt-0.5">Tap to add to itinerary</p>
+                </div>
+                <button
+                  onClick={handleAddMarkerToItinerary}
+                  className="px-3 py-1.5 rounded-lg bg-accent-sky/20 text-accent-sky text-xs font-mono font-semibold hover:bg-accent-sky/30 transition-colors flex items-center gap-1.5 flex-shrink-0"
+                >
+                  <PlusIcon className="w-3.5 h-3.5" />
+                  Add
+                </button>
+                <button
+                  onClick={clearMarker}
+                  className="p-1.5 rounded-lg text-text-secondary hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                >
+                  <CloseIcon className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ─── Destination View Overlays ─── */}
         <AnimatePresence>
@@ -480,99 +643,138 @@ export default function MapLibreGlobe({
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                className="absolute top-0 inset-x-0 z-30 pointer-events-none p-4 sm:p-5"
+                transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+                className="absolute top-0 inset-x-0 z-30 pointer-events-none p-3 sm:p-4"
               >
-                <div className="max-w-7xl mx-auto flex items-start justify-between gap-3">
+                <div className="max-w-7xl mx-auto flex items-start justify-between gap-2 sm:gap-3">
                   {/* Left: Back to Globe */}
                   <button
                     onClick={handleReturnToGlobe}
-                    className="pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface/90 border border-white/10 text-white text-sm font-medium hover:border-accent-sky/40 hover:bg-surface-raised transition-all shadow-lg group"
+                    className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-surface/90 border border-white/10 text-white text-xs sm:text-sm font-medium hover:border-accent-sky/40 hover:bg-surface-raised transition-all shadow-lg group flex-shrink-0"
                     title="Return to 3D Globe"
                   >
                     <GlobeIcon className="w-4 h-4 text-accent-sky group-hover:scale-110 transition-transform" />
-                    <span className="font-body">Globe</span>
+                    <span className="font-body hidden sm:inline">Globe</span>
                   </button>
 
-                  {/* Center: Destination Header Pill */}
-                  <div className="pointer-events-auto px-5 py-2.5 rounded-xl bg-surface/90 border border-white/10 shadow-lg flex items-center gap-3">
-                    <span className="font-display font-bold text-white text-base sm:text-lg">
+                  {/* Center: Destination Name (no day/month) */}
+                  <div className="pointer-events-auto px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-surface/90 border border-white/10 shadow-lg flex items-center gap-2 sm:gap-3 min-w-0">
+                    <span className="font-display font-bold text-white text-sm sm:text-base lg:text-lg truncate">
                       {activeDest.name}
                     </span>
-                    {activeDest.bestTimeToVisit && (
-                      <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-mono text-accent-sky bg-accent-sky/10 border border-accent-sky/20 px-2.5 py-0.5 rounded-full">
-                        <CalendarIcon className="w-3.5 h-3.5" />
-                        {activeDest.bestTimeToVisit}
-                      </span>
-                    )}
                   </div>
 
-                  {/* Right: Map Layers & Quick Badges */}
-                  <div className="pointer-events-auto flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-2">
-                      {/* Tile Style Switcher */}
-                      <div className="flex items-center bg-surface/90 border border-white/10 rounded-xl p-1 shadow-lg">
-                        {[
-                          { key: 'satellite', icon: <SatelliteIcon className="w-4 h-4" />, title: 'Satellite Imagery' },
-                          { key: 'dark', icon: <MoonIcon className="w-4 h-4" />, title: 'Dark Matter Atlas' },
-                          { key: 'voyager', icon: <MapIcon className="w-4 h-4" />, title: 'Voyager Street Map' },
-                        ].map((s) => (
-                          <button
-                            key={s.key}
-                            onClick={() => setActiveTileStyle(s.key)}
-                            title={s.title}
-                            className={`p-2 rounded-lg text-xs font-mono transition-all ${
-                              activeTileStyle === s.key
-                                ? 'bg-accent-sky/20 text-accent-sky font-bold border border-accent-sky/30'
-                                : 'text-text-secondary hover:text-white'
-                            }`}
-                          >
-                            {s.icon}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Weather Pill */}
-                      {weatherData && (
-                        <div className="px-3.5 py-2 rounded-xl bg-surface/90 border border-white/10 shadow-lg flex items-center gap-2 text-xs font-mono text-white">
-                          <SunIcon className="w-4 h-4 text-accent-amber" />
-                          <span>{weatherData.temp}°C</span>
-                        </div>
+                  {/* Right: Controls */}
+                  <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                    {/* 2D/3D Toggle */}
+                    <button
+                      onClick={toggleProjection}
+                      title={projectionMode === 'globe' ? 'Switch to 2D Map' : 'Switch to 3D Globe'}
+                      className="p-2 rounded-xl bg-surface/90 border border-white/10 text-text-secondary hover:text-white shadow-lg transition-all"
+                    >
+                      {projectionMode === 'globe' ? (
+                        <FlatMapIcon className="w-4 h-4" />
+                      ) : (
+                        <Globe3DIcon className="w-4 h-4" />
                       )}
+                    </button>
 
-                      {/* Crowd Level Badge */}
-                      {crowdData && (
-                        <div className="px-3.5 py-2 rounded-xl bg-surface/90 border border-white/10 shadow-lg flex items-center gap-2 text-xs font-mono text-white">
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: crowdColor }}
-                          />
-                          <span className="capitalize">{crowdData.level} Crowd</span>
-                        </div>
-                      )}
-
-                      {/* Filter Toggle */}
-                      <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className={`px-3.5 py-2 rounded-xl border text-xs font-mono transition-all shadow-lg flex items-center gap-2 ${
-                          showFilters
-                            ? 'bg-accent-sky/20 border-accent-sky text-accent-sky font-bold'
-                            : 'bg-surface/90 border-white/10 text-text-secondary hover:text-white'
-                        }`}
-                      >
-                        <FilterIcon className="w-3.5 h-3.5" />
-                        <span>Filters</span>
-                      </button>
+                    {/* Tile Style Switcher */}
+                    <div className="hidden sm:flex items-center bg-surface/90 border border-white/10 rounded-xl p-1 shadow-lg">
+                      {[
+                        { key: 'satellite', icon: <SatelliteIcon className="w-4 h-4" />, title: 'Satellite' },
+                        { key: 'dark', icon: <MoonIcon className="w-4 h-4" />, title: 'Dark' },
+                        { key: 'voyager', icon: <MapIcon className="w-4 h-4" />, title: 'Street' },
+                      ].map((s) => (
+                        <button
+                          key={s.key}
+                          onClick={() => setActiveTileStyle(s.key)}
+                          title={s.title}
+                          className={`p-1.5 sm:p-2 rounded-lg text-xs font-mono transition-all ${
+                            activeTileStyle === s.key
+                              ? 'bg-accent-sky/20 text-accent-sky border border-accent-sky/30'
+                              : 'text-text-secondary hover:text-white'
+                          }`}
+                        >
+                          {s.icon}
+                        </button>
+                      ))}
                     </div>
 
-                    {/* Expandable Filter Bar */}
-                    {showFilters && (
-                      <div className="w-full max-w-md bg-surface/95 border border-white/10 rounded-2xl p-4 shadow-2xl backdrop-blur-md">
-                        <GlobeFilters />
+                    {/* Mobile: Combined settings toggle */}
+                    <button
+                      onClick={() => setMobileControlsOpen(!mobileControlsOpen)}
+                      className="sm:hidden p-2 rounded-xl bg-surface/90 border border-white/10 text-text-secondary hover:text-white shadow-lg transition-all"
+                    >
+                      <MapIcon className="w-4 h-4" />
+                    </button>
+
+                    {/* Weather & Crowd — desktop only */}
+                    {weatherData && (
+                      <div className="hidden md:flex px-3 py-2 rounded-xl bg-surface/90 border border-white/10 shadow-lg items-center gap-2 text-xs font-mono text-white">
+                        <SunIcon className="w-4 h-4 text-accent-amber" />
+                        <span>{weatherData.temp}°C</span>
+                      </div>
+                    )}
+
+                    {crowdData && (
+                      <div className="hidden md:flex px-3 py-2 rounded-xl bg-surface/90 border border-white/10 shadow-lg items-center gap-2 text-xs font-mono text-white">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: crowdColor }} />
+                        <span className="capitalize">{crowdData.level}</span>
                       </div>
                     )}
                   </div>
                 </div>
+
+                {/* Mobile expanded controls */}
+                <AnimatePresence>
+                  {mobileControlsOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="sm:hidden pointer-events-auto mt-2 bg-surface/95 border border-white/10 rounded-xl p-3 shadow-xl mx-auto max-w-xs"
+                    >
+                      {/* Tile switcher */}
+                      <div className="flex items-center gap-1.5 mb-2">
+                        {[
+                          { key: 'satellite', icon: <SatelliteIcon className="w-4 h-4" />, label: 'Satellite' },
+                          { key: 'dark', icon: <MoonIcon className="w-4 h-4" />, label: 'Dark' },
+                          { key: 'voyager', icon: <MapIcon className="w-4 h-4" />, label: 'Street' },
+                        ].map((s) => (
+                          <button
+                            key={s.key}
+                            onClick={() => setActiveTileStyle(s.key)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-mono transition-all ${
+                              activeTileStyle === s.key
+                                ? 'bg-accent-sky/20 text-accent-sky border border-accent-sky/30'
+                                : 'text-text-secondary bg-white/5'
+                            }`}
+                          >
+                            {s.icon}
+                            <span>{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      {/* Weather & crowd on mobile */}
+                      <div className="flex items-center gap-2">
+                        {weatherData && (
+                          <div className="flex-1 flex items-center gap-1.5 text-xs font-mono text-white bg-white/5 rounded-lg px-2 py-1.5">
+                            <SunIcon className="w-3.5 h-3.5 text-accent-amber" />
+                            <span>{weatherData.temp}°C</span>
+                          </div>
+                        )}
+                        {crowdData && (
+                          <div className="flex-1 flex items-center gap-1.5 text-xs font-mono text-white bg-white/5 rounded-lg px-2 py-1.5">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: crowdColor }} />
+                            <span className="capitalize">{crowdData.level}</span>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
 
               {/* Bottom Floating Action Dock */}
@@ -580,49 +782,74 @@ export default function MapLibreGlobe({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                className="absolute bottom-5 inset-x-0 z-30 pointer-events-none flex justify-center px-4"
+                transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+                className="absolute bottom-3 sm:bottom-5 inset-x-0 z-30 pointer-events-none flex justify-center px-3 sm:px-4"
               >
-                <div className="pointer-events-auto bg-surface/90 border border-white/10 rounded-2xl p-1.5 shadow-2xl flex items-center gap-1">
-                  <button
-                    onClick={() => setSelectedPanel(selectedPanel === 'detail' ? null : 'detail')}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold font-body transition-all ${
-                      selectedPanel === 'detail'
-                        ? 'bg-accent-sky/20 text-accent-sky border border-accent-sky/30'
-                        : 'text-text-secondary hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <OverviewIcon className="w-4 h-4" />
-                    <span>Overview</span>
-                  </button>
+                <div className="pointer-events-auto bg-surface/90 border border-white/10 rounded-2xl p-1 sm:p-1.5 shadow-2xl flex items-center gap-0.5 sm:gap-1">
+                  {[
+                    {
+                      key: 'detail',
+                      icon: <OverviewIcon className="w-4 h-4" />,
+                      label: 'Overview',
+                      isLocal: true,
+                    },
+                    {
+                      key: 'itinerary',
+                      icon: <CalendarIcon className="w-4 h-4" />,
+                      label: `Itinerary`,
+                      count: allActivities.length,
+                    },
+                    {
+                      key: 'packing',
+                      icon: <BackpackIcon className="w-4 h-4" />,
+                      label: 'Packing',
+                    },
+                    {
+                      key: 'compare',
+                      icon: <ScaleIcon className="w-4 h-4" />,
+                      label: 'Compare',
+                    },
+                  ].map((item) => {
+                    const isActive = item.isLocal
+                      ? selectedPanel === item.key
+                      : activeDrawer === item.key;
 
-                  <button
-                    onClick={onOpenItinerary}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold font-body text-text-secondary hover:text-white hover:bg-white/5 transition-all"
-                  >
-                    <CalendarIcon className="w-4 h-4" />
-                    <span>Itinerary ({allActivities.length})</span>
-                  </button>
-
-                  <button
-                    onClick={onOpenPacking}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold font-body text-text-secondary hover:text-white hover:bg-white/5 transition-all"
-                  >
-                    <BackpackIcon className="w-4 h-4" />
-                    <span>Packing</span>
-                  </button>
-
-                  <button
-                    onClick={onOpenCompare}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold font-body text-text-secondary hover:text-white hover:bg-white/5 transition-all"
-                  >
-                    <ScaleIcon className="w-4 h-4" />
-                    <span>Compare</span>
-                  </button>
+                    return (
+                      <button
+                        key={item.key}
+                        onClick={() => {
+                          if (item.isLocal) {
+                            // Overview panel is managed locally
+                            setSelectedPanel((prev) => (prev === item.key ? null : item.key));
+                            // Close any drawer when opening overview
+                            if (activeDrawer) onToggleDrawer(activeDrawer);
+                          } else {
+                            // Drawers are managed by App.jsx
+                            onToggleDrawer(item.key);
+                            // Close local overview panel when opening a drawer
+                            setSelectedPanel(null);
+                          }
+                        }}
+                        className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-semibold font-body transition-all ${
+                          isActive
+                            ? 'bg-accent-sky/20 text-accent-sky border border-accent-sky/30'
+                            : 'text-text-secondary hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        {item.icon}
+                        <span className="hidden sm:inline">{item.label}</span>
+                        {item.count > 0 && (
+                          <span className="text-[9px] font-mono bg-accent-sky/20 text-accent-sky px-1.5 py-0.5 rounded-full">
+                            {item.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </motion.div>
 
-              {/* Side Detail Panel */}
+              {/* Side Detail Panel (local, not a drawer) */}
               <AnimatePresence>
                 {selectedPanel === 'detail' && (
                   <DetailPanel
@@ -630,7 +857,10 @@ export default function MapLibreGlobe({
                     weatherData={weatherData}
                     crowdData={crowdData}
                     onClose={() => setSelectedPanel(null)}
-                    onPlanTrip={onOpenItinerary}
+                    onPlanTrip={() => {
+                      setSelectedPanel(null);
+                      onToggleDrawer('itinerary');
+                    }}
                   />
                 )}
               </AnimatePresence>
@@ -639,11 +869,13 @@ export default function MapLibreGlobe({
         </AnimatePresence>
 
         {/* Bottom Coordinates Indicator */}
-        <div className="absolute bottom-3 left-4 z-10 pointer-events-none">
-          <div className="bg-surface/80 border border-white/5 rounded-lg px-2.5 py-1 text-[11px] font-mono text-text-secondary/70">
-            {activeDest ? `${activeDest.lat.toFixed(4)}°, ${activeDest.lng.toFixed(4)}°` : 'Globe Orbit Mode'}
+        {!isMobile && (
+          <div className="absolute bottom-3 left-4 z-10 pointer-events-none">
+            <div className="bg-surface/80 border border-white/5 rounded-lg px-2.5 py-1 text-[11px] font-mono text-text-secondary/70">
+              {activeDest ? `${activeDest.lat.toFixed(4)}°, ${activeDest.lng.toFixed(4)}°` : 'Globe Orbit Mode'}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </ErrorBoundary>
   );

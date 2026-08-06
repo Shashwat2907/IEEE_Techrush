@@ -45,7 +45,7 @@ export default function PackingList({ destination, weatherData, tripDays, isOpen
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: '100%', opacity: 0 }}
       transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-      className="absolute top-0 right-0 h-full w-[420px] max-w-[92vw] z-[1003] bg-surface/95 backdrop-blur-2xl border-l border-white/10 overflow-y-auto shadow-2xl flex flex-col"
+      className="absolute top-0 right-0 h-full w-full sm:w-[420px] sm:max-w-[92vw] z-[1003] bg-surface/95 backdrop-blur-2xl border-l border-white/10 overflow-y-auto shadow-2xl flex flex-col"
     >
       {/* Header */}
       <div className="sticky top-0 bg-surface/90 backdrop-blur-md border-b border-white/5 p-5 z-10">

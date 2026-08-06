@@ -30,7 +30,7 @@ export default function DetailPanel({ destination, weatherData, crowdData, onClo
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: '100%', opacity: 0 }}
       transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-      className="absolute top-0 right-0 h-full w-[400px] max-w-[90vw] z-[1001] bg-surface/95 backdrop-blur-2xl border-l border-white/10 overflow-y-auto shadow-2xl"
+      className="absolute top-0 right-0 h-full w-full sm:w-[400px] sm:max-w-[90vw] z-[1001] bg-surface/95 backdrop-blur-2xl border-l border-white/10 overflow-y-auto shadow-2xl"
     >
       {/* Header */}
       <div className="sticky top-0 bg-surface/90 backdrop-blur-md border-b border-white/5 p-5 z-10">

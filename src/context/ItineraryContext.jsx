@@ -150,10 +150,10 @@ function getNextAvailableHour(activities) {
  * Calculate day totals
  */
 export function getDayTotals(day) {
-  const totalCost = day.activities.reduce((sum, a) => sum + (a.cost || 0), 0);
-  const totalHours = day.activities.reduce((sum, a) => sum + (a.durationHrs || 0), 0);
+  const cost = day.activities.reduce((sum, a) => sum + (a.cost || 0), 0);
+  const hours = day.activities.reduce((sum, a) => sum + (a.durationHrs || 0), 0);
   const hasConflict = checkConflicts(day.activities);
-  return { totalCost, totalHours, hasConflict };
+  return { cost, hours, hasConflict };
 }
 
 /**
@@ -183,8 +183,13 @@ export function ItineraryProvider({ children }) {
     saveToStorage(state);
   }, [state]);
 
-  const setDestination = useCallback((id, name) => {
-    dispatch({ type: 'SET_DESTINATION', payload: { id, name } });
+  const setDestination = useCallback((idOrDest, name) => {
+    // Support both setDestination(dest) and setDestination(id, name)
+    if (typeof idOrDest === 'object' && idOrDest !== null) {
+      dispatch({ type: 'SET_DESTINATION', payload: { id: idOrDest.id, name: idOrDest.name } });
+    } else {
+      dispatch({ type: 'SET_DESTINATION', payload: { id: idOrDest, name } });
+    }
   }, []);
 
   const setTripDays = useCallback((count) => {

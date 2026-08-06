@@ -11,12 +11,24 @@ export default function GlobeSearch() {
   const [isSearching, setIsSearching] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [hovered, setHovered] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const { flyToDestination, showQuiz } = useApp();
   const inputRef = useRef(null);
   const debounceRef = useRef(null);
 
-  const activeMode = isFocused || query.length > 0 ? 'oval' : hovered;
+  // Detect mobile
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  // On mobile, disable hover expand — show all 3 buttons compactly
+  const activeMode = isMobile
+    ? (isFocused || query.length > 0 ? 'oval' : null)
+    : (isFocused || query.length > 0 ? 'oval' : hovered);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -87,16 +99,15 @@ export default function GlobeSearch() {
 
   const budgetLabel = (tier) => {
     switch (tier) {
-      case 'budget':
-        return '$';
-      case 'mid':
-        return '$$';
-      case 'premium':
-        return '$$$';
-      default:
-        return '$$';
+      case 'budget': return '$';
+      case 'mid': return '$$';
+      case 'premium': return '$$$';
+      default: return '$$';
     }
   };
+
+  // Softer spring for subtle animations
+  const subtleSpring = { type: 'spring', stiffness: 200, damping: 28 };
 
   return (
     <div className="flex justify-center w-full select-none">
@@ -107,37 +118,34 @@ export default function GlobeSearch() {
         }}
       >
         {/* Main Floating Bar */}
-        <div className="relative flex items-center justify-center gap-3 h-14 w-full">
+        <div className="relative flex items-center justify-center gap-2 sm:gap-3 h-12 sm:h-14 w-full">
           {/* Search Input Box */}
           {(!activeMode || activeMode === 'oval') && (
             <motion.div
               layout
               initial={false}
-              animate={{
-                flexGrow: 1,
-                width: '100%',
-              }}
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-              onMouseEnter={() => setHovered('oval')}
+              animate={{ flexGrow: activeMode === 'oval' ? 1 : 1 }}
+              transition={subtleSpring}
+              onMouseEnter={() => !isMobile && setHovered('oval')}
               onClick={() => {
                 setHovered('oval');
                 inputRef.current?.focus();
               }}
-              className={`relative flex items-center h-full rounded-2xl cursor-pointer transition-all duration-300 ${
+              className={`relative flex items-center h-full rounded-2xl cursor-pointer transition-colors duration-300 ${
                 activeMode === 'oval'
                   ? 'bg-surface/95 border border-white/20 shadow-2xl backdrop-blur-xl'
                   : 'bg-surface/85 hover:bg-surface/95 border border-white/10 shadow-xl backdrop-blur-lg'
-              } px-4 sm:px-5 overflow-hidden flex-1`}
+              } px-3 sm:px-5 overflow-hidden flex-1`}
             >
               <form onSubmit={handleSearch} className="flex items-center w-full h-full">
-                <span className="text-white/70 mr-3.5 shrink-0 flex items-center justify-center">
+                <span className="text-white/70 mr-2.5 sm:mr-3.5 shrink-0 flex items-center justify-center">
                   {isSearching ? (
-                    <svg className="w-5 h-5 animate-spin text-accent-sky" fill="none" viewBox="0 0 24 24">
+                    <svg className="w-4 sm:w-5 h-4 sm:h-5 animate-spin text-accent-sky" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
                   ) : (
-                    <SearchIcon className="w-5 h-5 text-accent-sky/80" />
+                    <SearchIcon className="w-4 sm:w-5 h-4 sm:h-5 text-accent-sky/80" />
                   )}
                 </span>
                 <input
@@ -147,8 +155,8 @@ export default function GlobeSearch() {
                   onChange={(e) => setQuery(e.target.value)}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setTimeout(() => setIsFocused(false), 250)}
-                  placeholder="Where to next? (e.g. Kyoto, Bali, Paris)"
-                  className="w-full bg-transparent text-white placeholder:text-text-secondary/60 font-body text-sm sm:text-base outline-none tracking-wide"
+                  placeholder={isMobile ? 'Where to next?' : 'Where to next? (e.g. Kyoto, Bali, Paris)'}
+                  className="w-full bg-transparent text-white placeholder:text-text-secondary/60 font-body text-xs sm:text-sm outline-none tracking-wide"
                   id="globe-search-input"
                   autoComplete="off"
                 />
@@ -161,9 +169,9 @@ export default function GlobeSearch() {
                       setSuggestions([]);
                       inputRef.current?.focus();
                     }}
-                    className="p-1.5 text-text-secondary hover:text-white transition-colors"
+                    className="p-1 sm:p-1.5 text-text-secondary hover:text-white transition-colors"
                   >
-                    <CloseIcon className="w-4 h-4" />
+                    <CloseIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />
                   </button>
                 )}
               </form>
@@ -175,28 +183,30 @@ export default function GlobeSearch() {
             <motion.div
               layout
               initial={false}
-              animate={{ width: activeMode === 'quiz' ? '100%' : '56px' }}
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-              onMouseEnter={() => setHovered('quiz')}
-              onClick={() => {
-                if (activeMode === 'quiz') showQuiz();
+              animate={{
+                width: activeMode === 'quiz' ? '100%' : isMobile ? '44px' : '56px',
               }}
-              className={`relative flex items-center justify-center h-full rounded-2xl cursor-pointer transition-all duration-300 ${
+              transition={subtleSpring}
+              onMouseEnter={() => !isMobile && setHovered('quiz')}
+              onClick={() => {
+                if (activeMode === 'quiz' || isMobile) showQuiz();
+              }}
+              className={`relative flex items-center justify-center h-full rounded-2xl cursor-pointer transition-colors duration-300 ${
                 activeMode === 'quiz'
-                  ? 'bg-surface/95 border border-white/20 shadow-2xl backdrop-blur-xl px-5'
-                  : 'w-14 bg-surface/85 hover:bg-surface/95 border border-white/10 shadow-xl backdrop-blur-lg'
+                  ? 'bg-surface/95 border border-white/20 shadow-2xl backdrop-blur-xl px-4 sm:px-5'
+                  : `${isMobile ? 'w-11' : 'w-14'} bg-surface/85 hover:bg-surface/95 border border-white/10 shadow-xl backdrop-blur-lg`
               } shrink-0 overflow-hidden`}
             >
-              {activeMode === 'quiz' ? (
+              {activeMode === 'quiz' && !isMobile ? (
                 <button
                   type="button"
                   onClick={showQuiz}
-                  className="flex items-center justify-center gap-3 w-full h-full text-white font-body font-medium text-sm whitespace-nowrap"
+                  className="flex items-center justify-center gap-2 sm:gap-3 w-full h-full text-white font-body font-medium text-xs sm:text-sm whitespace-nowrap"
                 >
                   <CompassIcon className="w-5 h-5 text-accent-sky" />
                   <span>
                     Not sure where to go?{' '}
-                    <strong className="text-accent-sky font-semibold">Take Discovery Quiz →</strong>
+                    <strong className="text-accent-sky font-semibold">Take Quiz →</strong>
                   </span>
                 </button>
               ) : (
@@ -206,7 +216,7 @@ export default function GlobeSearch() {
                   className="flex items-center justify-center w-full h-full text-text-secondary hover:text-white transition-colors"
                   title="Take Discovery Quiz"
                 >
-                  <CompassIcon className="w-5 h-5" />
+                  <CompassIcon className="w-4 sm:w-5 h-4 sm:h-5" />
                 </button>
               )}
             </motion.div>
@@ -217,28 +227,30 @@ export default function GlobeSearch() {
             <motion.div
               layout
               initial={false}
-              animate={{ width: activeMode === 'random' ? '100%' : '56px' }}
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-              onMouseEnter={() => setHovered('random')}
-              onClick={() => {
-                if (activeMode === 'random') handleRandomPlace();
+              animate={{
+                width: activeMode === 'random' ? '100%' : isMobile ? '44px' : '56px',
               }}
-              className={`relative flex items-center justify-center h-full rounded-2xl cursor-pointer transition-all duration-300 ${
+              transition={subtleSpring}
+              onMouseEnter={() => !isMobile && setHovered('random')}
+              onClick={() => {
+                if (activeMode === 'random' || isMobile) handleRandomPlace();
+              }}
+              className={`relative flex items-center justify-center h-full rounded-2xl cursor-pointer transition-colors duration-300 ${
                 activeMode === 'random'
-                  ? 'bg-surface/95 border border-white/20 shadow-2xl backdrop-blur-xl px-5'
-                  : 'w-14 bg-surface/85 hover:bg-surface/95 border border-white/10 shadow-xl backdrop-blur-lg'
+                  ? 'bg-surface/95 border border-white/20 shadow-2xl backdrop-blur-xl px-4 sm:px-5'
+                  : `${isMobile ? 'w-11' : 'w-14'} bg-surface/85 hover:bg-surface/95 border border-white/10 shadow-xl backdrop-blur-lg`
               } shrink-0 overflow-hidden`}
             >
-              {activeMode === 'random' ? (
+              {activeMode === 'random' && !isMobile ? (
                 <button
                   type="button"
                   onClick={handleRandomPlace}
-                  className="flex items-center justify-center gap-3 w-full h-full text-white font-body font-medium text-sm whitespace-nowrap"
+                  className="flex items-center justify-center gap-2 sm:gap-3 w-full h-full text-white font-body font-medium text-xs sm:text-sm whitespace-nowrap"
                 >
                   <DiceIcon className="w-5 h-5 text-accent-amber" />
                   <span>
                     Surprise Me!{' '}
-                    <strong className="text-accent-amber font-semibold">Random Destination →</strong>
+                    <strong className="text-accent-amber font-semibold">Random Place →</strong>
                   </span>
                 </button>
               ) : (
@@ -248,7 +260,7 @@ export default function GlobeSearch() {
                   className="flex items-center justify-center w-full h-full text-text-secondary hover:text-white transition-colors"
                   title="Random Destination"
                 >
-                  <DiceIcon className="w-5 h-5" />
+                  <DiceIcon className="w-4 sm:w-5 h-4 sm:h-5" />
                 </button>
               )}
             </motion.div>
@@ -259,25 +271,25 @@ export default function GlobeSearch() {
         <AnimatePresence>
           {isFocused && suggestions.length > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: -6 }}
+              initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2 }}
-              className="absolute top-full mt-2.5 inset-x-0 bg-surface/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 divide-y divide-white/5"
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18 }}
+              className="absolute top-full mt-2 sm:mt-2.5 inset-x-0 bg-surface/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 divide-y divide-white/5"
             >
               {suggestions.map((dest) => (
                 <button
                   key={dest.id}
                   type="button"
                   onClick={() => handleSuggestionClick(dest)}
-                  className="w-full text-left px-5 py-3.5 hover:bg-white/5 transition-colors duration-150 flex items-center justify-between group"
+                  className="w-full text-left px-4 sm:px-5 py-3 sm:py-3.5 hover:bg-white/5 transition-colors duration-150 flex items-center justify-between group"
                 >
-                  <div className="flex flex-col">
-                    <span className="text-white font-body text-sm font-semibold tracking-wide group-hover:text-accent-sky transition-colors">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-white font-body text-sm font-semibold tracking-wide group-hover:text-accent-sky transition-colors truncate">
                       {dest.name}
                     </span>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      {dest.type.map((t) => (
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {dest.type.slice(0, isMobile ? 2 : 4).map((t) => (
                         <span
                           key={t}
                           className="text-[10px] text-accent-sky/90 font-mono uppercase bg-accent-sky/10 border border-accent-sky/20 px-2 py-0.5 rounded-full"
@@ -287,11 +299,11 @@ export default function GlobeSearch() {
                       ))}
                     </div>
                   </div>
-                  <div className="text-right flex flex-col items-end">
+                  <div className="text-right flex flex-col items-end flex-shrink-0 ml-2">
                     <span className="text-xs font-mono text-accent-amber font-semibold">
                       {budgetLabel(dest.budgetTier)}
                     </span>
-                    <span className="text-[10px] text-text-secondary/70 font-mono mt-0.5">
+                    <span className="text-[10px] text-text-secondary/70 font-mono mt-0.5 hidden sm:block">
                       {dest.lat.toFixed(1)}°, {dest.lng.toFixed(1)}°
                     </span>
                   </div>
