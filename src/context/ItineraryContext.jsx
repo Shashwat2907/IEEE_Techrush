@@ -35,11 +35,25 @@ const initialState = {
 function itineraryReducer(state, action) {
   switch (action.type) {
     case 'SET_DESTINATION': {
+      if (state.destinationId === action.payload.id) {
+        return state;
+      }
       return {
         ...state,
         destinationId: action.payload.id,
         destinationName: action.payload.name,
         days: state.days.map(d => ({ ...d, activities: [] })),
+      };
+    }
+
+    case 'LOAD_PREMADE': {
+      const { id, name, days } = action.payload;
+      return {
+        ...state,
+        destinationId: id,
+        destinationName: name,
+        days: days || [],
+        tripDays: days?.length || 3,
       };
     }
 
@@ -217,6 +231,18 @@ export function ItineraryProvider({ children }) {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  const loadPremadeItinerary = useCallback((premade) => {
+    if (!premade) return;
+    dispatch({
+      type: 'LOAD_PREMADE',
+      payload: {
+        id: premade.id,
+        name: premade.cityName || premade.name,
+        days: premade.days || [],
+      },
+    });
+  }, []);
+
   return (
     <ItineraryContext.Provider
       value={{
@@ -228,6 +254,7 @@ export function ItineraryProvider({ children }) {
         moveActivity,
         reorderActivities,
         clearItinerary,
+        loadPremadeItinerary,
         getDayTotals,
       }}
     >

@@ -1,0 +1,526 @@
+[
+  {
+    "region": "South East Asia",
+    "items": [
+      {
+        "id": "thailand-curated",
+        "name": "Thailand",
+        "country": "Thailand",
+        "flag": "🇹🇭",
+        "idealDuration": "7-10 days (ideal)",
+        "visa": "e-Visa",
+        "image": "https://images.unsplash.com/photo-1528181304800-259b08848526?auto=format&fit=crop&w=800&q=80",
+        "lat": 13.7563,
+        "lng": 100.5018,
+        "cityName": "Bangkok, Thailand",
+        "description": "Ornate golden temples, bustling floating markets, tropical turquoise islands, and legendary street food.",
+        "tags": ["Temples", "Beaches", "Street Food", "Nightlife"],
+        "estimatedBudget": "$700 - $1,400",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "th-1", "name": "Grand Palace & Wat Phra Kaew", "durationHrs": 3, "cost": 15, "startHour": 9 },
+              { "uid": "th-2", "name": "Wat Arun Sunset by Chao Phraya", "durationHrs": 2, "cost": 5, "startHour": 16 },
+              { "uid": "th-3", "name": "Yaowarat Chinatown Street Food Tour", "durationHrs": 2.5, "cost": 20, "startHour": 19 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "th-4", "name": "Damnoen Saduak Floating Market", "durationHrs": 4, "cost": 35, "startHour": 8 },
+              { "uid": "th-5", "name": "Chatuchak Weekend Market Exploration", "durationHrs": 3, "cost": 0, "startHour": 14 }
+            ]
+          },
+          {
+            "id": "day-3",
+            "label": "Day 3",
+            "activities": [
+              { "uid": "th-6", "name": "Phuket Old Town Cultural Walk", "durationHrs": 2.5, "cost": 0, "startHour": 10 },
+              { "uid": "th-7", "name": "Phi Phi Islands Speedboat Excursion", "durationHrs": 6, "cost": 65, "startHour": 13 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "bali-id",
+        "name": "Bali",
+        "country": "Indonesia",
+        "flag": "🇮🇩",
+        "idealDuration": "6-9 days (ideal)",
+        "visa": "e-Visa",
+        "image": "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=800&q=80",
+        "lat": -8.3405,
+        "lng": 115.092,
+        "cityName": "Bali, Indonesia",
+        "description": "Island of the Gods — cascading emerald rice terraces, cliffside surf temples, and spiritual wellness retreats.",
+        "tags": ["Surf", "Spiritual", "Waterfalls", "Rice Terraces"],
+        "estimatedBudget": "$600 - $1,200",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "bl-1", "name": "Tegallalang Rice Terraces Walk", "durationHrs": 2.5, "cost": 5, "startHour": 8.5 },
+              { "uid": "bl-2", "name": "Sacred Monkey Forest Sanctuary", "durationHrs": 2, "cost": 8, "startHour": 11.5 },
+              { "uid": "bl-3", "name": "Tirta Empul Holy Water Blessing", "durationHrs": 2, "cost": 4, "startHour": 14.5 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "bl-4", "name": "Mount Batur Sunrise Trek", "durationHrs": 5, "cost": 45, "startHour": 4 },
+              { "uid": "bl-5", "name": "Batur Natural Hot Springs Soak", "durationHrs": 2, "cost": 15, "startHour": 10 }
+            ]
+          },
+          {
+            "id": "day-3",
+            "label": "Day 3",
+            "activities": [
+              { "uid": "bl-6", "name": "Uluwatu Temple Cliff Walk & Kecak Dance", "durationHrs": 3, "cost": 12, "startHour": 17 },
+              { "uid": "bl-7", "name": "Jimbaran Bay Candlelit Seafood Dinner", "durationHrs": 2, "cost": 30, "startHour": 20 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "vietnam-curated",
+        "name": "Vietnam",
+        "country": "Vietnam",
+        "flag": "🇻🇳",
+        "idealDuration": "8-12 days (ideal)",
+        "visa": "e-Visa",
+        "image": "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=800&q=80",
+        "lat": 16.0544,
+        "lng": 108.2022,
+        "cityName": "Da Nang & Hanoi, Vietnam",
+        "description": "Dramatic limestone karsts in Ha Long Bay, lantern-lit ancient towns, and French-colonial heritage.",
+        "tags": ["Heritage", "Nature", "Coffee", "Lanterns"],
+        "estimatedBudget": "$500 - $1,100",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "vn-1", "name": "Hanoi Old Quarter Cyclo & Street Food", "durationHrs": 3, "cost": 18, "startHour": 9 },
+              { "uid": "vn-2", "name": "Hoan Kiem Lake & Ngoc Son Temple", "durationHrs": 1.5, "cost": 2, "startHour": 14 },
+              { "uid": "vn-3", "name": "Hanoi Train Street Egg Coffee Experience", "durationHrs": 1.5, "cost": 4, "startHour": 16 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "vn-4", "name": "Ha Long Bay Overnight Cruise & Kayak", "durationHrs": 7, "cost": 95, "startHour": 8 }
+            ]
+          },
+          {
+            "id": "day-3",
+            "label": "Day 3",
+            "activities": [
+              { "uid": "vn-5", "name": "Ba Na Hills Golden Giant Hand Bridge", "durationHrs": 4, "cost": 38, "startHour": 9 },
+              { "uid": "vn-6", "name": "Hoi An Ancient Town Night Lantern Boats", "durationHrs": 3, "cost": 10, "startHour": 18 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "hong-kong-curated",
+        "name": "Hong Kong",
+        "country": "Hong Kong",
+        "flag": "🇭🇰",
+        "idealDuration": "3-5 days (ideal)",
+        "visa": "e-Visa",
+        "image": "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?auto=format&fit=crop&w=800&q=80",
+        "lat": 22.3193,
+        "lng": 114.1694,
+        "cityName": "Hong Kong SAR",
+        "description": "Futuristic skyline framed by Victoria Harbour, Michelin dim sum houses, and misty mountain peak tram rides.",
+        "tags": ["Skyline", "Dim Sum", "Harbour", "Shopping"],
+        "estimatedBudget": "$800 - $1,600",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "hk-1", "name": "Victoria Peak Historical Tram & Sky Terrace", "durationHrs": 3, "cost": 15, "startHour": 10 },
+              { "uid": "hk-2", "name": "Central Mid-Levels Escalator & PMQ Arts", "durationHrs": 2, "cost": 0, "startHour": 14 },
+              { "uid": "hk-3", "name": "Symphony of Lights Star Ferry Cruise", "durationHrs": 2, "cost": 8, "startHour": 19.5 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "hk-4", "name": "Tian Tan Giant Buddha & Ngong Ping 360", "durationHrs": 4.5, "cost": 32, "startHour": 9.5 },
+              { "uid": "hk-5", "name": "Mong Kok Ladies Market & Temple St Bazaar", "durationHrs": 3, "cost": 0, "startHour": 18 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "malaysia-curated",
+        "name": "Malaysia",
+        "country": "Malaysia",
+        "flag": "🇲🇾",
+        "idealDuration": "6-9 days (ideal)",
+        "visa": "e-Visa",
+        "image": "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?auto=format&fit=crop&w=800&q=80",
+        "lat": 3.139,
+        "lng": 101.6869,
+        "cityName": "Kuala Lumpur, Malaysia",
+        "description": "Twin Petronas Towers, sacred Batu Caves rainbow staircases, and vibrant culinary crossroads of Asia.",
+        "tags": ["Architecture", "Caves", "Culinary", "Rainforest"],
+        "estimatedBudget": "$550 - $1,100",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "my-1", "name": "Petronas Twin Towers Skybridge", "durationHrs": 2, "cost": 22, "startHour": 9.5 },
+              { "uid": "my-2", "name": "Batu Caves Rainbow Steps & Murugan Shrine", "durationHrs": 3, "cost": 0, "startHour": 13 },
+              { "uid": "my-3", "name": "Jalan Alor Night Food Street Extravaganza", "durationHrs": 2, "cost": 15, "startHour": 19 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "my-4", "name": "Penang George Town Street Art Trail", "durationHrs": 3, "cost": 0, "startHour": 10 },
+              { "uid": "my-5", "name": "Kek Lok Si Buddhist Temple Complex", "durationHrs": 2.5, "cost": 3, "startHour": 14 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "philippines-curated",
+        "name": "Philippines",
+        "country": "Philippines",
+        "flag": "🇵🇭",
+        "idealDuration": "7-10 days (ideal)",
+        "visa": "e-Visa",
+        "image": "https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=800&q=80",
+        "lat": 11.1956,
+        "lng": 119.4179,
+        "cityName": "El Nido, Palawan, Philippines",
+        "description": "7,000 tropical islands featuring crystal clear lagoons, Chocolate Hills, and white sand beaches.",
+        "tags": ["Islands", "Lagoons", "Diving", "Beaches"],
+        "estimatedBudget": "$600 - $1,300",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "ph-1", "name": "El Nido Big Lagoon Kayak Tour", "durationHrs": 4, "cost": 30, "startHour": 9 },
+              { "uid": "ph-2", "name": "Secret Lagoon & Shimizu Island Snorkeling", "durationHrs": 3, "cost": 20, "startHour": 14 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "ph-3", "name": "Nacpan Beach Twin Beach Relax", "durationHrs": 4, "cost": 0, "startHour": 11 },
+              { "uid": "ph-4", "name": "Las Cabañas Sunset Drinks", "durationHrs": 2.5, "cost": 15, "startHour": 17 }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "region": "Europe",
+    "items": [
+      {
+        "id": "paris-fr",
+        "name": "France",
+        "country": "France",
+        "flag": "🇫🇷",
+        "idealDuration": "7-10 days (ideal)",
+        "visa": "Sticker Visa",
+        "image": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80",
+        "lat": 48.8566,
+        "lng": 2.3522,
+        "cityName": "Paris, France",
+        "description": "City of Light — world-class art at the Louvre, romantic Seine river cruises, haute cuisine, and iconic Eiffel views.",
+        "tags": ["Museums", "Romance", "Gastronomy", "Architecture"],
+        "estimatedBudget": "$1,400 - $2,800",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "fr-1", "name": "Eiffel Tower Summit Access", "durationHrs": 2.5, "cost": 30, "startHour": 9.5 },
+              { "uid": "fr-2", "name": "Seine River Scenic Cruise", "durationHrs": 1.5, "cost": 16, "startHour": 14 },
+              { "uid": "fr-3", "name": "Musée du Louvre Masterpieces Tour", "durationHrs": 3.5, "cost": 22, "startHour": 16 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "fr-4", "name": "Montmartre & Sacré-Cœur Basilica Walk", "durationHrs": 2.5, "cost": 0, "startHour": 10 },
+              { "uid": "fr-5", "name": "Palais Garnier Opera House Tour", "durationHrs": 2, "cost": 15, "startHour": 14 },
+              { "uid": "fr-6", "name": "Latin Quarter Bistro Dinner", "durationHrs": 2, "cost": 45, "startHour": 19.5 }
+            ]
+          },
+          {
+            "id": "day-3",
+            "label": "Day 3",
+            "activities": [
+              { "uid": "fr-7", "name": "Palace of Versailles Hall of Mirrors", "durationHrs": 5, "cost": 28, "startHour": 9 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "italy-curated",
+        "name": "Italy",
+        "country": "Italy",
+        "flag": "🇮🇹",
+        "idealDuration": "8-12 days (ideal)",
+        "visa": "Sticker Visa",
+        "image": "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=800&q=80",
+        "lat": 41.9028,
+        "lng": 12.4964,
+        "cityName": "Rome & Florence, Italy",
+        "description": "Gladiatorial Colosseum, Renaissance treasures in Florence, authentic Neapolitan pizza, and Tuscan hills.",
+        "tags": ["Ancient Rome", "Renaissance", "Pasta", "Vatican"],
+        "estimatedBudget": "$1,300 - $2,600",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "it-1", "name": "Colosseum & Roman Forum Guided Walk", "durationHrs": 3, "cost": 24, "startHour": 9 },
+              { "uid": "it-2", "name": "Trevi Fountain Coin Toss & Gelato", "durationHrs": 1.5, "cost": 5, "startHour": 14 },
+              { "uid": "it-3", "name": "Pantheon Architectural Marvel", "durationHrs": 1, "cost": 5, "startHour": 16 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "it-4", "name": "Vatican Museums & Sistine Chapel", "durationHrs": 4, "cost": 30, "startHour": 9 },
+              { "uid": "it-5", "name": "St. Peter's Basilica Dome Climb", "durationHrs": 2, "cost": 10, "startHour": 14 }
+            ]
+          },
+          {
+            "id": "day-3",
+            "label": "Day 3",
+            "activities": [
+              { "uid": "it-6", "name": "Florence Duomo & Giotto's Campanile", "durationHrs": 3, "cost": 20, "startHour": 10 },
+              { "uid": "it-7", "name": "Ponte Vecchio Sunset Stroll", "durationHrs": 2, "cost": 0, "startHour": 18 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "switzerland-curated",
+        "name": "Switzerland",
+        "country": "Switzerland",
+        "flag": "🇨🇭",
+        "idealDuration": "6-9 days (ideal)",
+        "visa": "Sticker Visa",
+        "image": "https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?auto=format&fit=crop&w=800&q=80",
+        "lat": 46.5197,
+        "lng": 8.0383,
+        "cityName": "Interlaken & Zermatt, Switzerland",
+        "description": "Soaring snow-capped Alpine peaks, scenic panoramic glacier express trains, and pristine crystal lakes.",
+        "tags": ["Alps", "Glaciers", "Trains", "Skiing"],
+        "estimatedBudget": "$1,800 - $3,500",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "ch-1", "name": "Jungfraujoch Top of Europe Train", "durationHrs": 6, "cost": 140, "startHour": 8.5 },
+              { "uid": "ch-2", "name": "Lauterbrunnen Valley 72 Waterfalls Walk", "durationHrs": 2.5, "cost": 0, "startHour": 16 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "ch-3", "name": "Gornergrat Matterhorn Viewpoint Bahn", "durationHrs": 4, "cost": 95, "startHour": 9 },
+              { "uid": "ch-4", "name": "Traditional Swiss Cheese Fondue Dinner", "durationHrs": 2, "cost": 50, "startHour": 19 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "austria-curated",
+        "name": "Austria",
+        "country": "Austria",
+        "flag": "🇦🇹",
+        "idealDuration": "5-7 days (ideal)",
+        "visa": "Sticker Visa",
+        "image": "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=800&q=80",
+        "lat": 48.2082,
+        "lng": 16.3738,
+        "cityName": "Vienna & Salzburg, Austria",
+        "description": "Imperial Habsburg palaces, classical Mozart concerts, cozy grand coffeehouses, and fairy-tale Hallstatt.",
+        "tags": ["Imperial", "Classical Music", "Coffeehouses", "Lakes"],
+        "estimatedBudget": "$1,100 - $2,200",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "at-1", "name": "Schönbrunn Imperial Palace & Gardens", "durationHrs": 3.5, "cost": 26, "startHour": 9.5 },
+              { "uid": "at-2", "name": "St. Stephen's Cathedral Tower", "durationHrs": 1.5, "cost": 6, "startHour": 14.5 },
+              { "uid": "at-3", "name": "Traditional Viennese Sachertorte Coffee", "durationHrs": 1.5, "cost": 14, "startHour": 16.5 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "at-4", "name": "Hallstatt Alpine Lake Day Trip", "durationHrs": 7, "cost": 55, "startHour": 8 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "belgium-curated",
+        "name": "Belgium",
+        "country": "Belgium",
+        "flag": "🇧🇪",
+        "idealDuration": "4-6 days (ideal)",
+        "visa": "Sticker Visa",
+        "image": "https://images.unsplash.com/photo-1559113513-d5e09c78b9dd?auto=format&fit=crop&w=800&q=80",
+        "lat": 50.8503,
+        "lng": 4.3517,
+        "cityName": "Brussels & Bruges, Belgium",
+        "description": "Gilded Grand Place architecture, cobblestone canals of Bruges, artisan chocolatiers, and craft trappist ales.",
+        "tags": ["Chocolates", "Canals", "Medieval", "Waffles"],
+        "estimatedBudget": "$900 - $1,800",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "be-1", "name": "Grand Place & Town Hall Gilded Walk", "durationHrs": 2, "cost": 0, "startHour": 10 },
+              { "uid": "be-2", "name": "Atomium Futuristic Sphere Tour", "durationHrs": 2.5, "cost": 16, "startHour": 13 },
+              { "uid": "be-3", "name": "Belgian Waffle & Chocolate Tasting", "durationHrs": 1.5, "cost": 12, "startHour": 16 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "be-4", "name": "Bruges Medieval Canal Boat Tour", "durationHrs": 3, "cost": 15, "startHour": 11 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "czech-curated",
+        "name": "Czech Republic",
+        "country": "Czech Republic",
+        "flag": "🇨🇿",
+        "idealDuration": "4-6 days (ideal)",
+        "visa": "Sticker Visa",
+        "image": "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=800&q=80",
+        "lat": 50.0755,
+        "lng": 14.4378,
+        "cityName": "Prague, Czech Republic",
+        "description": "City of a Hundred Spires — Charles Bridge at dawn, Gothic Prague Castle, and bohemian cobblestone alleys.",
+        "tags": ["Gothic", "Castles", "Old Town", "Bohemian"],
+        "estimatedBudget": "$700 - $1,400",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "cz-1", "name": "Charles Bridge Sunrise Walk", "durationHrs": 1.5, "cost": 0, "startHour": 7 },
+              { "uid": "cz-2", "name": "Prague Castle & St. Vitus Cathedral", "durationHrs": 3.5, "cost": 12, "startHour": 9.5 },
+              { "uid": "cz-3", "name": "Old Town Astronomical Clock Show", "durationHrs": 1.5, "cost": 0, "startHour": 15 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "cz-4", "name": "Český Krumlov Fairy Tale Day Tour", "durationHrs": 6, "cost": 45, "startHour": 9 }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "region": "East Asia & Middle East",
+    "items": [
+      {
+        "id": "kyoto-jp",
+        "name": "Japan",
+        "country": "Japan",
+        "flag": "🇯🇵",
+        "idealDuration": "7-10 days (ideal)",
+        "visa": "e-Visa",
+        "image": "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=800&q=80",
+        "lat": 35.0116,
+        "lng": 135.7681,
+        "cityName": "Kyoto & Tokyo, Japan",
+        "description": "Torii gates at Fushimi Inari, serene Arashiyama bamboo forest, bullet trains, and Michelin gastronomy.",
+        "tags": ["Culture", "Temples", "Anime", "Culinary"],
+        "estimatedBudget": "$1,400 - $2,600",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "jp-1", "name": "Fushimi Inari 10,000 Torii Hike", "durationHrs": 3, "cost": 0, "startHour": 8 },
+              { "uid": "jp-2", "name": "Kinkaku-ji Golden Pavilion", "durationHrs": 1.5, "cost": 5, "startHour": 12 },
+              { "uid": "jp-3", "name": "Gion Historic Geisha District Walk", "durationHrs": 2, "cost": 0, "startHour": 17 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "jp-4", "name": "Arashiyama Bamboo Grove & Monkey Park", "durationHrs": 3, "cost": 6, "startHour": 9 },
+              { "uid": "jp-5", "name": "Nishiki Market 100-Stall Food Trail", "durationHrs": 2.5, "cost": 25, "startHour": 13 }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "dubai-ae",
+        "name": "United Arab Emirates",
+        "country": "United Arab Emirates",
+        "flag": "🇦🇪",
+        "idealDuration": "4-6 days (ideal)",
+        "visa": "Visa on Arrival",
+        "image": "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=800&q=80",
+        "lat": 25.2048,
+        "lng": 55.2708,
+        "cityName": "Dubai, UAE",
+        "description": "Burj Khalifa world's tallest tower, ultra-luxury desert dunes safari, and futuristic architecture.",
+        "tags": ["Luxury", "Desert", "Architecture", "Shopping"],
+        "estimatedBudget": "$1,200 - $2,500",
+        "days": [
+          {
+            "id": "day-1",
+            "label": "Day 1",
+            "activities": [
+              { "uid": "ae-1", "name": "Burj Khalifa 148th Floor Observation", "durationHrs": 2.5, "cost": 65, "startHour": 10 },
+              { "uid": "ae-2", "name": "Dubai Mall & Fountain Choreography", "durationHrs": 3, "cost": 0, "startHour": 15 },
+              { "uid": "ae-3", "name": "Dubai Marina Yacht Cruise", "durationHrs": 2, "cost": 45, "startHour": 19 }
+            ]
+          },
+          {
+            "id": "day-2",
+            "label": "Day 2",
+            "activities": [
+              { "uid": "ae-4", "name": "Red Dunes Desert Safari & BBQ Dinner", "durationHrs": 6, "cost": 60, "startHour": 15 }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

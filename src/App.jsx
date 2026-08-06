@@ -1,5 +1,5 @@
 import { useState, lazy, Suspense } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AppProvider, useApp, VIEW_STATES } from './context/AppContext';
 import { FilterProvider } from './context/FilterContext';
 import { ItineraryProvider, useItinerary } from './context/ItineraryContext';
@@ -14,9 +14,17 @@ const DiscoveryQuiz = lazy(() => import('./features/discovery-quiz/DiscoveryQuiz
 const ItineraryBuilder = lazy(() => import('./features/itinerary/ItineraryBuilder'));
 const PackingList = lazy(() => import('./features/itinerary/PackingList'));
 const CompareDrawer = lazy(() => import('./features/destination-map/CompareDrawer'));
+const PremadeItineraries = lazy(() => import('./features/itinerary/PremadeItineraries'));
 
 function AppContent() {
-  const { viewState, isTransitioning, selectedDestination, customMarker } = useApp();
+  const {
+    viewState,
+    isTransitioning,
+    selectedDestination,
+    isPremadeOpen,
+    openPremade,
+    closePremade,
+  } = useApp();
   // Single exclusive drawer — only one panel can be open at a time
   const [activeDrawer, setActiveDrawer] = useState(null); // 'itinerary' | 'packing' | 'compare' | null
 
@@ -67,6 +75,46 @@ function AppContent() {
           </div>
         )}
       </div>
+
+      {/* ─── Bottom Slide-Up Trigger for Premade Itineraries (Landing Page) ─── */}
+      {!isOverlayHidden && !quizActive && (
+        <div className="absolute bottom-6 sm:bottom-8 inset-x-0 z-20 flex justify-center pointer-events-none">
+          <motion.button
+            type="button"
+            onClick={openPremade}
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.96 }}
+            className="group pointer-events-auto flex items-center gap-2.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-[#0A0E17]/85 hover:bg-[#0A0E17]/95 backdrop-blur-xl border border-white/15 hover:border-white/30 text-white shadow-2xl transition-all cursor-pointer"
+          >
+            <motion.span
+              animate={{ y: [0, -3, 0] }}
+              transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
+              className="text-accent-sky font-bold text-sm"
+            >
+              ▲
+            </motion.span>
+            <span className="text-xs sm:text-sm font-display font-medium text-white/90 group-hover:text-white tracking-wide">
+              Explore Premade Itineraries
+            </span>
+            <span className="text-[10px] font-mono text-accent-sky/90 bg-accent-sky/10 border border-accent-sky/20 px-2 py-0.5 rounded-full hidden sm:inline-block">
+              15+ Guides
+            </span>
+          </motion.button>
+        </div>
+      )}
+
+      {/* ─── Premade Itineraries Slide-Up Modal ─── */}
+      <AnimatePresence>
+        {isPremadeOpen && (
+          <Suspense fallback={null}>
+            <PremadeItineraries
+              isOpen={isPremadeOpen}
+              onClose={closePremade}
+              onSelectItinerary={() => setActiveDrawer('itinerary')}
+            />
+          </Suspense>
+        )}
+      </AnimatePresence>
 
       {/* ─── Discovery Quiz Overlay ─── */}
       <AnimatePresence>

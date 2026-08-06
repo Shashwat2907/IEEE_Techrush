@@ -100,8 +100,15 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     clearMarker,
   } = useApp();
 
+  const selectedDestRef = useRef(selectedDestination);
+  selectedDestRef.current = selectedDestination;
+  const flightTargetRef = useRef(flightTarget);
+  flightTargetRef.current = flightTarget;
+  const isTransitioningRef = useRef(isTransitioning);
+  isTransitioningRef.current = isTransitioning;
+
   const { filters } = useFilters();
-  const { days, tripDays, setDestination, addActivity } = useItinerary();
+  const { destinationId, days, tripDays, setDestination, addActivity } = useItinerary();
 
   const [currentZoom, setCurrentZoom] = useState(1.6);
   const [activeTileStyle, setActiveTileStyle] = useState('satellite');
@@ -131,12 +138,12 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     return null;
   }, [selectedDestination, flightTarget]);
 
-  // Sync itinerary destination
+  // Sync itinerary destination only if destination changed
   useEffect(() => {
-    if (selectedDestination) {
+    if (selectedDestination && destinationId !== selectedDestination.id) {
       setDestination(selectedDestination);
     }
-  }, [selectedDestination, setDestination]);
+  }, [selectedDestination, destinationId, setDestination]);
 
   // Fetch weather and crowd data for destination
   useEffect(() => {
@@ -289,13 +296,13 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
       if (
         mapRef.current &&
         !isInteractingRef.current &&
-        !isTransitioning &&
-        !selectedDestination &&
-        !flightTarget &&
+        !isTransitioningRef.current &&
+        !selectedDestRef.current &&
+        !flightTargetRef.current &&
         mapRef.current.getZoom() <= 2.8
       ) {
         const center = mapRef.current.getCenter();
-        center.lng -= 1.8 * delta;
+        center.lng -= 1.6 * delta;
         mapRef.current.setCenter(center);
       }
       animFrameRef.current = requestAnimationFrame(spinGlobe);
@@ -746,13 +753,18 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
 
         el.innerHTML = `
           <div class="relative flex items-center justify-center p-2">
-            <div class="w-3.5 h-3.5 rounded-full ${
-              isTrending ? 'bg-accent-amber border-2 border-white' : 'bg-accent-sky border-2 border-white'
-            } shadow-md transition-transform duration-200 group-hover:scale-150"></div>
+            <div class="relative flex items-center justify-center">
+              ${isTrending ? '<span class="absolute w-4 h-4 rounded-full bg-amber-400/25 animate-ping"></span>' : ''}
+              <div class="w-3 h-3 rounded-full ${
+                isTrending
+                  ? 'bg-amber-200/95 border border-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                  : 'bg-white/90 border border-white/80 shadow-[0_0_8px_rgba(255,255,255,0.7)]'
+              } transition-transform duration-200 group-hover:scale-150"></div>
+            </div>
             <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
-              <div class="bg-surface/95 border border-white/10 text-white px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap shadow-xl flex items-center gap-1.5">
+              <div class="bg-[#0A0E17]/95 border border-white/15 text-white px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap shadow-2xl flex items-center gap-1.5 backdrop-blur-md">
                 <span>${dest.name}</span>
-                ${isTrending ? '<span class="text-[10px] text-accent-amber font-mono">TRENDING</span>' : ''}
+                ${isTrending ? '<span class="text-[10px] text-amber-300 font-mono font-bold">★ TRENDING</span>' : ''}
               </div>
             </div>
           </div>

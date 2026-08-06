@@ -20,8 +20,10 @@ export function AppProvider({ children }) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isReversingTransition, setIsReversingTransition] = useState(false);
   const [customMarker, setCustomMarker] = useState(null); // { lat, lng, name }
+  const [isPremadeOpen, setIsPremadeOpen] = useState(false);
 
   const navigateToGlobe = useCallback((withReverseAnim = false) => {
+    setIsPremadeOpen(false);
     if (withReverseAnim) {
       setIsReversingTransition(true);
       setTimeout(() => {
@@ -43,6 +45,7 @@ export function AppProvider({ children }) {
   }, []);
 
   const showQuiz = useCallback(() => {
+    setIsPremadeOpen(false);
     setViewState(VIEW_STATES.DISCOVERY_QUIZ);
   }, []);
 
@@ -50,7 +53,16 @@ export function AppProvider({ children }) {
     setViewState(VIEW_STATES.GLOBE_HOME);
   }, []);
 
+  const openPremade = useCallback(() => {
+    setIsPremadeOpen(true);
+  }, []);
+
+  const closePremade = useCallback(() => {
+    setIsPremadeOpen(false);
+  }, []);
+
   const flyToDestination = useCallback((destination) => {
+    setIsPremadeOpen(false);
     setFlightTarget(destination);
     setIsTransitioning(true);
     setViewState(VIEW_STATES.FLIGHT_TRANSITION);
@@ -79,6 +91,9 @@ export function AppProvider({ children }) {
         isTransitioning,
         isReversingTransition,
         customMarker,
+        isPremadeOpen,
+        openPremade,
+        closePremade,
         navigateToGlobe,
         showQuiz,
         hideQuiz,
