@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useItinerary } from '../../context/ItineraryContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useCompare } from '../../context/CompareContext';
 import { getDestinationPhoto } from '../../services/photos';
+import { getWeather } from '../../services/weather';
 import {
   SunIcon,
   MapIcon,
@@ -25,8 +26,23 @@ export default function DetailPanel({
   const { formatPrice } = useCurrency();
   const { isInCompare, addToCompare, removeFromCompare } = useCompare();
   const [addedActivities, setAddedActivities] = useState(new Set());
+  const [liveWeather, setLiveWeather] = useState(null);
 
   const photoUrl = useMemo(() => getDestinationPhoto(destination), [destination]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (destination?.lat !== undefined && destination?.lng !== undefined) {
+      getWeather(destination.lat, destination.lng).then((res) => {
+        if (isMounted && res) {
+          setLiveWeather(res);
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [destination?.lat, destination?.lng]);
 
   if (!destination) return null;
 
@@ -51,11 +67,12 @@ export default function DetailPanel({
     setAddedActivities((prev) => new Set([...prev, index]));
   };
 
-  const weather = weatherData || {
+  const weather = liveWeather || weatherData || {
     temp: 24,
     condition: 'Clear Sky',
     humidity: 48,
     wind: 12,
+    source: 'Simulated',
   };
 
   const crowd = crowdData || {
@@ -165,8 +182,15 @@ export default function DetailPanel({
                 <SunIcon className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
-                  Atmosphere
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
+                    Atmosphere
+                  </span>
+                  {weather.isLive && (
+                    <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded-full">
+                      {weather.source || 'Live'}
+                    </span>
+                  )}
                 </div>
                 <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'} mt-0.5`}>
                   {weather.condition}

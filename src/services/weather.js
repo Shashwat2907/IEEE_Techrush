@@ -25,6 +25,7 @@ const WMO_CODE_MAP = {
   86: { description: 'Heavy snow showers', icon: '13d' },
   95: { description: 'Thunderstorm', icon: '11d' },
   96: { description: 'Thunderstorm with hail', icon: '11d' },
+  98: { description: 'Severe thunderstorm with hail', icon: '11d' },
   99: { description: 'Severe thunderstorm with hail', icon: '11d' },
 };
 
@@ -38,7 +39,7 @@ const MOCK_WEATHER = {
 
 /**
  * Get real-time live weather for a coordinate
- * Prioritizes Open-Meteo (live, no key required) and OpenWeatherMap (if key provided)
+ * Prioritizes OpenWeatherMap (if API key is present) -> Open-Meteo Live -> Realistic Model
  * @param {number} lat
  * @param {number} lng
  * @returns {Promise<Object>}
@@ -46,7 +47,40 @@ const MOCK_WEATHER = {
 export async function getWeather(lat, lng) {
   if (lat === undefined || lng === undefined) return getMockWeather(0);
 
-  // 1. Try Open-Meteo live API (free, reliable, global real-time)
+  const owmKey = API_KEYS.OPENWEATHERMAP;
+
+  // 1. Try OpenWeatherMap FIRST if custom API key is present
+  if (owmKey && owmKey.trim().length > 5 && owmKey !== 'MOCK_OWM_KEY_replace_me') {
+    try {
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${owmKey.trim()}&units=metric`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4500);
+
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          temp: Math.round(data.main.temp),
+          feelsLike: Math.round(data.main.feels_like),
+          humidity: data.main.humidity,
+          condition: data.weather?.[0]?.main || 'Clear',
+          description: data.weather?.[0]?.description ? data.weather[0].description.replace(/\b\w/g, l => l.toUpperCase()) : 'Clear sky',
+          icon: data.weather?.[0]?.icon || '01d',
+          wind: Math.round(data.wind?.speed || 0),
+          isLive: true,
+          source: 'OpenWeatherMap Live',
+        };
+      } else {
+        console.warn(`OpenWeatherMap returned ${res.status}: ${res.statusText}`);
+      }
+    } catch (err) {
+      console.warn('OpenWeatherMap API request failed:', err.message);
+    }
+  }
+
+  // 2. Try Open-Meteo live API (free, reliable, global real-time)
   try {
     const url = `${ENDPOINTS.OPEN_METEO}?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
     const controller = new AbortController();
@@ -69,6 +103,7 @@ export async function getWeather(lat, lng) {
         temp: Math.round(current.temperature_2m),
         feelsLike: Math.round(current.apparent_temperature),
         humidity: Math.round(current.relative_humidity_2m),
+        condition: wmo.description,
         description: wmo.description,
         icon,
         wind: Math.round(current.wind_speed_10m),
@@ -84,35 +119,6 @@ export async function getWeather(lat, lng) {
     }
   } catch (err) {
     console.info('Open-Meteo live query skipped or timed out:', err.message);
-  }
-
-  // 2. Try OpenWeatherMap if custom API key is present
-  const owmKey = API_KEYS.OPENWEATHERMAP;
-  if (owmKey && owmKey !== 'MOCK_OWM_KEY_replace_me') {
-    try {
-      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${owmKey}&units=metric`;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (res.ok) {
-        const data = await res.json();
-        return {
-          temp: Math.round(data.main.temp),
-          feelsLike: Math.round(data.main.feels_like),
-          humidity: data.main.humidity,
-          description: data.weather[0].description,
-          icon: data.weather[0].icon,
-          wind: Math.round(data.wind.speed),
-          isLive: true,
-          source: 'OpenWeatherMap',
-        };
-      }
-    } catch (err) {
-      console.warn('OpenWeatherMap API fallback:', err.message);
-    }
   }
 
   // 3. Fallback to realistic coordinate-modeled weather
@@ -132,6 +138,7 @@ function getMockWeather(lat) {
 
   return {
     ...base,
+    condition: base.description,
     temp: base.temp + (Math.floor(Math.random() * 4) - 2),
     humidity: Math.min(95, Math.max(30, base.humidity + (Math.floor(Math.random() * 8) - 4))),
     wind: Math.max(4, base.wind + (Math.floor(Math.random() * 6) - 3)),
