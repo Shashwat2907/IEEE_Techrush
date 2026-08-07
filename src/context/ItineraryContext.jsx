@@ -21,14 +21,18 @@ function saveToStorage(state) {
   }
 }
 
+const DEFAULT_DAYS = [
+  { id: 'day-1', dayNumber: 1, label: 'Day 1', activities: [] },
+  { id: 'day-2', dayNumber: 2, label: 'Day 2', activities: [] },
+  { id: 'day-3', dayNumber: 3, label: 'Day 3', activities: [] },
+];
+
 const initialState = {
   destinationId: null,
   destinationName: '',
-  days: [
-    { id: 'day-1', label: 'Day 1', activities: [] },
-    { id: 'day-2', label: 'Day 2', activities: [] },
-    { id: 'day-3', label: 'Day 3', activities: [] },
-  ],
+  startDate: null, // 'YYYY-MM-DD'
+  endDate: null,   // 'YYYY-MM-DD'
+  days: DEFAULT_DAYS,
   tripDays: 3,
 };
 
@@ -41,6 +45,17 @@ export const ACTIVITY_TYPES = {
   rest: { label: 'Rest', color: '#A78BFA', icon: 'moon' },
 };
 
+function formatDayDate(startDateStr, dayIndex) {
+  if (!startDateStr) return null;
+  const d = new Date(startDateStr);
+  d.setDate(d.getDate() + dayIndex);
+  return {
+    dateStr: d.toISOString().split('T')[0],
+    formattedDate: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    dayOfWeek: d.toLocaleDateString('en-US', { weekday: 'short' }),
+  };
+}
+
 function itineraryReducer(state, action) {
   switch (action.type) {
     case 'SET_DESTINATION': {
@@ -51,18 +66,59 @@ function itineraryReducer(state, action) {
         ...state,
         destinationId: action.payload.id,
         destinationName: action.payload.name,
-        days: state.days.map(d => ({ ...d, activities: [] })),
+        days: state.days.map((d, i) => ({ ...d, dayNumber: i + 1, activities: [] })),
+      };
+    }
+
+    case 'SET_DATE_RANGE': {
+      const { startDate, endDate } = action.payload;
+      if (!startDate || !endDate) {
+        return { ...state, startDate, endDate };
+      }
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.max(1, Math.min(14, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1));
+
+      const newDays = [];
+      for (let i = 0; i < diffDays; i++) {
+        const existing = state.days[i];
+        const dateMeta = formatDayDate(startDate, i);
+        newDays.push({
+          id: existing ? existing.id : `day-${Date.now()}-${i}`,
+          dayNumber: i + 1,
+          label: `Day ${i + 1}`,
+          dateStr: dateMeta?.dateStr,
+          formattedDate: dateMeta?.formattedDate,
+          dayOfWeek: dateMeta?.dayOfWeek,
+          activities: existing ? existing.activities : [],
+        });
+      }
+
+      return {
+        ...state,
+        startDate,
+        endDate,
+        days: newDays,
+        tripDays: diffDays,
       };
     }
 
     case 'LOAD_PREMADE': {
       const { id, name, days } = action.payload;
+      const formattedDays = (days || []).map((d, i) => ({
+        ...d,
+        id: d.id || `day-${i + 1}`,
+        dayNumber: d.dayNumber || i + 1,
+        activities: d.activities || [],
+      }));
       return {
         ...state,
         destinationId: id,
         destinationName: name,
-        days: days || [],
-        tripDays: days?.length || 3,
+        days: formattedDays.length > 0 ? formattedDays : DEFAULT_DAYS,
+        tripDays: formattedDays.length || 3,
       };
     }
 
@@ -70,27 +126,78 @@ function itineraryReducer(state, action) {
       const count = Math.max(1, Math.min(14, action.payload));
       const days = [];
       for (let i = 0; i < count; i++) {
+        const dateMeta = state.startDate ? formatDayDate(state.startDate, i) : null;
         days.push(
-          state.days[i] || { id: `day-${i + 1}`, label: `Day ${i + 1}`, activities: [] }
+          state.days[i] || {
+            id: `day-${Date.now()}-${i}`,
+            dayNumber: i + 1,
+            label: `Day ${i + 1}`,
+            dateStr: dateMeta?.dateStr,
+            formattedDate: dateMeta?.formattedDate,
+            dayOfWeek: dateMeta?.dayOfWeek,
+            activities: [],
+          }
         );
       }
       return { ...state, days, tripDays: count };
+    }
+
+    case 'ADD_DAY': {
+      const nextNum = state.days.length + 1;
+      const dateMeta = state.startDate ? formatDayDate(state.startDate, state.days.length) : null;
+      const newDay = {
+        id: `day-${Date.now()}`,
+        dayNumber: nextNum,
+        label: `Day ${nextNum}`,
+        dateStr: dateMeta?.dateStr,
+        formattedDate: dateMeta?.formattedDate,
+        dayOfWeek: dateMeta?.dayOfWeek,
+        activities: [],
+      };
+      return {
+        ...state,
+        days: [...state.days, newDay],
+        tripDays: state.days.length + 1,
+      };
+    }
+
+    case 'REMOVE_DAY': {
+      if (state.days.length <= 1) return state;
+      const targetId = action.payload;
+      const nextDays = state.days
+        .filter((d) => d.id !== targetId)
+        .map((d, idx) => {
+          const dateMeta = state.startDate ? formatDayDate(state.startDate, idx) : null;
+          return {
+            ...d,
+            dayNumber: idx + 1,
+            label: `Day ${idx + 1}`,
+            dateStr: dateMeta?.dateStr,
+            formattedDate: dateMeta?.formattedDate,
+            dayOfWeek: dateMeta?.dayOfWeek,
+          };
+        });
+      return {
+        ...state,
+        days: nextDays,
+        tripDays: nextDays.length,
+      };
     }
 
     case 'ADD_ACTIVITY': {
       const { dayId, activity } = action.payload;
       return {
         ...state,
-        days: state.days.map(day =>
+        days: state.days.map((day) =>
           day.id === dayId
             ? {
                 ...day,
                 activities: [
-                  ...day.activities,
+                  ...(day.activities || []),
                   {
                     ...activity,
                     uid: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                    startHour: getNextAvailableHour(day.activities),
+                    startHour: getNextAvailableHour(day.activities || []),
                     type: activity.type || 'activity',
                     notes: activity.notes || '',
                     location: activity.location || '',
@@ -106,11 +213,11 @@ function itineraryReducer(state, action) {
       const { dayId, activityUid, updates } = action.payload;
       return {
         ...state,
-        days: state.days.map(day =>
+        days: state.days.map((day) =>
           day.id === dayId
             ? {
                 ...day,
-                activities: day.activities.map(a =>
+                activities: (day.activities || []).map((a) =>
                   a.uid === activityUid ? { ...a, ...updates } : a
                 ),
               }
@@ -123,9 +230,9 @@ function itineraryReducer(state, action) {
       const { dayId: removeDayId, activityUid } = action.payload;
       return {
         ...state,
-        days: state.days.map(day =>
+        days: state.days.map((day) =>
           day.id === removeDayId
-            ? { ...day, activities: day.activities.filter(a => a.uid !== activityUid) }
+            ? { ...day, activities: (day.activities || []).filter((a) => a.uid !== activityUid) }
             : day
         ),
       };
@@ -135,11 +242,11 @@ function itineraryReducer(state, action) {
       const { fromDayId, toDayId, activityUid: moveUid } = action.payload;
       let movedActivity = null;
 
-      const daysAfterRemove = state.days.map(day => {
+      const daysAfterRemove = state.days.map((day) => {
         if (day.id === fromDayId) {
-          const activity = day.activities.find(a => a.uid === moveUid);
+          const activity = (day.activities || []).find((a) => a.uid === moveUid);
           if (activity) movedActivity = activity;
-          return { ...day, activities: day.activities.filter(a => a.uid !== moveUid) };
+          return { ...day, activities: (day.activities || []).filter((a) => a.uid !== moveUid) };
         }
         return day;
       });
@@ -148,13 +255,13 @@ function itineraryReducer(state, action) {
 
       return {
         ...state,
-        days: daysAfterRemove.map(day =>
+        days: daysAfterRemove.map((day) =>
           day.id === toDayId
             ? {
                 ...day,
                 activities: [
-                  ...day.activities,
-                  { ...movedActivity, startHour: getNextAvailableHour(day.activities) },
+                  ...(day.activities || []),
+                  { ...movedActivity, startHour: getNextAvailableHour(day.activities || []) },
                 ],
               }
             : day
@@ -166,7 +273,7 @@ function itineraryReducer(state, action) {
       const { dayId: reorderDayId, activities: reorderedActivities } = action.payload;
       return {
         ...state,
-        days: state.days.map(day =>
+        days: state.days.map((day) =>
           day.id === reorderDayId ? { ...day, activities: reorderedActivities } : day
         ),
       };
@@ -184,60 +291,49 @@ function itineraryReducer(state, action) {
 }
 
 function getNextAvailableHour(activities) {
-  if (activities.length === 0) return 9;
+  if (!activities || activities.length === 0) return 9;
   const lastActivity = activities[activities.length - 1];
   return (lastActivity.startHour || 9) + (lastActivity.durationHrs || 2);
 }
 
 /**
- * Calculate day totals
+ * Calculate day totals safely
  */
 export function getDayTotals(day) {
-  const cost = day.activities.reduce((sum, a) => sum + (a.cost || 0), 0);
-  const hours = day.activities.reduce((sum, a) => sum + (a.durationHrs || 0), 0);
-  const hasConflict = checkConflicts(day.activities);
-  return { cost, hours, hasConflict };
+  const acts = day?.activities || [];
+  const cost = acts.reduce((sum, a) => sum + (parseFloat(a.cost) || 0), 0);
+  const hours = acts.reduce((sum, a) => sum + (parseFloat(a.durationHrs) || 0), 0);
+  const hasConflict = checkConflicts(acts);
+  return {
+    cost,
+    hours,
+    totalCost: cost,
+    totalHours: hours,
+    hasConflict,
+  };
 }
 
 /**
- * Get full trip totals broken down by activity type
- */
-export function getTripBudget(days) {
-  const breakdown = { stay: 0, food: 0, activity: 0, transport: 0, rest: 0 };
-  let total = 0;
-  const perDay = [];
-
-  (days || []).forEach((day) => {
-    let dayTotal = 0;
-    (day.activities || []).forEach((a) => {
-      const cost = a.cost || 0;
-      const type = a.type || 'activity';
-      breakdown[type] = (breakdown[type] || 0) + cost;
-      total += cost;
-      dayTotal += cost;
-    });
-    perDay.push({ dayId: day.id, label: day.label, total: dayTotal });
-  });
-
-  return { total, breakdown, perDay };
-}
-
-/**
- * Check for overlapping time slots
+ * Check if activities in a day overlap
  */
 function checkConflicts(activities) {
-  for (let i = 0; i < activities.length; i++) {
-    for (let j = i + 1; j < activities.length; j++) {
-      const a = activities[i];
-      const b = activities[j];
-      const aEnd = (a.startHour || 0) + (a.durationHrs || 0);
-      const bEnd = (b.startHour || 0) + (b.durationHrs || 0);
-      if ((a.startHour || 0) < bEnd && (b.startHour || 0) < aEnd) {
-        return true;
-      }
+  if (!activities || activities.length < 2) return false;
+  for (let i = 0; i < activities.length - 1; i++) {
+    const current = activities[i];
+    const next = activities[i + 1];
+    const currentEnd = (current.startHour || 9) + (current.durationHrs || 2);
+    if (currentEnd > (next.startHour || 9)) {
+      return true;
     }
   }
   return false;
+}
+
+export function getTripBudget(days) {
+  if (!days || !Array.isArray(days)) return 0;
+  return days.reduce((total, day) => {
+    return total + (day.activities || []).reduce((sum, a) => sum + (parseFloat(a.cost) || 0), 0);
+  }, 0);
 }
 
 export function ItineraryProvider({ children }) {
@@ -257,8 +353,22 @@ export function ItineraryProvider({ children }) {
     }
   }, []);
 
+  const setDateRange = useCallback((startDate, endDate) => {
+    dispatch({ type: 'SET_DATE_RANGE', payload: { startDate, endDate } });
+  }, []);
+
   const setTripDays = useCallback((count) => {
     dispatch({ type: 'SET_TRIP_DAYS', payload: count });
+  }, []);
+
+  const addDay = useCallback(() => {
+    const newId = `day-${Date.now()}`;
+    dispatch({ type: 'ADD_DAY' });
+    return newId;
+  }, []);
+
+  const removeDay = useCallback((dayId) => {
+    dispatch({ type: 'REMOVE_DAY', payload: dayId });
   }, []);
 
   const addActivity = useCallback((dayId, activity) => {
@@ -298,12 +408,21 @@ export function ItineraryProvider({ children }) {
     });
   }, []);
 
+  const destination = {
+    id: state.destinationId,
+    name: state.destinationName,
+  };
+
   return (
     <ItineraryContext.Provider
       value={{
         ...state,
+        destination,
         setDestination,
+        setDateRange,
         setTripDays,
+        addDay,
+        removeDay,
         addActivity,
         updateActivity,
         removeActivity,

@@ -1,258 +1,253 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
+import { useCompare } from '../../context/CompareContext';
 import { geocode } from '../../services/geocode';
 import { getDestinations } from '../../services/destinations';
-import { SearchIcon, CloseIcon, SparklesIcon, ScaleIcon } from '../../components/ui/Icons';
+import { getDestinationPhoto } from '../../services/photos';
+import {
+  SearchIcon,
+  SparklesIcon,
+  ScaleIcon,
+  CloseIcon,
+} from '../../components/ui/Icons';
 
-const PLACEHOLDERS = [
-  'Where to next? (e.g. Kyoto, Bali, Amalfi, Paris)...',
-  'Search any city, country, island, or landmark...',
-  'Plan your customized dream itinerary with live weather...',
-  'Discover handcrafted seasonal recommendations...',
+const ENCOURAGING_PLACEHOLDERS = [
+  'Where does your wanderlust take you today?',
+  'Discover your next breathtaking escape...',
+  'Search Tokyo, Swiss Alps, Santorini, Bali...',
+  'Where in the world do you want to explore next?',
+  'Find untamed landscapes & vibrant cities...',
+  'Search any city, mountain peak, or coast...',
 ];
 
 export default function GlobeSearch() {
   const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
+  const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
 
-  const { flyToDestination, showQuiz, openCompare } = useApp();
   const inputRef = useRef(null);
-  const debounceRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
-  // Rotating placeholder animation
+  const {
+    flyToDestination,
+    showQuiz,
+    openCompare,
+  } = useApp();
+
+  const { compareList } = useCompare();
+
+  // Animated rotating encouraging placeholder
   useEffect(() => {
-    if (isFocused || query) return;
+    if (query.trim()) return;
     const interval = setInterval(() => {
-      setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDERS.length);
-    }, 4000);
+      setPlaceholderIndex((prev) => (prev + 1) % ENCOURAGING_PLACEHOLDERS.length);
+    }, 3500);
     return () => clearInterval(interval);
-  }, [isFocused, query]);
-
-  // Autocomplete suggestions
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.length < 2) {
-      setSuggestions([]);
-      return;
-    }
-    debounceRef.current = setTimeout(() => {
-      setSuggestions(getDestinations({ search: query }).slice(0, 5));
-    }, 150);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
   }, [query]);
 
-  const handleSearch = useCallback(
-    async (e) => {
-      if (e) e.preventDefault();
-      if (!query.trim()) return;
-      setIsSearching(true);
+  const handleSearch = useCallback(async (text) => {
+    if (!text.trim()) {
+      setResults([]);
+      setIsSearching(false);
+      return;
+    }
 
-      const localResults = getDestinations({ search: query });
-      if (localResults.length > 0) {
-        flyToDestination(localResults[0]);
-        setQuery('');
-        setSuggestions([]);
-        setIsSearching(false);
-        setIsFocused(false);
-        return;
-      }
+    setIsSearching(true);
 
-      try {
-        const result = await geocode(query);
-        if (result) {
-          const cleanName = result.name.split(',').slice(0, 2).join(', ');
+    const localDests = getDestinations().filter(
+      (d) =>
+        d.name.toLowerCase().includes(text.toLowerCase()) ||
+        d.country?.toLowerCase().includes(text.toLowerCase()) ||
+        d.type?.some((t) => t.toLowerCase().includes(text.toLowerCase()))
+    );
 
-          let temp = 22;
-          try {
-            const wRes = await fetch(
-              `https://api.open-meteo.com/v1/forecast?latitude=${result.lat}&longitude=${result.lng}&current=temperature_2m`
-            );
-            const wData = await wRes.json();
-            if (wData.current) {
-              temp = Math.round(wData.current.temperature_2m);
-            }
-          } catch {}
-
-          flyToDestination({
-            id: `geocoded-${Date.now()}`,
-            name: cleanName,
-            lat: result.lat,
-            lng: result.lng,
-            type: ['city', 'custom'],
-            season: ['spring', 'summer', 'autumn', 'winter'],
+    try {
+      const geoResults = await geocode(text);
+      const combined = [
+        ...localDests.map((d) => ({ ...d, source: 'curated' })),
+        ...(geoResults || [])
+          .filter((g) => !localDests.some((ld) => ld.name.toLowerCase() === g.name.toLowerCase()))
+          .map((g) => ({
+            id: `geo-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            name: g.name,
+            country: g.country || '',
+            lat: g.lat,
+            lng: g.lng,
+            type: ['custom'],
             budgetTier: 'mid',
             crowdLevel: 'medium',
-            bestTimeToVisit: 'Apr–Oct',
-            description: `Explore the vibrant streets, local landmarks, and authentic culture of ${cleanName}.`,
-            activities: [
-              { name: 'City Center & Historic Sights', cost: 0, durationHrs: 3, type: 'activity' },
-              { name: 'Traditional Dining & Market Tour', cost: 30, durationHrs: 2, type: 'food' },
-              { name: 'Local Museum / Scenic Lookout', cost: 15, durationHrs: 2.5, type: 'activity' },
-              { name: 'Evening Stroll & Leisure', cost: 0, durationHrs: 2, type: 'rest' },
-            ],
-          });
-          setQuery('');
-          setSuggestions([]);
-          setIsFocused(false);
-        }
-      } catch (err) {
-        console.warn('Geocoding search failed:', err);
-      } finally {
-        setIsSearching(false);
-      }
-    },
-    [query, flyToDestination]
-  );
+            source: 'geocoded',
+          })),
+      ];
 
-  const handleSuggestionClick = useCallback(
-    (dest) => {
-      flyToDestination(dest);
-      setQuery('');
-      setSuggestions([]);
-      setIsFocused(false);
-    },
-    [flyToDestination]
-  );
+      setResults(combined.slice(0, 6));
+    } catch {
+      setResults(localDests.slice(0, 6));
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const onInputChange = (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    setIsOpen(true);
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => {
+      handleSearch(val);
+    }, 200);
+  };
+
+  const handleSelectResult = (dest) => {
+    setQuery('');
+    setIsOpen(false);
+    flyToDestination(dest);
+  };
 
   return (
-    <div className="flex flex-col items-center w-full select-none max-w-xl mx-auto px-4">
-      {/* Search Input Bar */}
-      <div className="relative w-full">
-        <motion.div
-          layout
-          className={`relative flex items-center h-12 sm:h-13 w-full rounded-2xl transition-all duration-300 ${
-            isFocused || query
-              ? 'bg-[#0B101B]/95 border border-white/20 shadow-2xl backdrop-blur-2xl'
-              : 'bg-[#0B101B]/75 hover:bg-[#0B101B]/90 border border-white/[0.08] shadow-lg backdrop-blur-xl hover:border-white/15'
-          } px-4 overflow-hidden`}
-          onClick={() => inputRef.current?.focus()}
-        >
-          <form onSubmit={handleSearch} className="flex items-center w-full h-full relative">
-            <span className="text-text-secondary mr-3 shrink-0 flex items-center justify-center">
-              {isSearching ? (
-                <svg className="w-4 h-4 animate-spin text-accent-sky" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              ) : (
-                <SearchIcon className="w-4 h-4 text-text-secondary" />
-              )}
-            </span>
+    <div className="relative w-full max-w-xl mx-auto select-none font-sans px-2">
+      {/* ─── Apple OS 26 Liquid Glass Search Capsule ─── */}
+      <div className="relative apple-liquid-glass rounded-full p-2 pl-3.5 pr-2 flex items-center gap-2.5 shadow-2xl transition-all">
+        {/* Soft Glowing Search Glyph */}
+        <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+          <SearchIcon className="w-4 h-4" />
+        </div>
 
-            <div className="relative flex-1 h-full flex items-center">
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => {
-                  setTimeout(() => setIsFocused(false), 200);
-                }}
-                className="w-full h-full bg-transparent text-white font-body text-xs sm:text-sm placeholder-transparent focus:outline-none z-10"
-                autoComplete="off"
-                spellCheck="false"
-              />
+        {/* Core Input with Animated Placeholder */}
+        <div className="relative flex-1 min-w-0 h-9 flex items-center">
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={onInputChange}
+            onFocus={() => setIsOpen(true)}
+            className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 dark:text-white outline-none z-10"
+          />
 
-              {/* Animated Rotating Placeholder */}
-              {!query && (
-                <div className="absolute inset-0 flex items-center pointer-events-none overflow-hidden">
-                  <AnimatePresence mode="wait">
-                    <motion.span
-                      key={placeholderIndex}
-                      initial={{ y: 14, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      exit={{ y: -14, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: 'easeOut' }}
-                      className="text-xs sm:text-sm text-text-secondary/60 font-body truncate"
-                    >
-                      {PLACEHOLDERS[placeholderIndex]}
-                    </motion.span>
-                  </AnimatePresence>
-                </div>
-              )}
-            </div>
-
-            {query && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setQuery('');
-                  setSuggestions([]);
-                }}
-                className="p-1 text-text-secondary hover:text-white transition-colors ml-2 cursor-pointer"
-              >
-                <CloseIcon className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </form>
-        </motion.div>
-
-        {/* Autocomplete Dropdown */}
-        <AnimatePresence>
-          {suggestions.length > 0 && isFocused && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="absolute left-0 right-0 top-full mt-2 bg-[#0B101B]/95 border border-white/[0.08] backdrop-blur-2xl rounded-2xl p-1.5 shadow-2xl z-50 overflow-hidden"
-            >
-              {suggestions.map((dest) => (
-                <button
-                  key={dest.id}
-                  type="button"
-                  onMouseDown={() => handleSuggestionClick(dest)}
-                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-white/[0.05] transition-colors text-left group cursor-pointer"
+          {/* Animated Rotating Wanderlust Placeholder */}
+          {!query && (
+            <div className="absolute inset-0 pointer-events-none flex items-center overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={placeholderIndex}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 font-medium truncate"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-text-secondary text-xs">📍</span>
-                    <div>
-                      <div className="text-xs font-semibold text-white group-hover:text-accent-sky transition-colors">
-                        {dest.name}
-                      </div>
-                      <div className="text-[11px] text-text-secondary">
-                        {dest.bestTimeToVisit ? `Best: ${dest.bestTimeToVisit}` : dest.season?.join(', ')}
-                      </div>
-                    </div>
-                  </div>
-
-                  <span className="text-xs font-medium text-accent-sky opacity-0 group-hover:opacity-100 transition-opacity">
-                    Fly →
-                  </span>
-                </button>
-              ))}
-            </motion.div>
+                  {ENCOURAGING_PLACEHOLDERS[placeholderIndex]}
+                </motion.span>
+              </AnimatePresence>
+            </div>
           )}
-        </AnimatePresence>
+        </div>
+
+        {/* Clear Search Button */}
+        {query && (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery('');
+              setResults([]);
+            }}
+            className="w-7 h-7 rounded-full hover:bg-black/10 dark:hover:bg-white/15 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white cursor-pointer transition-colors"
+          >
+            <CloseIcon className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {/* Integrated Liquid Action Icons */}
+        <div className="flex items-center gap-1.5 shrink-0 pl-1">
+          {/* AI Matchmaker Tool Icon */}
+          <button
+            type="button"
+            onClick={showQuiz}
+            className="w-8 h-8 rounded-full flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/40 transition-all cursor-pointer shadow-sm hover:scale-105"
+            title="AI Matchmaker — Find Your Vibe"
+          >
+            <SparklesIcon className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Compare Destinations Tool Icon */}
+          <button
+            type="button"
+            onClick={openCompare}
+            className="w-8 h-8 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-slate-700 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white border border-black/10 dark:border-white/10 transition-all cursor-pointer shadow-sm hover:scale-105 relative"
+            title="Compare Destinations"
+          >
+            <ScaleIcon className="w-3.5 h-3.5" />
+            {compareList && compareList.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-black text-[9px] font-bold flex items-center justify-center shadow-md">
+                {compareList.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Elegant Action Capsules: AI Matchmaker & Compare Places */}
-      <div className="flex items-center gap-2.5 mt-3.5">
-        <button
-          type="button"
-          onClick={showQuiz}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0B101B]/80 hover:bg-[#0B101B]/95 border border-white/[0.08] hover:border-accent-sky/30 text-white/80 hover:text-white text-xs font-medium backdrop-blur-xl shadow-lg transition-all cursor-pointer group"
-        >
-          <SparklesIcon className="w-3.5 h-3.5 text-accent-sky group-hover:rotate-12 transition-transform" />
-          <span>AI Matchmaker</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={openCompare}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0B101B]/80 hover:bg-[#0B101B]/95 border border-white/[0.08] hover:border-white/20 text-white/80 hover:text-white text-xs font-medium backdrop-blur-xl shadow-lg transition-all cursor-pointer group"
-        >
-          <ScaleIcon className="w-3.5 h-3.5 text-text-secondary group-hover:text-white transition-colors" />
-          <span>Compare Places</span>
-        </button>
-      </div>
+      {/* ─── Apple OS Liquid Search Results Dropdown ─── */}
+      <AnimatePresence>
+        {isOpen && (query.trim() || results.length > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.18 }}
+            className="absolute top-full inset-x-2 mt-2 apple-liquid-glass rounded-[24px] p-2 shadow-2xl z-50 max-h-[50vh] sm:max-h-80 overflow-y-auto no-scrollbar"
+          >
+            {isSearching ? (
+              <div className="p-4 text-center text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                Searching destinations worldwide...
+              </div>
+            ) : results.length === 0 ? (
+              <div className="p-4 text-center text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                No matching locations found for "{query}"
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {results.map((dest) => {
+                  const photo = getDestinationPhoto(dest);
+                  return (
+                    <div
+                      key={dest.id}
+                      onClick={() => handleSelectResult(dest)}
+                      className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer flex items-center gap-3 transition-colors group"
+                    >
+                      {photo ? (
+                        <img
+                          src={photo}
+                          alt=""
+                          className="w-10 h-10 rounded-lg object-cover border border-black/10 dark:border-white/10 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                          <SearchIcon className="w-4 h-4" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-500 transition-colors">
+                          {dest.name}
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
+                          {dest.country || 'Custom Location'} {dest.type && `• ${dest.type.join(', ')}`}
+                        </div>
+                      </div>
+                      <span className="text-xs text-slate-400 dark:text-zinc-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                        →
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -16,719 +16,798 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useItinerary, getDayTotals, ACTIVITY_TYPES } from '../../context/ItineraryContext';
+import { useItinerary, ACTIVITY_TYPES } from '../../context/ItineraryContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import { getDestinationById, getDestinations } from '../../services/destinations';
+import { useTheme } from '../../context/ThemeContext';
 import {
-  ClockIcon,
+  CalendarIcon,
   CloseIcon,
-  WarningIcon,
   PlusIcon,
-  SearchIcon,
+  TrashIcon,
+  ClockIcon,
+  CompassIcon,
   BedIcon,
   UtensilsIcon,
-  CompassIcon,
   CarIcon,
   MoonIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  CalendarIcon,
-  EditIcon,
 } from '../../components/ui/Icons';
 
-function formatHour(hour) {
-  if (hour === undefined || hour === null) return '--:--';
-  const h = Math.floor(hour);
-  const m = Math.round((hour - h) * 60);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
-  return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+// Map activity type to Icon
+function getActivityIcon(type) {
+  switch (type) {
+    case 'stay':
+      return <BedIcon className="w-3.5 h-3.5" />;
+    case 'food':
+      return <UtensilsIcon className="w-3.5 h-3.5" />;
+    case 'transport':
+      return <CarIcon className="w-3.5 h-3.5" />;
+    case 'rest':
+      return <MoonIcon className="w-3.5 h-3.5" />;
+    case 'activity':
+    default:
+      return <CompassIcon className="w-3.5 h-3.5" />;
+  }
 }
 
-const TYPE_CONFIG = {
-  stay: { label: 'Stay / Hotel', color: '#F59E0B', icon: <BedIcon className="w-3.5 h-3.5" /> },
-  food: { label: 'Dining / Food', color: '#10B981', icon: <UtensilsIcon className="w-3.5 h-3.5" /> },
-  activity: { label: 'Activity', color: '#38BDF8', icon: <CompassIcon className="w-3.5 h-3.5" /> },
-  transport: { label: 'Transit', color: '#94A3B8', icon: <CarIcon className="w-3.5 h-3.5" /> },
-  rest: { label: 'Rest / Leisure', color: '#A78BFA', icon: <MoonIcon className="w-3.5 h-3.5" /> },
-};
+// Format 24hr decimal into 12hr AM/PM
+function formatHour(hour) {
+  const h = Math.floor(hour);
+  const m = Math.round((hour - h) * 60);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  const mStr = m > 0 ? `:${m.toString().padStart(2, '0')}` : ':00';
+  return `${h12}${mStr} ${period}`;
+}
 
-function SortableActivity({ activity, dayId, onRemove, onUpdate }) {
+// ─── Sortable Activity Item Component ───
+function SortableActivityCard({
+  activity,
+  dayId,
+  onRemove,
+  onUpdate,
+  formatPrice,
+  isDark,
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: activity.uid });
+
   const [isExpanded, setIsExpanded] = useState(false);
-  const [notes, setNotes] = useState(activity.notes || '');
   const [cost, setCost] = useState(activity.cost || 0);
   const [type, setType] = useState(activity.type || 'activity');
-  const { formatPrice } = useCurrency();
-
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: activity.uid,
-  });
+  const [notes, setNotes] = useState(activity.notes || '');
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.35 : 1,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : 1,
   };
-
-  const currentType = TYPE_CONFIG[activity.type || 'activity'] || TYPE_CONFIG.activity;
 
   const handleSaveDetails = () => {
     onUpdate(dayId, activity.uid, {
-      notes,
       cost: parseFloat(cost) || 0,
       type,
+      notes: notes.trim(),
     });
     setIsExpanded(false);
   };
+
+  const typeConfig = ACTIVITY_TYPES[activity.type] || ACTIVITY_TYPES.activity;
+  const startH = activity.startHour || 9;
+  const durH = activity.durationHrs || 2;
+  const endH = startH + durH;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-xl border border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.04] transition-all overflow-hidden ${
-        isDragging ? 'shadow-2xl border-accent-sky/30' : ''
-      }`}
+      className={`rounded-2xl transition-all duration-200 border ${
+        isDark
+          ? 'bg-[#121826]/75 border-white/10 hover:border-white/20'
+          : 'bg-white/80 border-black/10 hover:border-black/20 shadow-sm'
+      } backdrop-blur-xl overflow-hidden`}
     >
-      {/* Card Header Row */}
-      <div className="flex items-center gap-2.5 px-3 py-2.5">
+      {/* Primary Row */}
+      <div className="p-3.5 flex items-center gap-3">
         {/* Drag Handle */}
-        <button
+        <div
           {...attributes}
           {...listeners}
-          className="w-4 h-4 flex items-center justify-center text-text-secondary/40 hover:text-white cursor-grab active:cursor-grabbing flex-shrink-0 font-mono text-[10px] select-none"
-          title="Drag to reorder"
+          className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300 p-1 select-none"
+          title="Drag to reschedule"
         >
           ⋮⋮
-        </button>
-
-        {/* Category Visual Pill */}
-        <div
-          className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: `${currentType.color}15`, color: currentType.color }}
-          title={currentType.label}
-        >
-          {currentType.icon}
         </div>
 
-        {/* Timing */}
-        <div className="flex-shrink-0 w-14 text-left">
-          <span className="font-mono text-[11px] font-semibold text-accent-sky">
-            {formatHour(activity.startHour)}
-          </span>
+        {/* Category Icon Badge */}
+        <div
+          className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-white/15"
+          style={{ backgroundColor: `${typeConfig.color}25`, color: typeConfig.color }}
+        >
+          {getActivityIcon(activity.type)}
         </div>
 
-        {/* Title and details summary */}
+        {/* Title and Timeline */}
         <div
-          className="flex-1 min-w-0 pr-1 cursor-pointer"
-          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex-1 min-w-0 cursor-pointer"
+          onClick={() => setIsExpanded((prev) => !prev)}
         >
-          <div className="text-xs font-body font-medium text-white truncate flex items-center gap-1.5">
-            <span>{activity.name}</span>
-            {activity.notes && (
-              <span className="w-1.5 h-1.5 rounded-full bg-accent-sky/60" title="Has notes" />
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] text-text-secondary font-mono flex items-center gap-0.5">
-              <ClockIcon className="w-2.5 h-2.5" />
-              {activity.durationHrs}h
-            </span>
-            <span className="text-[10px] font-mono font-semibold text-accent-emerald">
-              {formatPrice(activity.cost)}
-            </span>
+          <div className="flex items-center gap-2">
+            <h4 className="text-xs font-bold truncate text-slate-900 dark:text-white">
+              {activity.name}
+            </h4>
             <span
-              className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded"
-              style={{ color: currentType.color, backgroundColor: `${currentType.color}10` }}
+              className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0"
+              style={{ backgroundColor: `${typeConfig.color}20`, color: typeConfig.color }}
             >
-              {currentType.label.split(' ')[0]}
+              {typeConfig.label}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500 dark:text-zinc-400">
+            <span className="flex items-center gap-1 font-medium">
+              <ClockIcon className="w-3 h-3 opacity-70" />
+              {formatHour(startH)} – {formatHour(endH)}
+            </span>
+            <span>•</span>
+            <span className="font-semibold text-slate-700 dark:text-zinc-300">
+              {durH}h
             </span>
           </div>
         </div>
 
-        {/* Expand / Details Toggle */}
-        <button
-          type="button"
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="p-1 text-text-secondary/50 hover:text-white transition-colors"
-          title="Add details & notes"
-        >
-          {isExpanded ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
-        </button>
+        {/* Cost & Delete Action */}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+            {formatPrice(activity.cost || 0)}
+          </span>
 
-        {/* Delete */}
-        <button
-          type="button"
-          onClick={() => onRemove(dayId, activity.uid)}
-          className="w-5 h-5 flex items-center justify-center rounded-lg text-text-secondary/40 hover:text-red-400 hover:bg-red-500/10 transition-all flex-shrink-0"
-          title="Remove activity"
-        >
-          <CloseIcon className="w-3 h-3" />
-        </button>
+          <button
+            type="button"
+            onClick={() => onRemove(dayId, activity.uid)}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+            title="Delete activity"
+          >
+            <TrashIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
-      {/* Expandable Details Accordion */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="border-t border-white/[0.04] p-3 bg-black/20 space-y-2.5 text-left"
-          >
-            {/* Category Type Selector */}
+      {/* Expandable Edit Drawer */}
+      {isExpanded && (
+        <div
+          className={`p-4 border-t ${
+            isDark ? 'border-white/10 bg-[#16161E]' : 'border-black/10 bg-slate-50'
+          } space-y-3`}
+        >
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-mono uppercase text-text-secondary">Type</label>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {Object.entries(TYPE_CONFIG).map(([tKey, tConf]) => (
-                  <button
-                    key={tKey}
-                    type="button"
-                    onClick={() => setType(tKey)}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-mono flex items-center gap-1 transition-all ${
-                      type === tKey
-                        ? 'bg-white/10 text-white border border-white/20 font-semibold'
-                        : 'text-text-secondary hover:text-white bg-white/[0.02]'
-                    }`}
-                  >
-                    <span style={{ color: tConf.color }}>{tConf.icon}</span>
-                    <span>{tConf.label.split(' ')[0]}</span>
-                  </button>
-                ))}
-              </div>
+              <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                Category
+              </label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className={`w-full ${
+                  isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+                } border rounded-xl text-xs p-2 outline-none font-medium`}
+              >
+                <option value="activity">Sight / Attraction</option>
+                <option value="food">Dining / Cuisine</option>
+                <option value="stay">Hotel / Stay</option>
+                <option value="transport">Transit</option>
+                <option value="rest">Leisure / Break</option>
+              </select>
             </div>
 
-            {/* Notes / Details */}
             <div>
-              <label className="text-[10px] font-mono uppercase text-text-secondary">
-                Details & Notes (Hotel check-in, confirmation #, tips)
+              <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                Est. Cost ($)
               </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Check-in at 2 PM, voucher code #1234..."
-                rows={2}
-                className="w-full mt-1 bg-white/[0.03] border border-white/[0.06] focus:border-accent-sky/40 rounded-lg p-2 text-xs text-white placeholder:text-text-secondary/40 outline-none resize-none font-body"
+              <input
+                type="number"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
+                className={`w-full ${
+                  isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+                } border rounded-xl text-xs p-2 outline-none font-semibold`}
               />
             </div>
+          </div>
 
-            {/* Cost & Save */}
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-2">
-                <label className="text-[10px] font-mono uppercase text-text-secondary">Est. Cost ($)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={cost}
-                  onChange={(e) => setCost(e.target.value)}
-                  className="w-20 bg-white/[0.03] border border-white/[0.06] rounded-lg px-2 py-1 text-xs font-mono text-white outline-none"
-                />
-              </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+              Notes & Reservations
+            </label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Booking confirmation #, transit route..."
+              className={`w-full ${
+                isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+              } border rounded-xl text-xs p-2 outline-none placeholder:text-slate-400 font-medium`}
+            />
+          </div>
 
-              <button
-                type="button"
-                onClick={handleSaveDetails}
-                className="px-3 py-1 bg-accent-sky text-slate-950 rounded-lg text-xs font-semibold hover:bg-sky-400 transition-colors"
-              >
-                Save
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={handleSaveDetails}
+              className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black text-xs font-bold rounded-full transition-all cursor-pointer shadow-sm"
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function DayColumn({ day, isExpanded, onToggle, onRemoveActivity, onUpdateActivity }) {
-  const totals = useMemo(() => getDayTotals(day), [day]);
-  const { formatPrice } = useCurrency();
+// ─── Interactive Apple OS Liquid Calendar Modal ───
+function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRange, isDark }) {
+  const [selectedStart, setSelectedStart] = useState(
+    startDate || new Date().toISOString().split('T')[0]
+  );
+  const [selectedEnd, setSelectedEnd] = useState(() => {
+    if (endDate) return endDate;
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return d.toISOString().split('T')[0];
+  });
+
+  const [viewMonth, setViewMonth] = useState(() => {
+    const d = selectedStart ? new Date(selectedStart) : new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+
+  if (!isOpen) return null;
+
+  const monthYearStr = viewMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // Generate calendar days
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  const firstDayIndex = new Date(year, month, 1).getDay();
+  const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const handlePrevMonth = () => {
+    setViewMonth(new Date(year, month - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setViewMonth(new Date(year, month + 1, 1));
+  };
+
+  const handleDayClick = (dayNum) => {
+    const clickedDate = new Date(year, month, dayNum);
+    const clickedStr = clickedDate.toISOString().split('T')[0];
+
+    if (!selectedStart || (selectedStart && selectedEnd)) {
+      setSelectedStart(clickedStr);
+      setSelectedEnd(null);
+    } else if (selectedStart && !selectedEnd) {
+      if (new Date(clickedStr) < new Date(selectedStart)) {
+        setSelectedStart(clickedStr);
+      } else {
+        setSelectedEnd(clickedStr);
+      }
+    }
+  };
+
+  const handleApply = () => {
+    if (selectedStart && selectedEnd) {
+      onSaveDateRange(selectedStart, selectedEnd);
+    } else if (selectedStart) {
+      const d = new Date(selectedStart);
+      d.setDate(d.getDate() + 2);
+      onSaveDateRange(selectedStart, d.toISOString().split('T')[0]);
+    }
+    onClose();
+  };
+
+  const calculateDays = () => {
+    if (!selectedStart) return 1;
+    if (!selectedEnd) return 1;
+    const diff = Math.ceil((new Date(selectedEnd) - new Date(selectedStart)) / (1000 * 60 * 60 * 24)) + 1;
+    return Math.max(1, diff);
+  };
 
   return (
-    <div
-      className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
-        totals.hasConflict
-          ? 'border-accent-rose/30 bg-accent-rose/5'
-          : 'border-white/[0.05] bg-white/[0.02]'
-      }`}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-3.5 py-3 hover:bg-white/[0.03] transition-colors text-left"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div
+        className={`w-full max-w-sm apple-liquid-glass rounded-[28px] p-5 shadow-2xl border ${
+          isDark ? 'border-white/15 text-white' : 'border-black/10 text-slate-900'
+        } space-y-4`}
       >
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-bold text-white uppercase tracking-wide">
-            {day.label}
-          </span>
-          <span className="text-[10px] font-mono text-text-secondary bg-white/[0.05] px-2 py-0.5 rounded-full">
-            {day.activities.length} {day.activities.length === 1 ? 'event' : 'events'}
-          </span>
-          {totals.hasConflict && (
-            <span
-              className="text-[10px] font-mono text-accent-rose flex items-center gap-1"
-              title="Time overlap conflict detected"
-            >
-              <WarningIcon className="w-3 h-3" />
-              Conflict
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] font-mono text-accent-emerald font-semibold">
-            {formatPrice(totals.cost)}
-          </span>
-          <span className="text-[11px] font-mono text-text-secondary">
-            {totals.hours}h
-          </span>
-          <span className="text-text-secondary text-xs">
-            {isExpanded ? '▲' : '▼'}
-          </span>
-        </div>
-      </button>
-
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="px-3 pb-3 space-y-2"
+        <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-sm font-bold uppercase tracking-wider">
+              Travel Dates
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white"
           >
-            {day.activities.length === 0 ? (
-              <div className="text-center py-4 text-xs font-mono text-text-secondary/50 border border-dashed border-white/5 rounded-xl">
-                No activities yet. Add experiences below.
-              </div>
-            ) : (
-              <SortableContext
-                items={day.activities.map((a) => a.uid)}
-                strategy={verticalListSortingStrategy}
-              >
-                {day.activities.map((activity) => (
-                  <SortableActivity
-                    key={activity.uid}
-                    activity={activity}
-                    dayId={day.id}
-                    onRemove={onRemoveActivity}
-                    onUpdate={onUpdateActivity}
-                  />
-                ))}
-              </SortableContext>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+            ✕
+          </button>
+        </div>
+
+        {/* Month Navigation */}
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs font-bold text-slate-800 dark:text-white">{monthYearStr}</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 text-xs font-bold"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 text-xs font-bold"
+            >
+              ›
+            </button>
+          </div>
+        </div>
+
+        {/* Calendar Day Grid */}
+        <div className="space-y-1">
+          <div className="grid grid-cols-7 gap-1 text-center">
+            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
+              <span key={d} className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">
+                {d}
+              </span>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: firstDayIndex }).map((_, i) => (
+              <div key={`empty-${i}`} className="h-8" />
+            ))}
+            {Array.from({ length: totalDaysInMonth }).map((_, i) => {
+              const dayNum = i + 1;
+              const dateStr = new Date(year, month, dayNum).toISOString().split('T')[0];
+              const isStart = selectedStart === dateStr;
+              const isEnd = selectedEnd === dateStr;
+              const isInRange =
+                selectedStart &&
+                selectedEnd &&
+                new Date(dateStr) >= new Date(selectedStart) &&
+                new Date(dateStr) <= new Date(selectedEnd);
+
+              return (
+                <button
+                  key={`day-${dayNum}`}
+                  type="button"
+                  onClick={() => handleDayClick(dayNum)}
+                  className={`h-8 rounded-full text-xs font-semibold flex items-center justify-center transition-all cursor-pointer ${
+                    isStart || isEnd
+                      ? 'bg-emerald-500 text-white font-bold shadow-md'
+                      : isInRange
+                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                      : 'hover:bg-black/5 dark:hover:bg-white/10 text-slate-700 dark:text-zinc-300'
+                  }`}
+                >
+                  {dayNum}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selection Summary Pill */}
+        <div className="p-2.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-between text-xs font-semibold">
+          <span className="text-slate-600 dark:text-zinc-400">Duration:</span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+            {calculateDays()} Days Scheduled
+          </span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 text-slate-600 dark:text-zinc-300 transition-all cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleApply}
+            className="flex-1 py-2.5 rounded-full text-xs font-bold bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-zinc-200 text-white dark:text-black transition-all cursor-pointer shadow-md"
+          >
+            Apply Dates
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
+// ─── Main Itinerary Builder ───
 export default function ItineraryBuilder({ isOpen, onClose }) {
   const {
     days,
-    tripDays,
-    destinationName,
-    destinationId,
-    setTripDays,
+    destination,
+    startDate,
+    endDate,
+    setDateRange,
+    addDay,
+    removeDay,
     addActivity,
-    updateActivity,
     removeActivity,
+    updateActivity,
     reorderActivities,
   } = useItinerary();
 
-  const [activeTab, setActiveTab] = useState('schedule'); // 'schedule' | 'discover'
-  const [expandedDays, setExpandedDays] = useState({ 'day-1': true, 'day-2': true, 'day-3': true });
-  const [searchFilter, setSearchFilter] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [showAddCustom, setShowAddCustom] = useState(false);
-  const [customName, setCustomName] = useState('');
-  const [customCost, setCustomCost] = useState('0');
-  const [customDuration, setCustomDuration] = useState('2');
-  const [customType, setCustomType] = useState('activity');
-  const [customDayId, setCustomDayId] = useState('day-1');
-  const [customNotes, setCustomNotes] = useState('');
-
   const { formatPrice } = useCurrency();
+  const { isDark } = useTheme();
+  const [selectedDayId, setSelectedDayId] = useState(days?.[0]?.id || 'day-1');
+  const [showAddCustomModal, setShowAddCustomModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
 
-  const currentDest = useMemo(() => {
-    return destinationId ? getDestinationById(destinationId) : null;
-  }, [destinationId]);
-
-  const allDestinations = useMemo(() => getDestinations(), []);
-
-  // Discover pool of experiences
-  const discoverActivities = useMemo(() => {
-    let pool = [];
-    if (currentDest?.activities) {
-      pool = currentDest.activities.map((a) => ({ ...a, source: currentDest.name }));
-    } else {
-      pool = allDestinations.flatMap((d) =>
-        (d.activities || []).map((a) => ({ ...a, source: d.name }))
-      );
-    }
-
-    return pool.filter((a) => {
-      if (searchFilter.trim()) {
-        const q = searchFilter.toLowerCase();
-        if (!a.name.toLowerCase().includes(q)) return false;
-      }
-      if (selectedCategory !== 'all') {
-        const actType = a.type || 'activity';
-        if (actType !== selectedCategory) return false;
-      }
-      return true;
-    });
-  }, [currentDest, allDestinations, searchFilter, selectedCategory]);
-
-  const toggleDay = (dayId) => {
-    setExpandedDays((prev) => ({ ...prev, [dayId]: !prev[dayId] }));
-  };
-
-  const handleAddCustomActivity = (e) => {
-    e.preventDefault();
-    if (!customName.trim()) return;
-
-    addActivity(customDayId, {
-      name: customName.trim(),
-      cost: parseFloat(customCost) || 0,
-      durationHrs: parseFloat(customDuration) || 2,
-      type: customType,
-      notes: customNotes.trim(),
-    });
-
-    setCustomName('');
-    setCustomNotes('');
-    setCustomCost('0');
-    setShowAddCustom(false);
-  };
+  // Custom Activity Inputs
+  const [customName, setCustomName] = useState('');
+  const [customDuration, setCustomDuration] = useState(1.5);
+  const [customCost, setCustomCost] = useState(0);
+  const [customType, setCustomType] = useState('activity');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = useCallback(
-    (event, dayId) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-
-      const day = days.find((d) => d.id === dayId);
-      if (!day) return;
-
-      const oldIndex = day.activities.findIndex((a) => a.uid === active.id);
-      const newIndex = day.activities.findIndex((a) => a.uid === over.id);
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const reordered = arrayMove(day.activities, oldIndex, newIndex);
-        reorderActivities(dayId, reordered);
-      }
-    },
-    [days, reorderActivities]
+  const activeDay = useMemo(
+    () => days.find((d) => d.id === selectedDayId) || days[0] || { id: 'day-1', activities: [] },
+    [days, selectedDayId]
   );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const currentActivities = activeDay.activities || [];
+    const oldIndex = currentActivities.findIndex((a) => a.uid === active.id);
+    const newIndex = currentActivities.findIndex((a) => a.uid === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const reordered = arrayMove(currentActivities, oldIndex, newIndex);
+      reorderActivities(activeDay.id, reordered);
+    }
+  };
+
+  const handleAddDayClick = () => {
+    const newId = addDay();
+    if (newId) setSelectedDayId(newId);
+  };
+
+  const handleAddCustom = (e) => {
+    e.preventDefault();
+    if (!customName.trim()) return;
+
+    addActivity(activeDay.id, {
+      name: customName.trim(),
+      durationHrs: parseFloat(customDuration) || 1.5,
+      cost: parseFloat(customCost) || 0,
+      type: customType,
+    });
+
+    setCustomName('');
+    setCustomCost(0);
+    setShowAddCustomModal(false);
+  };
 
   if (!isOpen) return null;
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#0B101B]/95 backdrop-blur-2xl text-text-primary overflow-hidden select-none">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-white/[0.06] bg-white/[0.02]">
+    <div className={`h-full flex flex-col ${isDark ? 'text-white' : 'text-slate-900'} font-sans select-none overflow-hidden`}>
+      {/* ─── Top Navigation Header ─── */}
+      <div
+        className={`p-3.5 sm:p-4 border-b ${
+          isDark ? 'border-white/10 bg-[#121826]/70' : 'border-black/10 bg-white/70'
+        } backdrop-blur-2xl flex items-center justify-between shrink-0 z-10`}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+            <CalendarIcon className="w-4 h-4" />
+          </div>
+          <div className="truncate">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-white block truncate">
+              {destination?.name || 'Itinerary Builder'}
+            </span>
+            <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">
+              {days.length} Days Planned
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Travel Dates Calendar Trigger */}
+          <button
+            type="button"
+            onClick={() => setShowCalendarModal(true)}
+            className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer border flex items-center gap-1.5 ${
+              isDark
+                ? 'bg-white/10 text-white border-white/15 hover:bg-white/20'
+                : 'bg-black/5 text-slate-800 border-black/10 hover:bg-black/10'
+            }`}
+            title="Set Trip Start and End Dates"
+          >
+            <CalendarIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden sm:inline">Dates</span>
+          </button>
+
+          {/* Quick Add Day Button */}
+          <button
+            type="button"
+            onClick={handleAddDayClick}
+            className="text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm"
+          >
+            + Day
+          </button>
+
+          {/* Close Sidebar Button */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/15 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            title="Close"
+          >
+            <CloseIcon className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* ─── Day Selector Tabs ─── */}
+      <div
+        className={`flex items-center gap-2 p-3 border-b ${
+          isDark ? 'border-white/10 bg-[#0E0E14]/80' : 'border-black/10 bg-[#F4F5F7]/80'
+        } overflow-x-auto no-scrollbar shrink-0`}
+      >
+        {days.map((day, idx) => {
+          const isSelected = day.id === activeDay.id;
+          return (
+            <button
+              key={day.id}
+              onClick={() => setSelectedDayId(day.id)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap border ${
+                isSelected
+                  ? isDark
+                    ? 'bg-white text-black font-bold border-white shadow-sm'
+                    : 'bg-slate-900 text-white font-bold border-slate-900 shadow-sm'
+                  : isDark
+                  ? 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                  : 'bg-black/5 text-slate-600 border-black/10 hover:text-black'
+              }`}
+            >
+              <span>{day.formattedDate || `Day ${day.dayNumber || idx + 1}`}</span>
+              <span
+                className={`text-[10px] ${
+                  isSelected ? (isDark ? 'text-black/70' : 'text-white/70') : 'text-slate-400 dark:text-zinc-500'
+                }`}
+              >
+                ({day.activities?.length || 0})
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ─── Main Schedule Workspace ─── */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 no-scrollbar">
+        {/* Day Header Actions */}
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-mono text-accent-sky uppercase tracking-widest bg-accent-sky/10 px-2 py-0.5 rounded-full border border-accent-sky/20">
-              Trip Planner
-            </span>
-            <h3 className="font-display text-base font-bold text-white tracking-wide mt-1">
-              {destinationName || 'Personalized Itinerary'}
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+              {activeDay.dayOfWeek ? `${activeDay.dayOfWeek} — ` : ''}Day {activeDay.dayNumber || 1}
             </h3>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
+              {(activeDay.activities || []).length} items scheduled
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Trip Days Controller */}
-            <div className="flex items-center bg-white/[0.04] border border-white/[0.06] rounded-xl p-0.5">
-              <button
-                type="button"
-                onClick={() => setTripDays(Math.max(1, tripDays - 1))}
-                className="w-6 h-6 flex items-center justify-center rounded-lg text-text-secondary hover:text-white hover:bg-white/10 text-xs font-mono"
-              >
-                -
-              </button>
-              <span className="px-2 text-xs font-mono text-white font-semibold">
-                {tripDays}d
-              </span>
-              <button
-                type="button"
-                onClick={() => setTripDays(Math.min(14, tripDays + 1))}
-                className="w-6 h-6 flex items-center justify-center rounded-lg text-text-secondary hover:text-white hover:bg-white/10 text-xs font-mono"
-              >
-                +
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddCustomModal(true)}
+              className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                isDark
+                  ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15'
+                  : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'
+              }`}
+            >
+              <PlusIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Custom Event</span>
+            </button>
 
-            {onClose && (
+            {days.length > 1 && (
               <button
-                onClick={onClose}
-                className="p-1.5 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors"
+                type="button"
+                onClick={() => {
+                  removeDay(activeDay.id);
+                  setSelectedDayId(days[0].id);
+                }}
+                className="text-xs py-1.5 px-2.5 rounded-full font-bold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                title="Remove this day"
               >
-                <CloseIcon className="w-4 h-4" />
+                <TrashIcon className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex gap-1.5 mt-3.5 p-1 bg-white/[0.03] rounded-xl border border-white/[0.04]">
-          <button
-            type="button"
-            onClick={() => setActiveTab('schedule')}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold font-body transition-all ${
-              activeTab === 'schedule'
-                ? 'bg-accent-sky/20 text-accent-sky border border-accent-sky/30'
-                : 'text-text-secondary hover:text-white'
-            }`}
+        {/* Activity Timeline List */}
+        {(!activeDay.activities || activeDay.activities.length === 0) ? (
+          <div className="py-12 text-center rounded-3xl border border-dashed border-black/10 dark:border-white/10 p-6 space-y-2">
+            <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
+              No stops scheduled for this day yet.
+            </p>
+            <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+              Drop a waypoint on the 3D map or click "+ Custom Event" above.
+            </p>
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
           >
-            My Schedule
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('discover')}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold font-body transition-all ${
-              activeTab === 'discover'
-                ? 'bg-accent-sky/20 text-accent-sky border border-accent-sky/30'
-                : 'text-text-secondary hover:text-white'
-            }`}
-          >
-            Discover & Filter
-          </button>
-        </div>
+            <SortableContext
+              items={activeDay.activities.map((a) => a.uid)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2.5">
+                {activeDay.activities.map((act) => (
+                  <SortableActivityCard
+                    key={act.uid}
+                    activity={act}
+                    dayId={activeDay.id}
+                    onRemove={removeActivity}
+                    onUpdate={updateActivity}
+                    formatPrice={formatPrice}
+                    isDark={isDark}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
       </div>
 
-      {/* Tab: My Schedule */}
-      {activeTab === 'schedule' && (
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-          {/* Quick Add Custom Activity CTA */}
-          <button
-            type="button"
-            onClick={() => setShowAddCustom(!showAddCustom)}
-            className="w-full py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-xs font-medium text-white transition-all flex items-center justify-center gap-1.5"
-          >
-            <PlusIcon className="w-3.5 h-3.5 text-accent-sky" />
-            <span>{showAddCustom ? 'Close Activity Form' : '+ Add Custom Event / Stay / Food'}</span>
-          </button>
+      {/* ─── Add Custom Activity Modal ─── */}
+      <AnimatePresence>
+        {showAddCustomModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`w-full max-w-sm apple-liquid-glass rounded-[28px] p-5 shadow-2xl border ${
+                isDark ? 'border-white/15 text-white' : 'border-black/10 text-slate-900'
+              } space-y-4`}
+            >
+              <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
+                <h3 className="text-sm font-bold uppercase tracking-wider">
+                  Add Custom Event
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowAddCustomModal(false)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
 
-          {/* Add Custom Activity Inline Form */}
-          <AnimatePresence>
-            {showAddCustom && (
-              <motion.form
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                onSubmit={handleAddCustomActivity}
-                className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.06] space-y-3"
-              >
+              <form onSubmit={handleAddCustom} className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-text-secondary">
-                    Event / Stay Name
+                  <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                    Event Title
                   </label>
                   <input
                     type="text"
                     required
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="e.g. Hotel Check-in, Ramen Dinner, Museum Tour"
-                    className="w-full mt-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white placeholder:text-text-secondary/40 outline-none"
+                    placeholder="e.g. Sunset Boat Cruise, Ramen Tasting..."
+                    className={`w-full ${
+                      isDark ? 'bg-white/10 text-white border-white/15' : 'bg-black/5 text-slate-900 border-black/15'
+                    } border rounded-full px-3.5 py-2 text-xs outline-none font-medium`}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-text-secondary">Type</label>
+                    <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                      Category
+                    </label>
                     <select
                       value={customType}
                       onChange={(e) => setCustomType(e.target.value)}
-                      className="w-full mt-1 bg-[#0B101B] border border-white/[0.08] rounded-xl px-2.5 py-2 text-xs text-white font-mono outline-none"
+                      className={`w-full ${
+                        isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+                      } border rounded-full px-3 py-2 text-xs outline-none font-medium`}
                     >
-                      <option value="activity">Activity</option>
-                      <option value="stay">Stay / Hotel</option>
+                      <option value="activity">Sight / Activity</option>
                       <option value="food">Dining / Food</option>
+                      <option value="stay">Hotel / Stay</option>
                       <option value="transport">Transit</option>
-                      <option value="rest">Rest</option>
+                      <option value="rest">Leisure</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-mono uppercase text-text-secondary">Day</label>
-                    <select
-                      value={customDayId}
-                      onChange={(e) => setCustomDayId(e.target.value)}
-                      className="w-full mt-1 bg-[#0B101B] border border-white/[0.08] rounded-xl px-2.5 py-2 text-xs text-white font-mono outline-none"
-                    >
-                      {days.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-mono uppercase text-text-secondary">Duration (hrs)</label>
+                    <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                      Duration (Hrs)
+                    </label>
                     <input
                       type="number"
-                      min="0.5"
                       step="0.5"
+                      min="0.5"
+                      max="12"
                       value={customDuration}
                       onChange={(e) => setCustomDuration(e.target.value)}
-                      className="w-full mt-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-1.5 text-xs text-white font-mono outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-mono uppercase text-text-secondary">Cost ($)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={customCost}
-                      onChange={(e) => setCustomCost(e.target.value)}
-                      className="w-full mt-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-1.5 text-xs text-white font-mono outline-none"
+                      className={`w-full ${
+                        isDark ? 'bg-white/10 text-white border-white/15' : 'bg-black/5 text-slate-900 border-black/15'
+                      } border rounded-full px-3.5 py-2 text-xs outline-none font-semibold`}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-text-secondary">Notes (Optional)</label>
-                  <textarea
-                    value={customNotes}
-                    onChange={(e) => setCustomNotes(e.target.value)}
-                    placeholder="Confirmation numbers, meeting points, addresses..."
-                    rows={2}
-                    className="w-full mt-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white placeholder:text-text-secondary/40 outline-none resize-none font-body"
+                  <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                    Est. Cost ($)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={customCost}
+                    onChange={(e) => setCustomCost(e.target.value)}
+                    className={`w-full ${
+                      isDark ? 'bg-white/10 text-white border-white/15' : 'bg-black/5 text-slate-900 border-black/15'
+                    } border rounded-full px-3.5 py-2 text-xs outline-none font-semibold`}
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-accent-sky text-slate-950 rounded-xl text-xs font-bold font-body hover:bg-sky-400 transition-colors shadow-md cursor-pointer"
-                >
-                  Add to Schedule
-                </button>
-              </motion.form>
-            )}
-          </AnimatePresence>
-
-          {/* Days Schedule Columns */}
-          {days.map((day) => (
-            <DndContext
-              key={day.id}
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={(event) => handleDragEnd(event, day.id)}
-            >
-              <DayColumn
-                day={day}
-                isExpanded={!!expandedDays[day.id]}
-                onToggle={() => toggleDay(day.id)}
-                onRemoveActivity={removeActivity}
-                onUpdateActivity={updateActivity}
-              />
-            </DndContext>
-          ))}
-        </div>
-      )}
-
-      {/* Tab: Discover & Filter */}
-      {activeTab === 'discover' && (
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-          {/* Search bar */}
-          <div className="relative">
-            <SearchIcon className="w-3.5 h-3.5 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Search experiences, food, sights..."
-              className="w-full pl-9 pr-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-xl text-xs text-white placeholder:text-text-secondary/50 outline-none"
-            />
-          </div>
-
-          {/* Filter Pills */}
-          <div className="flex flex-wrap gap-1">
-            {[
-              { key: 'all', label: 'All' },
-              { key: 'activity', label: 'Activities' },
-              { key: 'food', label: 'Dining' },
-              { key: 'stay', label: 'Stays' },
-              { key: 'transport', label: 'Transit' },
-            ].map((cat) => (
-              <button
-                key={cat.key}
-                type="button"
-                onClick={() => setSelectedCategory(cat.key)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all ${
-                  selectedCategory === cat.key
-                    ? 'bg-accent-sky/20 text-accent-sky border border-accent-sky/30'
-                    : 'text-text-secondary hover:text-white bg-white/[0.02]'
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Discover Cards List */}
-          <div className="space-y-2">
-            {discoverActivities.map((act, index) => {
-              const actType = TYPE_CONFIG[act.type || 'activity'] || TYPE_CONFIG.activity;
-
-              return (
-                <div
-                  key={`${act.name}-${index}`}
-                  className="p-3 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl border border-white/[0.04] flex items-center justify-between group transition-colors"
-                >
-                  <div className="flex-1 min-w-0 pr-2">
-                    <div className="flex items-center gap-1.5">
-                      <span style={{ color: actType.color }}>{actType.icon}</span>
-                      <span className="text-xs text-white font-medium truncate">{act.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2.5 mt-1">
-                      <span className="text-[10px] text-text-secondary font-mono">
-                        {act.durationHrs}h
-                      </span>
-                      <span className="text-[10px] font-mono font-semibold text-accent-emerald">
-                        {formatPrice(act.cost)}
-                      </span>
-                      {act.source && (
-                        <span className="text-[9px] font-mono text-text-secondary/60 truncate">
-                          · {act.source}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Add to specific day dropdown/button */}
+                <div className="flex items-center gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() =>
-                      addActivity(days[0]?.id || 'day-1', {
-                        name: act.name,
-                        cost: act.cost || 0,
-                        durationHrs: act.durationHrs || 2,
-                        type: act.type || 'activity',
-                      })
-                    }
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-accent-sky/15 text-accent-sky hover:bg-accent-sky/25 transition-all text-xs flex-shrink-0"
-                    title="Add to Day 1"
+                    onClick={() => setShowAddCustomModal(false)}
+                    className="flex-1 py-2.5 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10 text-slate-600 dark:text-zinc-300"
                   >
-                    <PlusIcon className="w-3.5 h-3.5" />
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-full text-xs font-bold bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-zinc-200 text-white dark:text-black shadow-md"
+                  >
+                    Add Event
                   </button>
                 </div>
-              );
-            })}
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
+      {/* ─── Travel Dates Calendar Modal ─── */}
+      <TravelCalendarModal
+        isOpen={showCalendarModal}
+        onClose={() => setShowCalendarModal(false)}
+        startDate={startDate}
+        endDate={endDate}
+        onSaveDateRange={setDateRange}
+        isDark={isDark}
+      />
     </div>
   );
 }

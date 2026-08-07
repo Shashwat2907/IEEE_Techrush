@@ -1,162 +1,146 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AppProvider, useApp, VIEW_STATES } from './context/AppContext';
-import { FilterProvider } from './context/FilterContext';
+import { AppProvider, useApp } from './context/AppContext';
 import { ItineraryProvider, useItinerary } from './context/ItineraryContext';
-import { CompareProvider } from './context/CompareContext';
 import { CurrencyProvider } from './context/CurrencyContext';
-import { ThemeProvider } from './context/ThemeContext';
-import ErrorBoundary from './components/ui/ErrorBoundary';
-import GlobeSearch from './features/globe-home/GlobeSearch';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { CompareProvider } from './context/CompareContext';
 import MapLibreGlobe from './features/globe-home/MapLibreGlobe';
+import GlobeSearch from './features/globe-home/GlobeSearch';
+import InteractiveTitle from './components/ui/InteractiveTitle';
+import FloatingExploreArrow from './components/ui/FloatingExploreArrow';
+import { getDestinationPhoto } from './services/photos';
+import { SunIcon, MoonIcon } from './components/ui/Icons';
 
-const DiscoveryQuiz = lazy(() => import('./features/discovery-quiz/DiscoveryQuiz'));
+// Code-split heavy sidebars and modals
+const DetailPanel = lazy(() => import('./features/destination-map/DetailPanel'));
 const ItineraryBuilder = lazy(() => import('./features/itinerary/ItineraryBuilder'));
 const PackingList = lazy(() => import('./features/itinerary/PackingList'));
 const BudgetCalculator = lazy(() => import('./features/itinerary/BudgetCalculator'));
-const DetailPanel = lazy(() => import('./features/destination-map/DetailPanel'));
-const CompareDrawer = lazy(() => import('./features/destination-map/CompareDrawer'));
 const PremadeItineraries = lazy(() => import('./features/itinerary/PremadeItineraries'));
+const DiscoveryQuiz = lazy(() => import('./features/discovery-quiz/DiscoveryQuiz'));
+const CompareDrawer = lazy(() => import('./features/destination-map/CompareDrawer'));
 
-function PremadeTriggerButton({ onClick }) {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="pointer-events-auto flex items-center gap-2 cursor-pointer select-none transition-all py-2 px-3 group"
-    >
-      <motion.div
-        animate={{ y: [0, -4, 0] }}
-        transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
-        className="text-white/80 group-hover:text-accent-sky text-xs sm:text-sm flex items-center justify-center transition-colors"
-      >
-        ▲
-      </motion.div>
-
-      <AnimatePresence initial={false}>
-        {isHovered && (
-          <motion.div
-            initial={{ opacity: 0, width: 0, x: -4 }}
-            animate={{ opacity: 1, width: 'auto', x: 0 }}
-            exit={{ opacity: 0, width: 0, x: -4 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="overflow-hidden whitespace-nowrap"
-          >
-            <span className="text-xs font-normal text-white/90 tracking-wide font-body">
-              Explore trending destinations
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function AppContent() {
+function TripNestMain() {
   const {
     viewState,
-    isTransitioning,
     selectedDestination,
     isPremadeOpen,
-    openPremade,
-    closePremade,
     isCompareOpen,
+    isTransitioning,
+    flightTarget,
+    closePremade,
+    openPremade,
     closeCompare,
+    setSelectedDestination,
   } = useApp();
 
-  const [activeDrawer, setActiveDrawer] = useState(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const { isDark, toggleTheme } = useTheme();
+  const { days } = useItinerary();
+  const [activeDrawer, setActiveDrawer] = useState(null); // 'overview' | 'itinerary' | 'packing' | 'budget' | null
 
-  const { tripDays } = useItinerary();
+  const tripDays = useMemo(() => days?.length || 3, [days]);
+  const isOverlayHidden = selectedDestination !== null || isTransitioning || flightTarget !== null;
+  const quizActive = viewState === 'DISCOVERY_QUIZ';
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-  const isOverlayHidden =
-    viewState === VIEW_STATES.DESTINATION_MAP ||
-    selectedDestination !== null ||
-    isTransitioning;
-
-  const quizActive = viewState === VIEW_STATES.DISCOVERY_QUIZ;
-
-  const toggleDrawer = (drawer) => {
-    setActiveDrawer((prev) => (prev === drawer ? null : drawer));
-  };
+  const destPhoto = useMemo(() => {
+    if (selectedDestination) return getDestinationPhoto(selectedDestination);
+    return null;
+  }, [selectedDestination]);
 
   return (
-    <div className="w-full h-full bg-[#06090F] relative overflow-hidden flex flex-row select-none">
-      {/* ─── Map Workspace ─── */}
-      <div className="flex-1 h-full relative overflow-hidden">
+    <div className={`relative w-screen h-screen overflow-hidden ${isDark ? 'dark bg-[#09090B] text-white' : 'light bg-[#F8F9FA] text-[#0F172A]'} bg-tactile-surface font-sans select-none`}>
+      {/* ─── Full-Screen Map / Globe Stage (Always stays full-screen behind sidebar) ─── */}
+      <div className="absolute inset-0 w-full h-full">
         <MapLibreGlobe
           activeDrawer={activeDrawer}
-          onToggleDrawer={toggleDrawer}
+          onOpenDrawer={(drawerKey) => {
+            setActiveDrawer(drawerKey);
+          }}
+          onToggleDrawer={(drawerKey) => {
+            setActiveDrawer((prev) => (prev === drawerKey ? null : drawerKey));
+          }}
         />
+      </div>
 
-        {/* Floating Brand & Search Bar (Landing View) */}
-        <div
-          className={`absolute inset-x-0 top-0 z-20 pointer-events-none flex flex-col items-center transition-all duration-700 ease-in-out ${
-            isOverlayHidden ? 'opacity-0 -translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'
-          }`}
-        >
-          {/* Brand Header */}
-          <div className="pt-7 sm:pt-9 pb-2 text-center pointer-events-auto flex flex-col items-center">
-            <h1 className="font-brand text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-[0.22em] text-white uppercase drop-shadow-md select-none">
-              TRIPNEST
-            </h1>
-            <p className="text-text-secondary/80 text-[11px] sm:text-xs mt-1.5 font-body font-semibold tracking-[0.28em] uppercase select-none">
-              Explore · Plan · Fly
-            </p>
+      {/* ─── Top Right Theme Toggle (Orbit View) ─── */}
+      {!isOverlayHidden && (
+        <div className="absolute top-5 right-5 z-30 pointer-events-auto">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="apple-liquid-glass w-9 h-9 rounded-full flex items-center justify-center border border-white/20 dark:border-white/20 light:border-black/10 shadow-lg hover:scale-105 transition-all cursor-pointer"
+            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {isDark ? <SunIcon className="w-4 h-4 text-amber-400" /> : <MoonIcon className="w-4 h-4 text-indigo-600" />}
+          </button>
+        </div>
+      )}
+
+      {/* ─── Top Brand Title & HUD Search (Overlaid on Globe in Orbit View) ─── */}
+      {!isOverlayHidden && (
+        <div className="absolute inset-x-0 top-0 z-20 pointer-events-none flex flex-col items-center">
+          <div className="pt-6 sm:pt-8 pb-1 text-center pointer-events-auto">
+            <InteractiveTitle />
           </div>
 
-          {/* Floating Search */}
           {!quizActive && (
-            <div className="w-full px-4 max-w-xl mt-1.5 pointer-events-auto">
+            <div className="w-full px-4 max-w-2xl mt-1 pointer-events-auto">
               <GlobeSearch />
             </div>
           )}
         </div>
+      )}
 
-        {/* Bottom Slide-Up Arrow Trigger */}
-        {!isOverlayHidden && !quizActive && (
-          <div className="absolute bottom-6 sm:bottom-8 inset-x-0 z-20 flex justify-center pointer-events-none">
-            <PremadeTriggerButton onClick={openPremade} />
-          </div>
-        )}
-      </div>
+      {/* ─── Bottom Floating Minimal Arrow (Expands to Explore Trending Destinations) ─── */}
+      {!isOverlayHidden && !quizActive && (
+        <div className="absolute bottom-8 inset-x-0 z-20 flex justify-center pointer-events-none">
+          <FloatingExploreArrow onClick={openPremade} />
+        </div>
+      )}
 
-      {/* ─── Desktop Smooth Retractable Sidebar ─── */}
+      {/* ─── Desktop Apple OS 26 Liquid Glass Dossier Drawer ─── */}
       {!isMobile && (
         <AnimatePresence>
           {activeDrawer && selectedDestination && (
             <motion.aside
               key="desktop-sidebar-container"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 440, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
+              initial={{ x: '100%', opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: '100%', opacity: 0 }}
               transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-              className="flex-shrink-0 h-full border-l border-white/[0.06] bg-[#0B101B] z-40 overflow-hidden"
+              className={`fixed top-4 right-4 bottom-4 w-[460px] max-w-[calc(100vw-2rem)] z-40 apple-liquid-glass rounded-[28px] overflow-hidden shadow-2xl flex flex-col border ${
+                isDark ? 'border-white/15 text-white' : 'border-black/10 text-[#0F172A]'
+              }`}
             >
-              <div className="w-[440px] h-full">
+              {/* Contextual Ambient Destination Photo Underlay */}
+              {destPhoto && (
+                <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-15">
+                  <img
+                    src={destPhoto}
+                    alt=""
+                    className="w-full h-full object-cover blur-2xl scale-125"
+                  />
+                  <div className={`absolute inset-0 ${isDark ? 'bg-[#0E0E14]/75' : 'bg-white/75'}`} />
+                </div>
+              )}
+
+              <div className="relative z-10 w-full h-full flex flex-col">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={activeDrawer}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.16 }}
                     className="w-full h-full"
                   >
                     <Suspense
                       fallback={
-                        <div className="h-full flex items-center justify-center text-text-secondary text-xs">
-                          Loading...
+                        <div className="h-full flex items-center justify-center text-zinc-400 text-xs font-mono">
+                          Loading Expedition Dossier...
                         </div>
                       }
                     >
@@ -169,14 +153,12 @@ function AppContent() {
                           onPlanTrip={() => setActiveDrawer('itinerary')}
                         />
                       )}
-
                       {activeDrawer === 'itinerary' && (
                         <ItineraryBuilder
                           isOpen={true}
                           onClose={() => setActiveDrawer(null)}
                         />
                       )}
-
                       {activeDrawer === 'packing' && (
                         <PackingList
                           destination={selectedDestination}
@@ -186,11 +168,11 @@ function AppContent() {
                           onClose={() => setActiveDrawer(null)}
                         />
                       )}
-
                       {activeDrawer === 'budget' && (
                         <BudgetCalculator
                           isOpen={true}
                           onClose={() => setActiveDrawer(null)}
+                          onOpenItinerary={() => setActiveDrawer('itinerary')}
                         />
                       )}
                     </Suspense>
@@ -202,7 +184,7 @@ function AppContent() {
         </AnimatePresence>
       )}
 
-      {/* ─── Mobile Bottom Sheet Drawer ─── */}
+      {/* ─── Mobile Apple OS Liquid Bottom Drawer (Clean single header) ─── */}
       {isMobile && (
         <AnimatePresence>
           {activeDrawer && selectedDestination && (
@@ -210,20 +192,23 @@ function AppContent() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-50 flex items-end bg-black/80 backdrop-blur-sm"
               onClick={() => setActiveDrawer(null)}
             >
               <motion.div
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
-                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-h-[82vh] bg-[#0B101B] border-t border-white/[0.08] rounded-t-3xl shadow-2xl flex flex-col overflow-hidden"
+                className={`w-full max-h-[88vh] apple-liquid-glass rounded-t-[28px] border-t ${
+                  isDark ? 'border-white/15 text-white' : 'border-black/10 text-black'
+                } flex flex-col overflow-hidden shadow-2xl`}
               >
-                <div className="w-12 h-1 bg-white/20 rounded-full mx-auto my-2.5" />
+                {/* Subtle Grab Handle */}
+                <div className="w-12 h-1 bg-white/30 dark:bg-white/30 light:bg-black/20 rounded-full mx-auto my-2.5 shrink-0" />
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-hidden flex flex-col">
                   <Suspense fallback={null}>
                     {activeDrawer === 'overview' && (
                       <DetailPanel
@@ -253,6 +238,7 @@ function AppContent() {
                       <BudgetCalculator
                         isOpen={true}
                         onClose={() => setActiveDrawer(null)}
+                        onOpenItinerary={() => setActiveDrawer('itinerary')}
                       />
                     )}
                   </Suspense>
@@ -263,59 +249,51 @@ function AppContent() {
         </AnimatePresence>
       )}
 
-      {/* ─── Trending Itineraries Slide-Up Screen ─── */}
-      <AnimatePresence>
-        {isPremadeOpen && (
-          <Suspense fallback={null}>
+      {/* ─── Global Fullscreen Overlays ─── */}
+      <Suspense fallback={null}>
+        <AnimatePresence>
+          {isPremadeOpen && (
             <PremadeItineraries
               isOpen={isPremadeOpen}
               onClose={closePremade}
-              onSelectItinerary={() => setActiveDrawer('itinerary')}
+              onSelectItinerary={() => {
+                setActiveDrawer('overview');
+              }}
             />
-          </Suspense>
-        )}
-      </AnimatePresence>
+          )}
 
-      {/* ─── AI Travel Matchmaker Quiz ─── */}
-      <AnimatePresence>
-        {viewState === VIEW_STATES.DISCOVERY_QUIZ && (
-          <Suspense fallback={null}>
-            <DiscoveryQuiz />
-          </Suspense>
-        )}
-      </AnimatePresence>
+          {quizActive && (
+            <DiscoveryQuiz
+              onClose={() => {
+                if (setSelectedDestination) setSelectedDestination(null);
+              }}
+            />
+          )}
 
-      {/* ─── Compare Destinations Modal ─── */}
-      <AnimatePresence>
-        {isCompareOpen && (
-          <Suspense fallback={null}>
+          {isCompareOpen && (
             <CompareDrawer
-              isOpen={true}
+              isOpen={isCompareOpen}
               onClose={closeCompare}
             />
-          </Suspense>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </Suspense>
     </div>
   );
 }
 
 export default function App() {
   return (
-    <ErrorBoundary name="TripNest">
-      <ThemeProvider>
-        <AppProvider>
-          <CurrencyProvider>
-            <FilterProvider>
-              <ItineraryProvider>
-                <CompareProvider>
-                  <AppContent />
-                </CompareProvider>
-              </ItineraryProvider>
-            </FilterProvider>
-          </CurrencyProvider>
-        </AppProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
+    <ThemeProvider>
+      <AppProvider>
+        <CompareProvider>
+          <ItineraryProvider>
+            <CurrencyProvider>
+              <TripNestMain />
+            </CurrencyProvider>
+          </ItineraryProvider>
+        </CompareProvider>
+      </AppProvider>
+    </ThemeProvider>
   );
 }

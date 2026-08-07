@@ -1,194 +1,262 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { useItinerary, getTripBudget, ACTIVITY_TYPES } from '../../context/ItineraryContext';
+import { useTheme } from '../../context/ThemeContext';
+import { useItinerary } from '../../context/ItineraryContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import {
   DollarIcon,
-  CloseIcon,
   BedIcon,
   UtensilsIcon,
   CompassIcon,
   CarIcon,
   MoonIcon,
-  ChartBarIcon,
+  CloseIcon,
+  CalendarIcon,
 } from '../../components/ui/Icons';
 
 export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
-  const { days, tripDays } = useItinerary();
+  const { isDark } = useTheme();
+  const { days, tripDays, destination } = useItinerary();
   const { formatPrice, currency, setCurrency, currencies } = useCurrency();
 
-  const { total, breakdown, perDay } = useMemo(() => {
-    return getTripBudget(days);
+  const [targetBudget, setTargetBudget] = useState(2500);
+
+  // Total and category calculation
+  const { breakdown, totalCommitted, perDay, maxDaySpend } = useMemo(() => {
+    let stay = 0;
+    let food = 0;
+    let activity = 0;
+    let transport = 0;
+    let rest = 0;
+
+    const dayList = days || [];
+    const dayTotals = dayList.map((day, idx) => {
+      let daySum = 0;
+      (day.activities || []).forEach((act) => {
+        const cost = parseFloat(act.cost) || 0;
+        daySum += cost;
+        switch (act.type) {
+          case 'stay':
+            stay += cost;
+            break;
+          case 'food':
+            food += cost;
+            break;
+          case 'activity':
+            activity += cost;
+            break;
+          case 'transport':
+            transport += cost;
+            break;
+          case 'rest':
+          default:
+            rest += cost;
+        }
+      });
+      return {
+        id: day.id,
+        label: day.formattedDate || `Day ${day.dayNumber || idx + 1}`,
+        total: daySum,
+        count: day.activities?.length || 0,
+      };
+    });
+
+    const total = stay + food + activity + transport + rest;
+    const maxDay = Math.max(...dayTotals.map((d) => d.total), 1);
+
+    return {
+      breakdown: { stay, food, activity, transport, rest },
+      totalCommitted: total,
+      perDay: dayTotals,
+      maxDaySpend: maxDay,
+    };
   }, [days]);
 
-  const dailyAverage = useMemo(() => {
-    return tripDays > 0 ? total / tripDays : 0;
-  }, [total, tripDays]);
-
-  const maxDaySpend = useMemo(() => {
-    const max = Math.max(...perDay.map((d) => d.total), 0);
-    return max > 0 ? max : 1;
-  }, [perDay]);
-
-  const categories = [
-    { key: 'stay', label: 'Accommodation', icon: <BedIcon className="w-3.5 h-3.5" />, color: '#F59E0B' },
-    { key: 'food', label: 'Food & Dining', icon: <UtensilsIcon className="w-3.5 h-3.5" />, color: '#10B981' },
-    { key: 'activity', label: 'Activities', icon: <CompassIcon className="w-3.5 h-3.5" />, color: '#38BDF8' },
-    { key: 'transport', label: 'Travel & Transport', icon: <CarIcon className="w-3.5 h-3.5" />, color: '#94A3B8' },
-    { key: 'rest', label: 'Other / Leisure', icon: <MoonIcon className="w-3.5 h-3.5" />, color: '#A78BFA' },
-  ];
+  const remaining = targetBudget - totalCommitted;
+  const daysCount = Math.max(1, tripDays || (days ? days.length : 1));
+  const dailyAverage = totalCommitted / daysCount;
 
   if (!isOpen) return null;
 
+  const categories = [
+    { key: 'stay', label: 'Accommodation', amount: breakdown.stay, color: '#F59E0B', icon: <BedIcon className="w-3.5 h-3.5" /> },
+    { key: 'food', label: 'Dining & Cuisine', amount: breakdown.food, color: '#10B981', icon: <UtensilsIcon className="w-3.5 h-3.5" /> },
+    { key: 'activity', label: 'Attractions & Sights', amount: breakdown.activity, color: '#38BDF8', icon: <CompassIcon className="w-3.5 h-3.5" /> },
+    { key: 'transport', label: 'Transit & Logistics', amount: breakdown.transport, color: '#94A3B8', icon: <CarIcon className="w-3.5 h-3.5" /> },
+    { key: 'rest', label: 'Leisure & Other', amount: breakdown.rest, color: '#A78BFA', icon: <MoonIcon className="w-3.5 h-3.5" /> },
+  ];
+
   return (
-    <div className="h-full w-full flex flex-col bg-[#0B101B]/95 backdrop-blur-2xl text-text-primary overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] bg-white/[0.02]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-accent-emerald/10 flex items-center justify-center text-accent-emerald">
+    <div className={`h-full flex flex-col ${isDark ? 'text-white' : 'text-slate-900'} font-sans select-none overflow-hidden`}>
+      {/* ─── Top Navigation Header ─── */}
+      <div
+        className={`p-3.5 sm:p-4 border-b ${
+          isDark ? 'border-white/10 bg-[#121826]/70' : 'border-black/10 bg-white/70'
+        } backdrop-blur-2xl flex items-center justify-between shrink-0 z-10`}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <DollarIcon className="w-4 h-4" />
           </div>
-          <div>
-            <h3 className="font-display text-base font-bold text-white tracking-wide">Budget Analytics</h3>
-            <p className="text-[11px] font-body text-text-secondary">Smart cost breakdown & day tracker</p>
+          <div className="truncate">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-white block truncate">
+              Budget Ledger
+            </span>
+            <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium truncate block">
+              {destination?.name || 'Active Itinerary'}
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Currency Selector */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Multi-Currency Dropdown */}
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            className="bg-white/[0.05] border border-white/[0.08] hover:border-white/20 text-xs font-mono text-white rounded-lg px-2 py-1 outline-none transition-colors cursor-pointer"
-            title="Change Currency"
+            className={`rounded-full ${
+              isDark ? 'bg-[#1A1A22] border-white/15 text-white' : 'bg-white border-black/15 text-slate-900'
+            } border text-xs py-1.5 px-3 outline-none cursor-pointer font-semibold shadow-sm`}
           >
-            {currencies.map((c) => (
-              <option key={c.code} value={c.code} className="bg-[#0B101B] text-white">
+            {(currencies || []).map((c) => (
+              <option key={c.code} value={c.code} className={isDark ? 'bg-[#131318] text-white' : 'bg-white text-black'}>
                 {c.code} ({c.symbol})
               </option>
             ))}
           </select>
 
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors"
-            >
-              <CloseIcon className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/15 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            title="Close"
+          >
+            <CloseIcon className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {/* Total Cost Banner */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.06] relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-text-secondary uppercase tracking-wider">Estimated Total</span>
-            <span className="text-[10px] font-mono text-accent-emerald bg-accent-emerald/10 px-2 py-0.5 rounded-full">
-              {tripDays} {tripDays === 1 ? 'Day' : 'Days'} Trip
-            </span>
-          </div>
-
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-display font-extrabold text-white tracking-tight">
-              {formatPrice(total)}
-            </span>
-            <span className="text-xs font-mono text-text-secondary">
-              avg {formatPrice(dailyAverage)}/day
-            </span>
-          </div>
-
-          {/* Multi-segment progress bar */}
-          {total > 0 && (
-            <div className="mt-4 h-2 w-full bg-white/5 rounded-full overflow-hidden flex gap-0.5">
-              {categories.map((cat) => {
-                const amount = breakdown[cat.key] || 0;
-                const pct = (amount / total) * 100;
-                if (pct <= 0) return null;
-                return (
-                  <div
-                    key={cat.key}
-                    style={{ width: `${pct}%`, backgroundColor: cat.color }}
-                    className="h-full rounded-full transition-all duration-500"
-                    title={`${cat.label}: ${formatPrice(amount)} (${Math.round(pct)}%)`}
-                  />
-                );
-              })}
+      {/* ─── Main Content Workspace ─── */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 no-scrollbar">
+        {/* ─── Financial Metric Bento Cards ─── */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Target Budget Input Card */}
+          <div
+            className={`p-3.5 rounded-2xl border ${
+              isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
+            } backdrop-blur-xl space-y-1.5`}
+          >
+            <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
+              Target Budget
             </div>
-          )}
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-bold text-slate-400">$</span>
+              <input
+                type="number"
+                value={targetBudget}
+                onChange={(e) => setTargetBudget(Math.max(0, parseFloat(e.target.value) || 0))}
+                className={`w-full text-base font-bold outline-none bg-transparent ${
+                  isDark ? 'text-white' : 'text-slate-900'
+                }`}
+              />
+            </div>
+          </div>
+
+          {/* Committed Total Spend Card */}
+          <div
+            className={`p-3.5 rounded-2xl border ${
+              isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
+            } backdrop-blur-xl space-y-1.5`}
+          >
+            <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
+              Scheduled Spend
+            </div>
+            <div className="text-base font-black text-emerald-600 dark:text-emerald-400 truncate">
+              {formatPrice(totalCommitted)}
+            </div>
+          </div>
+
+          {/* Daily Run Rate */}
+          <div
+            className={`p-3.5 rounded-2xl border ${
+              isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
+            } backdrop-blur-xl space-y-1.5`}
+          >
+            <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
+              Daily Run Rate
+            </div>
+            <div className="text-base font-bold text-slate-900 dark:text-white truncate">
+              {formatPrice(dailyAverage)}
+              <span className="text-[10px] font-medium text-slate-400 ml-1">/ day</span>
+            </div>
+          </div>
+
+          {/* Remaining Surplus / Deficit */}
+          <div
+            className={`p-3.5 rounded-2xl border ${
+              remaining >= 0
+                ? isDark
+                  ? 'bg-emerald-500/10 border-emerald-500/25'
+                  : 'bg-emerald-50 border-emerald-200 shadow-sm'
+                : isDark
+                ? 'bg-red-500/10 border-red-500/25'
+                : 'bg-red-50 border-red-200 shadow-sm'
+            } backdrop-blur-xl space-y-1.5`}
+          >
+            <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
+              {remaining >= 0 ? 'Surplus Left' : 'Over Budget'}
+            </div>
+            <div
+              className={`text-base font-black truncate ${
+                remaining >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
+              }`}
+            >
+              {remaining >= 0 ? formatPrice(remaining) : `-${formatPrice(Math.abs(remaining))}`}
+            </div>
+          </div>
         </div>
 
-        {/* Category Breakdown */}
-        <div>
-          <h4 className="text-xs font-mono text-text-secondary uppercase tracking-wider mb-3">
-            Spending by Category
-          </h4>
+        {/* ─── Category Breakdown Section ─── */}
+        <div
+          className={`p-4 rounded-3xl border ${
+            isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
+          } backdrop-blur-xl space-y-3.5`}
+        >
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-white">
+            Category Allocation
+          </h3>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {categories.map((cat) => {
-              const amount = breakdown[cat.key] || 0;
-              const pct = total > 0 ? (amount / total) * 100 : 0;
-
+              const pct = totalCommitted > 0 ? Math.round((cat.amount / totalCommitted) * 100) : 0;
               return (
-                <div
-                  key={cat.key}
-                  className="p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.04] transition-all flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2.5">
+                <div key={cat.key} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-6 h-6 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: `${cat.color}25`, color: cat.color }}
+                      >
+                        {cat.icon}
+                      </span>
+                      <span className="font-semibold text-slate-800 dark:text-zinc-200">
+                        {cat.label}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 font-bold">
+                      <span className="text-slate-500 dark:text-zinc-400 text-[11px]">
+                        {pct}%
+                      </span>
+                      <span className="text-slate-900 dark:text-white">
+                        {formatPrice(cat.amount)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="w-full h-1.5 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
                     <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${cat.color}15`, color: cat.color }}
-                    >
-                      {cat.icon}
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium text-white">{cat.label}</div>
-                      <div className="text-[10px] font-mono text-text-secondary">
-                        {Math.round(pct)}% of budget
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-xs font-mono font-bold text-white">
-                      {formatPrice(amount)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Day-by-Day Spending Chart */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-mono text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-              <ChartBarIcon className="w-3.5 h-3.5 text-accent-sky" />
-              Day-by-Day Analysis
-            </h4>
-            <span className="text-[10px] font-mono text-text-secondary">Daily Load</span>
-          </div>
-
-          <div className="space-y-2">
-            {perDay.map((d, index) => {
-              const pct = (d.total / maxDaySpend) * 100;
-
-              return (
-                <div key={d.dayId} className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="font-mono text-text-secondary font-medium">{d.label}</span>
-                    <span className="font-mono font-bold text-white">{formatPrice(d.total)}</span>
-                  </div>
-
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.4, ease: 'easeOut', delay: index * 0.05 }}
-                      className="h-full bg-gradient-to-r from-accent-sky to-accent-emerald rounded-full"
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{ width: `${pct}%`, backgroundColor: cat.color }}
                     />
                   </div>
                 </div>
@@ -197,16 +265,52 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
           </div>
         </div>
 
-        {/* Action Button to Itinerary */}
-        {onOpenItinerary && (
-          <button
-            type="button"
-            onClick={onOpenItinerary}
-            className="w-full py-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] text-white text-xs font-semibold font-body border border-white/[0.08] transition-all flex items-center justify-center gap-2"
-          >
-            <span>Modify Activities in Itinerary</span>
-          </button>
-        )}
+        {/* ─── Day-by-Day Spend Allocation ─── */}
+        <div
+          className={`p-4 rounded-3xl border ${
+            isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
+          } backdrop-blur-xl space-y-3.5`}
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-white">
+              Daily Spend Curve
+            </h3>
+            {onOpenItinerary && (
+              <button
+                type="button"
+                onClick={onOpenItinerary}
+                className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <CalendarIcon className="w-3 h-3" />
+                <span>Adjust in Itinerary</span>
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2.5">
+            {perDay.map((d) => {
+              const dayPct = maxDaySpend > 0 ? Math.round((d.total / maxDaySpend) * 100) : 0;
+              return (
+                <div key={d.id} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-slate-700 dark:text-zinc-300">
+                      {d.label}
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {formatPrice(d.total)}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                      style={{ width: `${dayPct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

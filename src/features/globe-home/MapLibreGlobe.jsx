@@ -3,21 +3,20 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
-import { useFilters } from '../../context/FilterContext';
 import { useItinerary } from '../../context/ItineraryContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getDestinations, getTrendingDestinations } from '../../services/destinations';
 import { reverseGeocode } from '../../services/geocode';
 import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import {
   GlobeIcon,
-  SatelliteIcon,
-  MoonIcon,
-  MapIcon,
   CalendarIcon,
   OverviewIcon,
   BackpackIcon,
   DollarIcon,
+  SunIcon,
+  MoonIcon,
 } from '../../components/ui/Icons';
 
 // Tile sources
@@ -57,26 +56,7 @@ const VOYAGER_SOURCE = {
   maxzoom: 19,
 };
 
-function FlatMapIcon({ className }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <path d="M3 10h18M8 5v14M16 5v14" />
-    </svg>
-  );
-}
-
-function Globe3DIcon({ className }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <circle cx="12" cy="12" r="9" />
-      <ellipse cx="12" cy="12" rx="4" ry="9" />
-      <path d="M3.5 9h17M3.5 15h17" />
-    </svg>
-  );
-}
-
-export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
+export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDrawer }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -97,6 +77,8 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     clearMarker,
   } = useApp();
 
+  const { isDark, toggleTheme, setTheme } = useTheme();
+
   const selectedDestRef = useRef(selectedDestination);
   selectedDestRef.current = selectedDestination;
   const flightTargetRef = useRef(flightTarget);
@@ -109,7 +91,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
 
   const [activeTileStyle, setActiveTileStyle] = useState('satellite');
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [projectionMode, setProjectionMode] = useState('globe');
+  const [viewDimension, setViewDimension] = useState('2D');
 
   const isDestinationView = selectedDestination !== null && !isTransitioning;
 
@@ -126,7 +108,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     }
   }, [selectedDestination, setDestination]);
 
-  // Smooth canvas resize when drawer opens/closes
+  // Canvas resize on drawer toggle
   useEffect(() => {
     if (mapRef.current) {
       const timer = setTimeout(() => {
@@ -179,12 +161,12 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
           },
         ],
         sky: {
-          'sky-color': '#06090F',
-          'sky-horizon-blend': 0.4,
-          'horizon-color': '#0B101B',
-          'horizon-fog-blend': 0.6,
-          'fog-color': '#06090F',
-          'fog-ground-blend': 0.4,
+          'sky-color': '#060608',
+          'sky-horizon-blend': 0.3,
+          'horizon-color': '#08080A',
+          'horizon-fog-blend': 0.5,
+          'fog-color': '#060608',
+          'fog-ground-blend': 0.3,
         },
       },
       center: [15, 20],
@@ -204,7 +186,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
       } catch {}
       setMapLoaded(true);
 
-      // Route layers
+      // Route vector line
       map.addSource('itinerary-route', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
@@ -215,15 +197,13 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
         type: 'line',
         source: 'itinerary-route',
         paint: {
-          'line-color': ['get', 'color'],
-          'line-width': 2.5,
-          'line-opacity': 0.85,
+          'line-color': '#FF5500',
+          'line-width': 3,
           'line-dasharray': [2, 2],
         },
       });
     });
 
-    // Auto-spin idle logic
     const handleStartInteract = () => {
       isInteractingRef.current = true;
     };
@@ -242,7 +222,6 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
 
     mapRef.current = map;
 
-    // Smooth idle globe spin
     let lastSpinTime = performance.now();
     const spinGlobe = (now) => {
       const delta = (now - lastSpinTime) / 1000;
@@ -273,7 +252,19 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     };
   }, []);
 
-  // Tile layer switching
+  // ─── Tile layer & Theme Synchronization ───
+  const handleSelectTileStyle = useCallback(
+    (styleKey) => {
+      setActiveTileStyle(styleKey);
+      if (styleKey === 'voyager') {
+        setTheme('light');
+      } else {
+        setTheme('dark');
+      }
+    },
+    [setTheme]
+  );
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -296,21 +287,39 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     } catch {}
   }, [activeTileStyle, mapLoaded]);
 
-  // 2D / 3D Projection Toggle
-  const toggleProjection = useCallback(() => {
-    const map = mapRef.current;
-    if (!map) return;
+  // ─── 2D / 3D Camera Toggle ───
+  const handleToggleDimension = useCallback(
+    (targetDim) => {
+      const map = mapRef.current;
+      if (!map) return;
 
-    const nextMode = projectionMode === 'globe' ? 'mercator' : 'globe';
-    try {
-      map.setProjection({ type: nextMode });
-      setProjectionMode(nextMode);
-    } catch (err) {
-      console.warn('Projection error:', err);
-    }
-  }, [projectionMode]);
+      const nextDim = targetDim || (viewDimension === '2D' ? '3D' : '2D');
+      setViewDimension(nextDim);
 
-  // ─── Camera Flight (Pitch 0, Bearing 0 for perfect stability) ───
+      try {
+        if (nextDim === '3D') {
+          map.setProjection({ type: 'globe' });
+          map.easeTo({
+            pitch: 58,
+            bearing: -18,
+            duration: 600,
+          });
+        } else {
+          map.easeTo({
+            pitch: 0,
+            bearing: 0,
+            duration: 600,
+          });
+          map.setProjection({ type: 'mercator' });
+        }
+      } catch (err) {
+        console.warn('Dimension toggle error:', err);
+      }
+    },
+    [viewDimension]
+  );
+
+  // ─── Camera Flight ───
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded || !flightTarget || !isTransitioning) return;
@@ -321,12 +330,15 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     }
 
     const targetZoom = 12.8;
+    const targetPitch = viewDimension === '3D' ? 58 : 0;
+    const targetBearing = viewDimension === '3D' ? -18 : 0;
+
     map.flyTo({
       center: [flightTarget.lng, flightTarget.lat],
       zoom: targetZoom,
-      pitch: 0,
-      bearing: 0,
-      duration: 2400,
+      pitch: targetPitch,
+      bearing: targetBearing,
+      duration: 2200,
       essential: true,
     });
 
@@ -338,7 +350,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
 
     map.on('moveend', handleMoveEnd);
     return () => map.off('moveend', handleMoveEnd);
-  }, [flightTarget, isTransitioning, mapLoaded, arriveAtDestination, onToggleDrawer]);
+  }, [flightTarget, isTransitioning, mapLoaded, arriveAtDestination, onToggleDrawer, viewDimension]);
 
   // ─── Return to Globe View ───
   const handleReturnToGlobe = useCallback(() => {
@@ -352,7 +364,6 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
 
     try {
       map.setProjection({ type: 'globe' });
-      setProjectionMode('globe');
     } catch {}
 
     map.flyTo({
@@ -360,15 +371,16 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
       zoom: 1.6,
       pitch: 0,
       bearing: 0,
-      duration: 1800,
+      duration: 1600,
       essential: true,
     });
 
+    setViewDimension('2D');
     onToggleDrawer(null);
     navigateToGlobe(false);
   }, [navigateToGlobe, onToggleDrawer]);
 
-  // Pointer tracking to ignore drag/pan gestures
+  // Pointer tracking
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -390,11 +402,11 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     };
   }, [mapLoaded]);
 
-  // ─── Create Rich Pin Popup Content (Restored) ───
+  // ─── Tactile Pin Popup Content ───
   const createPinPopupContent = useCallback(
     (pinData, onAdd, onRemove) => {
       const container = document.createElement('div');
-      container.className = 'custom-pin-popup-card p-4 rounded-2xl bg-[#0B101B] border border-white/10 text-white shadow-2xl space-y-3 min-w-[260px] max-w-[300px] select-none';
+      container.className = 'font-sans select-none space-y-3 w-full p-0.5';
 
       const availableDays = days && days.length > 0 ? days : [{ id: 'day-1', dayNumber: 1 }];
       let selectedDayId = availableDays[0].id;
@@ -402,26 +414,26 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
       let cost = 0;
 
       container.innerHTML = `
-        <div class="flex items-start justify-between gap-2 border-b border-white/10 pb-2.5">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-1.5 text-[11px] font-medium text-accent-sky uppercase tracking-wider">
-              <span>📍 Custom Pin</span>
-            </div>
-            <h4 class="pin-title font-display text-sm font-bold text-white truncate mt-0.5">${pinData.name || 'Custom Location'}</h4>
-            <p class="pin-address text-[11px] text-text-secondary truncate">${pinData.address || ''}</p>
-          </div>
+        <div class="border-b border-black/10 dark:border-white/10 pb-2.5">
+          <div class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">WAYPOINT</div>
+          <h4 class="pin-title font-sans text-sm font-bold text-slate-900 dark:text-white mt-0.5 truncate">${
+            pinData.name || 'Custom Waypoint'
+          }</h4>
+          <p class="pin-address text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">${
+            pinData.address || ''
+          }</p>
         </div>
 
         <div>
-          <label class="text-[11px] font-medium text-text-secondary uppercase tracking-wider block mb-1.5">Assign to Day</label>
-          <div class="day-chips-row flex items-center gap-1.5 overflow-x-auto pb-1">
+          <label class="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1.5">ASSIGN TO DAY</label>
+          <div class="day-chips-row flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
             ${availableDays
               .map(
                 (d, idx) => `
-                <button type="button" data-day="${d.id}" class="day-chip px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                <button type="button" data-day="${d.id}" class="day-chip px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer ${
                   idx === 0
-                    ? 'bg-accent-sky/20 text-accent-sky border border-accent-sky/40 font-semibold'
-                    : 'bg-white/5 text-text-secondary hover:text-white border border-white/5'
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-black font-bold shadow-sm'
+                    : 'bg-black/5 dark:bg-white/10 text-slate-700 dark:text-zinc-300 border border-black/10 dark:border-white/15 hover:text-black dark:hover:text-white'
                 }">
                   Day ${d.dayNumber || idx + 1}
                 </button>
@@ -433,39 +445,40 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
 
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="text-[11px] font-medium text-text-secondary uppercase tracking-wider">Duration</label>
-            <select class="duration-select w-full mt-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
-              <option value="1" class="bg-[#0B101B]">1 hour</option>
-              <option value="1.5" selected class="bg-[#0B101B]">1.5 hours</option>
-              <option value="2" class="bg-[#0B101B]">2 hours</option>
-              <option value="3" class="bg-[#0B101B]">3 hours</option>
-              <option value="4" class="bg-[#0B101B]">Half Day</option>
+            <label class="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">DURATION</label>
+            <select class="duration-select w-full bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/15 rounded-full px-3 py-1.5 text-xs text-slate-900 dark:text-white outline-none cursor-pointer">
+              <option value="1">1.0 Hour</option>
+              <option value="1.5" selected>1.5 Hours</option>
+              <option value="2">2.0 Hours</option>
+              <option value="3">3.0 Hours</option>
+              <option value="4">Half Day</option>
             </select>
           </div>
           <div>
-            <label class="text-[11px] font-medium text-text-secondary uppercase tracking-wider">Est. Cost</label>
-            <input type="number" min="0" value="0" placeholder="$0" class="cost-input w-full mt-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none" />
+            <label class="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">EST. COST</label>
+            <input type="number" min="0" value="0" placeholder="$0" class="cost-input w-full bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/15 rounded-full px-3 py-1.5 text-xs text-slate-900 dark:text-white outline-none font-semibold" />
           </div>
         </div>
 
-        <div class="flex items-center gap-2 pt-2 border-t border-white/10">
-          <button type="button" class="add-itinerary-btn flex-1 py-2 rounded-xl bg-accent-sky text-slate-950 text-xs font-bold hover:bg-sky-400 active:scale-95 transition-all shadow-md cursor-pointer">
-            Add to Itinerary
+        <div class="flex items-center gap-2 pt-2 border-t border-black/10 dark:border-white/10">
+          <button type="button" class="add-itinerary-btn flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-200 active:scale-[0.98] text-white dark:text-black text-xs font-bold uppercase tracking-wider rounded-full transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5">
+            <span>+ Add to Itinerary</span>
           </button>
-          <button type="button" class="remove-pin-btn p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-text-secondary hover:text-red-400 border border-white/5 transition-colors cursor-pointer" title="Remove Pin">
+          <button type="button" class="remove-pin-btn px-3.5 py-2.5 bg-black/5 dark:bg-white/10 hover:bg-red-500/20 text-slate-500 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 text-xs font-bold rounded-full border border-black/10 dark:border-white/15 transition-all cursor-pointer" title="Discard">
             ✕
           </button>
         </div>
       `;
 
-      // Day chip selection
       const dayChips = container.querySelectorAll('.day-chip');
       dayChips.forEach((chip) => {
         chip.addEventListener('click', () => {
           dayChips.forEach((c) => {
-            c.className = 'day-chip px-3 py-1 rounded-lg text-xs font-medium transition-all bg-white/5 text-text-secondary hover:text-white border border-white/5';
+            c.className =
+              'day-chip px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer bg-[#1C1C24] dark:bg-[#1C1C24] light:bg-zinc-100 text-zinc-300 dark:text-zinc-300 light:text-zinc-700 border border-white/15 dark:border-white/15 light:border-zinc-300 hover:text-white';
           });
-          chip.className = 'day-chip px-3 py-1 rounded-lg text-xs font-medium transition-all bg-accent-sky/20 text-accent-sky border border-accent-sky/40 font-semibold';
+          chip.className =
+            'day-chip px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer bg-white text-black font-bold shadow-sm';
           selectedDayId = chip.getAttribute('data-day') || availableDays[0].id;
         });
       });
@@ -482,11 +495,12 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
 
       const addBtn = container.querySelector('.add-itinerary-btn');
       addBtn.addEventListener('click', () => {
-        addBtn.textContent = '✓ Added!';
-        addBtn.className = 'add-itinerary-btn flex-1 py-2 rounded-xl bg-accent-emerald text-slate-950 text-xs font-bold transition-all';
+        addBtn.innerHTML = '<span>✓ Added to Plan</span>';
+        addBtn.className =
+          'add-itinerary-btn flex-1 py-2.5 px-4 bg-emerald-500 text-black text-xs font-bold uppercase tracking-wider rounded-md transition-all shadow-md';
 
         onAdd({
-          name: pinData.name || 'Custom Location',
+          name: pinData.name || 'Custom Waypoint',
           durationHrs,
           cost,
           dayId: selectedDayId,
@@ -505,7 +519,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     [days]
   );
 
-  // ─── Dual-Mode Map Click Handler (Restored) ───
+  // ─── Map Click Handler ───
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -518,22 +532,21 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
       const dist = Math.hypot(dx, dy);
       const dt = Date.now() - pointerDownRef.current.time;
 
-      if (dist > 8 || dt > 450) return; // User was panning/rotating
+      if (dist > 8 || dt > 450) return;
 
       const { lng, lat } = e.lngLat;
 
-      // ── MODE 1: Destination View — Place Custom Pin ──
+      // MODE 1: Destination View — Waypoint Drop
       if (isDestinationView) {
         if (customMarkerRef.current) customMarkerRef.current.remove();
         if (activePopupRef.current) activePopupRef.current.remove();
 
         const pinEl = document.createElement('div');
-        pinEl.className = 'cursor-pointer select-none';
+        pinEl.className = 'cursor-pointer select-none font-sans';
         pinEl.innerHTML = `
           <div class="relative flex items-center justify-center">
-            <div class="w-8 h-8 rounded-full bg-accent-sky/40 animate-ping absolute"></div>
-            <div class="w-5 h-5 rounded-full bg-accent-sky border-2 border-white shadow-xl flex items-center justify-center relative z-10">
-              <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+            <div class="w-6 h-6 rounded-md bg-white text-black flex items-center justify-center text-xs font-bold border-2 border-black dark:border-white shadow-md">
+              +
             </div>
           </div>
         `;
@@ -547,7 +560,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
         const pinData = {
           lat,
           lng,
-          name: 'Locating place...',
+          name: 'Resolving Location...',
           address: `${lat.toFixed(4)}°, ${lng.toFixed(4)}°`,
         };
 
@@ -561,10 +574,12 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
             lat: activityData.lat,
             lng: activityData.lng,
           });
-          onToggleDrawer('itinerary');
+          if (onOpenDrawer) {
+            onOpenDrawer('itinerary');
+          }
           setTimeout(() => {
             popup.remove();
-          }, 600);
+          }, 400);
         };
 
         const handleRemove = () => {
@@ -579,14 +594,14 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
         const popup = new maplibregl.Popup({
           closeButton: false,
           closeOnClick: false,
-          offset: 16,
+          anchor: 'bottom',
+          offset: [0, -14],
           className: 'custom-pin-popup',
         });
 
         popup.setLngLat([lng, lat]).setDOMContent(popupNode).addTo(map);
         activePopupRef.current = popup;
 
-        // Reverse geocode to get street name
         try {
           const geoResult = await reverseGeocode(lat, lng);
           if (geoResult && geoResult.name) {
@@ -603,7 +618,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
         return;
       }
 
-      // ── MODE 2: Globe Orbit View — Click to Fly ──
+      // MODE 2: Globe View — Fly To
       const allDests = getDestinations();
       const matched = allDests.find((d) => {
         const dLat = d.lat - lat;
@@ -652,7 +667,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     flyToDestination,
   ]);
 
-  // ─── Destination Markers & Day Route Linkages ───
+  // ─── Destination Markers & Sequence: Start -> Stop 1 -> Stop 2... ───
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
@@ -660,45 +675,39 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // In Destination View: Map out Itinerary Stops & Route Lines
     if (isDestinationView && activeDest) {
       const baseLat = activeDest.lat;
       const baseLng = activeDest.lng;
-      const dayColors = ['#38BDF8', '#F59E0B', '#10B981', '#A78BFA', '#F43F5E'];
       const routeFeatures = [];
 
-      let stopNumber = 1;
+      let globalActivityIndex = 0;
 
-      (days || []).forEach((day, dayIndex) => {
-        const dayColor = dayColors[dayIndex % dayColors.length];
+      (days || []).forEach((day) => {
         const dayCoords = [];
 
-        (day.activities || []).forEach((act, actIndex) => {
-          const actLat = act.lat || baseLat + Math.sin(stopNumber * 1.4) * 0.032;
-          const actLng = act.lng || baseLng + Math.cos(stopNumber * 1.4) * 0.042;
+        (day.activities || []).forEach((act) => {
+          const actLat = act.lat || baseLat + Math.sin(globalActivityIndex * 1.4) * 0.032;
+          const actLng = act.lng || baseLng + Math.cos(globalActivityIndex * 1.4) * 0.042;
           dayCoords.push([actLng, actLat]);
 
-          const isStart = stopNumber === 1;
-          const isFinish =
-            dayIndex === days.length - 1 && actIndex === day.activities.length - 1 && stopNumber > 1;
+          const isStart = globalActivityIndex === 0;
+          const labelText = isStart ? 'Start' : `Stop ${globalActivityIndex}`;
 
           const el = document.createElement('div');
-          el.className = 'group cursor-pointer select-none';
+          el.className = 'group cursor-pointer select-none font-sans';
           el.innerHTML = `
             <div class="relative flex items-center justify-center">
-              <div class="w-7 h-7 rounded-full border border-white/20 shadow-2xl flex items-center justify-center transition-all duration-200 group-hover:scale-125" style="background-color: #0B101B; border-color: ${dayColor};">
-                ${
-                  isStart
-                    ? `<span class="text-[10px]">🚩</span>`
-                    : isFinish
-                    ? `<span class="text-[10px]">🏁</span>`
-                    : `<span class="text-[11px] font-bold" style="color: ${dayColor}">${stopNumber}</span>`
-                }
+              <div class="px-2.5 py-1 rounded-md ${
+                isStart
+                  ? 'bg-emerald-500 text-black font-bold'
+                  : 'bg-[#121217] text-white border border-white/30'
+              } text-xs font-semibold shadow-md group-hover:scale-105 transition-transform">
+                ${labelText}
               </div>
               <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
-                <div class="bg-[#0B101B]/95 border border-white/10 text-white px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap shadow-2xl">
-                  <span>${act.name}</span>
-                  <span class="ml-1.5 text-accent-emerald">${formatPrice(act.cost)}</span>
+                <div class="bg-[#121217]/95 backdrop-blur-md border border-white/20 text-white px-3 py-1.5 rounded-md text-xs font-sans whitespace-nowrap shadow-2xl">
+                  <span class="font-bold">${act.name}</span>
+                  <span class="ml-2 text-zinc-400">(${formatPrice(act.cost)})</span>
                 </div>
               </div>
             </div>
@@ -709,13 +718,13 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
             .addTo(map);
 
           markersRef.current.push(marker);
-          stopNumber++;
+          globalActivityIndex++;
         });
 
         if (dayCoords.length >= 2) {
           routeFeatures.push({
             type: 'Feature',
-            properties: { color: dayColor },
+            properties: {},
             geometry: {
               type: 'LineString',
               coordinates: dayCoords,
@@ -736,7 +745,7 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
       return;
     }
 
-    // Globe Landing View: Minimalist dot pins
+    // Globe Landing View: Destination dots
     if (!isDestinationView) {
       const allDests = getDestinations();
       const trendingIds = new Set(getTrendingDestinations().map((d) => d.id));
@@ -744,19 +753,18 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
       allDests.forEach((dest) => {
         const isTrending = trendingIds.has(dest.id);
         const el = document.createElement('div');
-        el.className = 'group cursor-pointer select-none';
+        el.className = 'group cursor-pointer select-none font-sans';
 
         el.innerHTML = `
-          <div class="relative flex items-center justify-center p-2.5">
-            <div class="relative flex items-center justify-center">
-              ${isTrending ? '<span class="absolute w-3 h-3 rounded-full bg-accent-sky/40 animate-ping"></span>' : ''}
-              <div class="w-2.5 h-2.5 rounded-full ${
-                isTrending ? 'bg-accent-sky shadow-[0_0_8px_rgba(56,189,248,0.8)]' : 'bg-white/80'
-              } transition-transform duration-200 group-hover:scale-150"></div>
-            </div>
+          <div class="relative flex items-center justify-center p-2">
+            <div class="w-2.5 h-2.5 rounded-sm ${
+              isTrending
+                ? 'bg-emerald-400 ring-2 ring-white/30'
+                : 'bg-zinc-400'
+            } group-hover:scale-150 transition-transform"></div>
             <div class="absolute bottom-full mb-1.5 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
-              <div class="bg-[#0B101B]/95 border border-white/10 text-white px-2.5 py-1 rounded-xl text-xs font-medium whitespace-nowrap shadow-2xl backdrop-blur-md">
-                ${dest.name}
+              <div class="bento-glass px-2.5 py-1 text-xs font-semibold whitespace-nowrap shadow-xl">
+                ${dest.name.split(',')[0]}
               </div>
             </div>
           </div>
@@ -778,106 +786,166 @@ export default function MapLibreGlobe({ activeDrawer, onToggleDrawer }) {
 
   return (
     <ErrorBoundary name="MapLibre Globe">
-      <div className="relative w-full h-full bg-[#06090F] overflow-hidden select-none">
-        {/* Map Container */}
+      <div className="relative w-full h-full bg-[#08080A] overflow-hidden select-none font-sans">
+        {/* Map Canvas */}
         <div ref={mapContainerRef} className="w-full h-full" />
 
         {/* ─── Destination View Overlays ─── */}
         <AnimatePresence>
           {isDestinationView && activeDest && (
             <>
-              {/* Top Navigation Bar: Back to Globe & 2D/3D Controls */}
+              {/* Top Navigation Bar: Back to Globe & 2D/3D & Sat/Dark Controls */}
               <motion.div
                 initial={{ opacity: 0, y: -16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
-                className="absolute top-0 inset-x-0 z-30 pointer-events-none p-3 sm:p-4 flex items-center justify-between"
+                transition={{ duration: 0.2 }}
+                className={`fixed top-0 left-0 right-0 z-50 pointer-events-none p-3 sm:p-6 flex items-center justify-between gap-2 transition-all duration-300 ${
+                  activeDrawer ? 'md:right-[480px]' : ''
+                }`}
               >
                 {/* Back to Globe Button */}
                 <button
+                  type="button"
                   onClick={handleReturnToGlobe}
-                  className="pointer-events-auto flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#0B101B]/80 hover:bg-[#0B101B]/95 border border-white/[0.08] text-white text-xs font-medium backdrop-blur-xl transition-all shadow-xl group cursor-pointer"
-                  title="Return to 3D Globe"
+                  className="pointer-events-auto apple-liquid-glass py-2 px-4 hover:scale-105 cursor-pointer shadow-2xl flex items-center gap-2 rounded-full shrink-0"
+                  title="Return to Globe Orbit"
                 >
-                  <GlobeIcon className="w-4 h-4 text-accent-sky group-hover:scale-110 transition-transform" />
-                  <span className="font-body">Globe</span>
+                  <GlobeIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="font-bold text-xs text-slate-900 dark:text-white hidden xs:inline sm:inline">
+                    Orbit View
+                  </span>
                 </button>
 
-                {/* Map Mode Controls */}
-                <div className="pointer-events-auto flex items-center gap-1 bg-[#0B101B]/80 border border-white/[0.08] rounded-xl p-1 backdrop-blur-xl shadow-xl">
-                  {/* 2D/3D Toggle */}
+                {/* Map Mode HUD Toolbar with Smooth Liquid Bubble Sliders & Theme Switcher */}
+                <div className="pointer-events-auto flex items-center gap-1 apple-liquid-glass p-1.5 shadow-2xl rounded-full shrink-0">
+                  {/* 2D / 3D Mode Switcher */}
+                  <div className="flex items-center relative p-0.5">
+                    {['2D', '3D'].map((dim) => {
+                      const isSelected = viewDimension === dim;
+                      return (
+                        <button
+                          key={dim}
+                          type="button"
+                          onClick={() => handleToggleDimension(dim)}
+                          className={`relative px-3 py-1 text-xs font-bold rounded-full transition-colors cursor-pointer z-10 ${
+                            isSelected
+                              ? 'text-white dark:text-black font-bold'
+                              : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'
+                          }`}
+                        >
+                          {isSelected && (
+                            <motion.div
+                              layoutId="hud2d3dBubble"
+                              transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                              className="absolute inset-0 bg-slate-900 dark:bg-white rounded-full -z-10 shadow-md"
+                            />
+                          )}
+                          {dim}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="h-4 w-[1px] bg-black/10 dark:bg-white/20 mx-0.5" />
+
+                  {/* Tile Layer Switchers */}
+                  <div className="flex items-center relative gap-0.5 p-0.5">
+                    {[
+                      { key: 'satellite', label: 'Sat' },
+                      { key: 'dark', label: 'Dark' },
+                      { key: 'voyager', label: 'Street' },
+                    ].map((s) => {
+                      const isSelected = activeTileStyle === s.key;
+                      return (
+                        <button
+                          key={s.key}
+                          type="button"
+                          onClick={() => handleSelectTileStyle(s.key)}
+                          className={`relative px-3 py-1 text-xs font-semibold rounded-full transition-colors cursor-pointer z-10 ${
+                            isSelected
+                              ? 'text-white dark:text-black font-bold'
+                              : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'
+                          }`}
+                        >
+                          {isSelected && (
+                            <motion.div
+                              layoutId="hudTileBubble"
+                              transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                              className="absolute inset-0 bg-slate-900 dark:bg-white rounded-full -z-10 shadow-md"
+                            />
+                          )}
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="h-4 w-[1px] bg-black/10 dark:bg-white/20 mx-0.5" />
+
+                  {/* Theme Switcher Button */}
                   <button
-                    onClick={toggleProjection}
-                    title={projectionMode === 'globe' ? 'Switch to 2D Map' : 'Switch to 3D Globe'}
-                    className="p-1.5 rounded-lg text-text-secondary hover:text-white transition-colors cursor-pointer"
+                    type="button"
+                    onClick={toggleTheme}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-slate-900 dark:text-zinc-300 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all cursor-pointer"
+                    title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                   >
-                    {projectionMode === 'globe' ? (
-                      <FlatMapIcon className="w-4 h-4" />
-                    ) : (
-                      <Globe3DIcon className="w-4 h-4" />
-                    )}
+                    {isDark ? <SunIcon className="w-4 h-4 text-amber-400" /> : <MoonIcon className="w-4 h-4 text-indigo-600" />}
                   </button>
-
-                  <div className="h-3 w-[1px] bg-white/10" />
-
-                  {/* Tile Style Switcher */}
-                  {[
-                    { key: 'satellite', icon: <SatelliteIcon className="w-3.5 h-3.5" />, title: 'Satellite' },
-                    { key: 'dark', icon: <MoonIcon className="w-3.5 h-3.5" />, title: 'Dark' },
-                    { key: 'voyager', icon: <MapIcon className="w-3.5 h-3.5" />, title: 'Street' },
-                  ].map((s) => (
-                    <button
-                      key={s.key}
-                      onClick={() => setActiveTileStyle(s.key)}
-                      title={s.title}
-                      className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                        activeTileStyle === s.key
-                          ? 'bg-accent-sky/20 text-accent-sky font-semibold'
-                          : 'text-text-secondary hover:text-white'
-                      }`}
-                    >
-                      {s.icon}
-                    </button>
-                  ))}
                 </div>
               </motion.div>
 
-              {/* Bottom Liquid Dock Bar */}
+              {/* Bottom Dock with Smooth Liquid Sliding Bubble */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 16 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
-                className="absolute bottom-3 sm:bottom-4 inset-x-0 z-30 pointer-events-none flex justify-center px-3"
+                transition={{ duration: 0.2 }}
+                className={`fixed bottom-4 sm:bottom-6 left-0 right-0 z-50 pointer-events-none flex justify-center px-3 sm:px-4 transition-all duration-300 ${
+                  activeDrawer ? 'md:right-[480px]' : ''
+                }`}
               >
-                <div className="pointer-events-auto bg-[#0B101B]/85 border border-white/[0.08] backdrop-blur-2xl rounded-2xl p-1 shadow-2xl flex items-center gap-1">
+                <div className="pointer-events-auto bento-glass p-1 sm:p-1.5 rounded-full flex items-center gap-0.5 sm:gap-1 shadow-2xl relative max-w-full overflow-x-auto">
                   {[
-                    { key: 'overview', icon: <OverviewIcon className="w-3.5 h-3.5" />, label: 'Overview' },
+                    { key: 'overview', icon: <OverviewIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />, label: 'Overview' },
                     {
                       key: 'itinerary',
-                      icon: <CalendarIcon className="w-3.5 h-3.5" />,
+                      icon: <CalendarIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />,
                       label: 'Itinerary',
                       count: (days || []).reduce((sum, d) => sum + (d.activities?.length || 0), 0),
                     },
-                    { key: 'packing', icon: <BackpackIcon className="w-3.5 h-3.5" />, label: 'Packing' },
-                    { key: 'budget', icon: <DollarIcon className="w-3.5 h-3.5" />, label: 'Budget' },
+                    { key: 'packing', icon: <BackpackIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />, label: 'Packing' },
+                    { key: 'budget', icon: <DollarIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />, label: 'Budget' },
                   ].map((item) => {
                     const isActive = activeDrawer === item.key;
                     return (
                       <button
                         key={item.key}
+                        type="button"
                         onClick={() => onToggleDrawer(item.key)}
-                        className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold font-body transition-all cursor-pointer ${
+                        className={`relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-xs font-bold transition-colors cursor-pointer z-10 whitespace-nowrap ${
                           isActive
-                            ? 'bg-accent-sky/20 text-accent-sky border border-accent-sky/30'
-                            : 'text-text-secondary hover:text-white hover:bg-white/[0.03]'
+                            ? 'text-black dark:text-black light:text-white font-bold'
+                            : 'text-zinc-400 hover:text-white dark:hover:text-white light:hover:text-black'
                         }`}
                       >
-                        {item.icon}
+                        {isActive && (
+                          <motion.div
+                            layoutId="activeDockBubble"
+                            transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                            className="absolute inset-0 bg-white dark:bg-white light:bg-[#0F172A] rounded-full -z-10 shadow-md"
+                          />
+                        )}
+                        <span>{item.icon}</span>
                         <span>{item.label}</span>
                         {item.count > 0 && (
-                          <span className="text-[11px] font-semibold bg-accent-sky/20 text-accent-sky px-1.5 py-0.2 rounded-full">
+                          <span
+                            className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                              isActive
+                                ? 'bg-black text-white dark:bg-black dark:text-white light:bg-white light:text-black'
+                                : 'bg-emerald-400 text-black'
+                            }`}
+                          >
                             {item.count}
                           </span>
                         )}
