@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -48,6 +48,18 @@ export default function PremadeItineraries({ isOpen, onClose, onSelectItinerary 
   const [selectedSeason, setSelectedSeason] = useState('all');
   const [selectedBudget, setSelectedBudget] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Listen for Escape key to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const allDestinations = useMemo(() => getDestinations(), []);
 

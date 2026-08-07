@@ -830,15 +830,15 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
                           onClick={() => handleToggleDimension(dim)}
                           className={`relative px-3 py-1 text-xs font-bold rounded-full transition-colors cursor-pointer z-10 ${
                             isSelected
-                              ? 'text-white dark:text-black font-bold'
-                              : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'
+                              ? 'text-slate-900 dark:text-white font-bold'
+                              : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'
                           }`}
                         >
                           {isSelected && (
                             <motion.div
                               layoutId="hud2d3dBubble"
                               transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                              className="absolute inset-0 bg-slate-900 dark:bg-white rounded-full -z-10 shadow-md"
+                              className="absolute inset-0 bg-white dark:bg-white/20 rounded-full -z-10 shadow-md border border-black/5 dark:border-white/15"
                             />
                           )}
                           {dim}
@@ -864,15 +864,15 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
                           onClick={() => handleSelectTileStyle(s.key)}
                           className={`relative px-3 py-1 text-xs font-semibold rounded-full transition-colors cursor-pointer z-10 ${
                             isSelected
-                              ? 'text-white dark:text-black font-bold'
-                              : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'
+                              ? 'text-slate-900 dark:text-white font-bold'
+                              : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'
                           }`}
                         >
                           {isSelected && (
                             <motion.div
                               layoutId="hudTileBubble"
                               transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                              className="absolute inset-0 bg-slate-900 dark:bg-white rounded-full -z-10 shadow-md"
+                              className="absolute inset-0 bg-white dark:bg-white/20 rounded-full -z-10 shadow-md border border-black/5 dark:border-white/15"
                             />
                           )}
                           {s.label}
@@ -905,7 +905,7 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
                   activeDrawer ? 'md:right-[480px]' : ''
                 }`}
               >
-                <div className="pointer-events-auto bento-glass p-1 sm:p-1.5 rounded-full flex items-center gap-0.5 sm:gap-1 shadow-2xl relative max-w-full overflow-x-auto">
+                <div className="pointer-events-auto apple-liquid-glass p-1 sm:p-1.5 rounded-full flex items-center gap-0.5 sm:gap-1 shadow-2xl relative max-w-full overflow-x-auto">
                   {[
                     { key: 'overview', icon: <OverviewIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />, label: 'Overview' },
                     {
@@ -925,15 +925,15 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
                         onClick={() => onToggleDrawer(item.key)}
                         className={`relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-xs font-bold transition-colors cursor-pointer z-10 whitespace-nowrap ${
                           isActive
-                            ? 'text-black dark:text-black light:text-white font-bold'
-                            : 'text-zinc-400 hover:text-white dark:hover:text-white light:hover:text-black'
+                            ? 'text-slate-900 dark:text-white font-bold'
+                            : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'
                         }`}
                       >
                         {isActive && (
                           <motion.div
                             layoutId="activeDockBubble"
                             transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                            className="absolute inset-0 bg-white dark:bg-white light:bg-[#0F172A] rounded-full -z-10 shadow-md"
+                            className="absolute inset-0 bg-white dark:bg-white/20 rounded-full -z-10 shadow-md border border-black/5 dark:border-white/15"
                           />
                         )}
                         <span>{item.icon}</span>
@@ -942,8 +942,8 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
                           <span
                             className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
                               isActive
-                                ? 'bg-black text-white dark:bg-black dark:text-white light:bg-white light:text-black'
-                                : 'bg-emerald-400 text-black'
+                                ? 'bg-slate-900 text-white dark:bg-emerald-400 dark:text-slate-950'
+                                : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
                             }`}
                           >
                             {item.count}
