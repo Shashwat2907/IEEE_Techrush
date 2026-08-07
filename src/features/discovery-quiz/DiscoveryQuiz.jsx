@@ -1,16 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getDestinations } from '../../services/destinations';
 import { getDestinationPhoto } from '../../services/photos';
 import {
   SparklesIcon,
   CloseIcon,
-  CompassIcon,
-  SunIcon,
-  DollarIcon,
-  UsersIcon,
-  ArrowRightIcon,
 } from '../../components/ui/Icons';
 
 const QUIZ_QUESTIONS = [
@@ -49,6 +45,7 @@ const QUIZ_QUESTIONS = [
 
 export default function DiscoveryQuiz() {
   const { hideQuiz, flyToDestination } = useApp();
+  const { isDark } = useTheme();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [matchedResults, setMatchedResults] = useState(null);
@@ -84,25 +81,43 @@ export default function DiscoveryQuiz() {
   const progressPct = ((currentStep + 1) / QUIZ_QUESTIONS.length) * 100;
 
   return (
-    <div className="fixed inset-0 z-[1200] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 select-none font-sans">
+    <div className="fixed inset-0 z-[1200] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 select-none font-sans">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-2xl bg-[#0E0E12] border border-white/15 rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+        className={`w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col border transition-colors ${
+          isDark
+            ? 'bg-[#0E0E12] border-white/15 text-white'
+            : 'bg-white border-black/10 text-slate-900'
+        }`}
       >
         {/* Header Bar */}
-        <div className="p-5 border-b border-white/10 flex items-center justify-between bg-[#131318]/90">
+        <div
+          className={`p-5 flex items-center justify-between border-b transition-colors ${
+            isDark
+              ? 'bg-[#131318]/90 border-white/10'
+              : 'bg-slate-50/90 border-black/10'
+          }`}
+        >
           <div className="flex items-center gap-2.5">
-            <SparklesIcon className="w-5 h-5 text-swiss-cyan" />
-            <h2 className="font-display text-sm font-bold text-white uppercase tracking-wider">
+            <SparklesIcon className="w-5 h-5 text-emerald-500" />
+            <h2
+              className={`font-display text-sm font-bold uppercase tracking-wider ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}
+            >
               AI Travel Matchmaker
             </h2>
           </div>
           <button
             type="button"
             onClick={hideQuiz}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/15 dark:hover:bg-white/15 light:hover:bg-black/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+              isDark
+                ? 'text-zinc-400 hover:text-white hover:bg-white/15'
+                : 'text-slate-500 hover:text-slate-900 hover:bg-black/10'
+            }`}
             title="Exit"
           >
             <CloseIcon className="w-4 h-4" />
@@ -111,7 +126,7 @@ export default function DiscoveryQuiz() {
 
         {/* Progress Line */}
         {!matchedResults && (
-          <div className="w-full h-1 bg-[#1A1A22]">
+          <div className={`w-full h-1 ${isDark ? 'bg-[#1A1A22]' : 'bg-slate-100'}`}>
             <div
               className="h-full bg-emerald-500 transition-all duration-300"
               style={{ width: `${progressPct}%` }}
@@ -132,13 +147,23 @@ export default function DiscoveryQuiz() {
                 className="space-y-6"
               >
                 <div>
-                  <span className="text-[10px] font-mono font-bold tracking-widest text-emerald-400 uppercase">
+                  <span className="text-[10px] font-mono font-bold tracking-widest text-emerald-500 uppercase">
                     STEP {currentStep + 1} OF {QUIZ_QUESTIONS.length}
                   </span>
-                  <h3 className="font-display text-2xl font-bold text-white tracking-tight mt-1">
+                  <h3
+                    className={`font-display text-2xl font-bold tracking-tight mt-1 ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}
+                  >
                     {question.title}
                   </h3>
-                  <p className="text-xs text-zinc-400 mt-1">{question.subtitle}</p>
+                  <p
+                    className={`text-xs mt-1 ${
+                      isDark ? 'text-zinc-400' : 'text-slate-500'
+                    }`}
+                  >
+                    {question.subtitle}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -147,12 +172,26 @@ export default function DiscoveryQuiz() {
                       key={opt.id}
                       type="button"
                       onClick={() => handleSelectOption(question.id, opt.id)}
-                      className="bento-card p-4 text-left hover:border-white/30 hover:bg-[#1A1A22] transition-all group cursor-pointer space-y-1.5"
+                      className={`p-4 text-left border rounded-2xl transition-all group cursor-pointer space-y-1.5 ${
+                        isDark
+                          ? 'bg-[#131318] hover:bg-[#1C1C24] border-white/10 hover:border-emerald-500/50'
+                          : 'bg-slate-50 hover:bg-slate-100 border-black/10 hover:border-emerald-500/50 shadow-sm'
+                      }`}
                     >
-                      <div className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">
+                      <div
+                        className={`text-sm font-bold transition-colors ${
+                          isDark
+                            ? 'text-white group-hover:text-emerald-400'
+                            : 'text-slate-900 group-hover:text-emerald-600'
+                        }`}
+                      >
                         {opt.label}
                       </div>
-                      <div className="text-xs text-zinc-400 leading-relaxed">
+                      <div
+                        className={`text-xs leading-relaxed ${
+                          isDark ? 'text-zinc-400' : 'text-slate-500'
+                        }`}
+                      >
                         {opt.desc}
                       </div>
                     </button>
@@ -164,13 +203,17 @@ export default function DiscoveryQuiz() {
             /* Results View */
             <div className="space-y-6">
               <div className="text-center space-y-1">
-                <div className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">
+                <div className="text-xs font-mono font-bold text-emerald-500 uppercase tracking-widest">
                   MATCHING COMPLETE
                 </div>
-                <h3 className="font-display text-2xl font-bold text-white">
+                <h3
+                  className={`font-display text-2xl font-bold ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}
+                >
                   Top Recommended Expeditions
                 </h3>
-                <p className="text-xs text-zinc-400">
+                <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
                   Based on your pace, landscape preference, and financial tier.
                 </p>
               </div>
@@ -181,14 +224,28 @@ export default function DiscoveryQuiz() {
                   return (
                     <div
                       key={dest.id}
-                      className="bento-card overflow-hidden flex flex-col justify-between group cursor-pointer hover:border-white/30"
+                      className={`border rounded-2xl overflow-hidden flex flex-col justify-between group cursor-pointer transition-all ${
+                        isDark
+                          ? 'bg-[#131318] border-white/10 hover:border-white/30'
+                          : 'bg-white border-black/10 hover:border-black/30 shadow-sm'
+                      }`}
                       onClick={() => handleLaunchDestination(dest)}
                     >
                       <div className="relative h-32 w-full overflow-hidden">
-                        <img src={photo} alt={dest.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#131318] to-transparent opacity-80" />
+                        <img
+                          src={photo}
+                          alt={dest.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <div
+                          className={`absolute inset-0 bg-gradient-to-t ${
+                            isDark ? 'from-[#131318]' : 'from-slate-900/80'
+                          } to-transparent opacity-80`}
+                        />
                         <div className="absolute bottom-2 left-3 right-3">
-                          <div className="text-[10px] text-zinc-400 uppercase font-mono">{dest.country}</div>
+                          <div className="text-[10px] text-zinc-300 uppercase font-mono">
+                            {dest.country || (dest.name.includes(',') ? dest.name.split(',')[1].trim() : '')}
+                          </div>
                           <div className="text-sm font-bold text-white truncate">{dest.name}</div>
                         </div>
                       </div>
@@ -214,7 +271,11 @@ export default function DiscoveryQuiz() {
                     setCurrentStep(0);
                     setAnswers({});
                   }}
-                  className="bento-pill text-xs py-1.5 px-4"
+                  className={`text-xs font-bold py-2 px-5 rounded-full transition-all cursor-pointer ${
+                    isDark
+                      ? 'bg-white/10 text-white hover:bg-white/20 border border-white/15'
+                      : 'bg-black/5 text-slate-800 hover:bg-black/10 border border-black/10'
+                  }`}
                 >
                   Restart Quiz
                 </button>
