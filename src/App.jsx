@@ -5,6 +5,7 @@ import { ItineraryProvider, useItinerary } from './context/ItineraryContext';
 import { CurrencyProvider } from './context/CurrencyContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { CompareProvider } from './context/CompareContext';
+import useIsMobile from './hooks/useIsMobile';
 import MapLibreGlobe from './features/globe-home/MapLibreGlobe';
 import GlobeSearch from './features/globe-home/GlobeSearch';
 import InteractiveTitle from './components/ui/InteractiveTitle';
@@ -43,7 +44,8 @@ function TripNestMain() {
   const isOverlayHidden = selectedDestination !== null || isTransitioning || flightTarget !== null;
   const quizActive = viewState === 'DISCOVERY_QUIZ';
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  // Instantaneous, reactive mobile/desktop breakpoint detection (no reload needed)
+  const isMobile = useIsMobile(768);
 
   const destPhoto = useMemo(() => {
     if (selectedDestination) return getDestinationPhoto(selectedDestination);
@@ -110,7 +112,7 @@ function TripNestMain() {
               initial={{ x: '100%', opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: '100%', opacity: 0 }}
-              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.8 }}
               className={`fixed top-4 right-4 bottom-4 w-[460px] max-w-[calc(100vw-2rem)] z-40 apple-liquid-glass rounded-[28px] overflow-hidden shadow-2xl flex flex-col border ${
                 isDark ? 'border-white/15 text-white' : 'border-black/10 text-[#0F172A]'
               }`}
@@ -131,10 +133,10 @@ function TripNestMain() {
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={activeDrawer}
-                    initial={{ opacity: 0, x: 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -12 }}
-                    transition={{ duration: 0.16 }}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
                     className="w-full h-full"
                   >
                     <Suspense
@@ -184,7 +186,7 @@ function TripNestMain() {
         </AnimatePresence>
       )}
 
-      {/* ─── Mobile Apple OS Liquid Bottom Drawer (Clean single header) ─── */}
+      {/* ─── Mobile Apple OS Liquid Bottom Drawer (Generous 92vh height, smooth spring) ─── */}
       {isMobile && (
         <AnimatePresence>
           {activeDrawer && selectedDestination && (
@@ -192,6 +194,7 @@ function TripNestMain() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               className="fixed inset-0 z-50 flex items-end bg-black/80 backdrop-blur-sm"
               onClick={() => setActiveDrawer(null)}
             >
@@ -199,16 +202,16 @@ function TripNestMain() {
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.8 }}
                 onClick={(e) => e.stopPropagation()}
-                className={`w-full max-h-[88vh] apple-liquid-glass rounded-t-[28px] border-t ${
+                className={`w-full h-[92vh] max-h-[94vh] apple-liquid-glass rounded-t-[28px] border-t ${
                   isDark ? 'border-white/15 text-white' : 'border-black/10 text-black'
                 } flex flex-col overflow-hidden shadow-2xl`}
               >
                 {/* Subtle Grab Handle */}
                 <div className="w-12 h-1 bg-white/30 dark:bg-white/30 light:bg-black/20 rounded-full mx-auto my-2.5 shrink-0" />
 
-                <div className="flex-1 overflow-hidden flex flex-col">
+                <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                   <Suspense fallback={null}>
                     {activeDrawer === 'overview' && (
                       <DetailPanel

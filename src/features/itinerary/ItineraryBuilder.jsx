@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -59,7 +59,7 @@ function formatHour(hour) {
   return `${h12}${mStr} ${period}`;
 }
 
-// ─── Sortable Activity Item Component ───
+// ─── Sortable Activity Item Component with Ultra-Smooth Spring Transitions ───
 function SortableActivityCard({
   activity,
   dayId,
@@ -98,13 +98,18 @@ function SortableActivityCard({
   const endH = startH + durH;
 
   return (
-    <div
+    <motion.div
+      layout="position"
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+      transition={{ duration: 0.28, ease: [0.25, 1, 0.5, 1] }}
       ref={setNodeRef}
       style={style}
-      className={`rounded-2xl transition-all duration-200 border ${
+      className={`rounded-2xl transition-shadow duration-200 border ${
         isDark
           ? 'bg-[#121826]/75 border-white/10 hover:border-white/20'
-          : 'bg-white/80 border-black/10 hover:border-black/20 shadow-sm'
+          : 'bg-white/85 border-black/10 hover:border-black/20 shadow-sm'
       } backdrop-blur-xl overflow-hidden`}
     >
       {/* Primary Row */}
@@ -174,78 +179,84 @@ function SortableActivityCard({
       </div>
 
       {/* Expandable Edit Drawer */}
-      {isExpanded && (
-        <div
-          className={`p-4 border-t ${
-            isDark ? 'border-white/10 bg-[#16161E]' : 'border-black/10 bg-slate-50'
-          } space-y-3`}
-        >
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
-                Category
-              </label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                className={`w-full ${
-                  isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
-                } border rounded-xl text-xs p-2 outline-none font-medium`}
-              >
-                <option value="activity">Sight / Attraction</option>
-                <option value="food">Dining / Cuisine</option>
-                <option value="stay">Hotel / Stay</option>
-                <option value="transport">Transit</option>
-                <option value="rest">Leisure / Break</option>
-              </select>
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
+            className={`p-4 border-t ${
+              isDark ? 'border-white/10 bg-[#16161E]' : 'border-black/10 bg-slate-50'
+            } space-y-3 overflow-hidden`}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                  Category
+                </label>
+                <select
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  className={`w-full ${
+                    isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+                  } border rounded-xl text-xs p-2 outline-none font-medium`}
+                >
+                  <option value="activity">Sight / Attraction</option>
+                  <option value="food">Dining / Cuisine</option>
+                  <option value="stay">Hotel / Stay</option>
+                  <option value="transport">Transit</option>
+                  <option value="rest">Leisure / Break</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                  Est. Cost ($)
+                </label>
+                <input
+                  type="number"
+                  value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                  className={`w-full ${
+                    isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+                  } border rounded-xl text-xs p-2 outline-none font-semibold`}
+                />
+              </div>
             </div>
 
             <div>
               <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
-                Est. Cost ($)
+                Notes & Reservations
               </label>
               <input
-                type="number"
-                value={cost}
-                onChange={(e) => setCost(e.target.value)}
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="e.g. Booking confirmation #, transit route..."
                 className={`w-full ${
                   isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
-                } border rounded-xl text-xs p-2 outline-none font-semibold`}
+                } border rounded-xl text-xs p-2 outline-none placeholder:text-slate-400 font-medium`}
               />
             </div>
-          </div>
 
-          <div>
-            <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
-              Notes & Reservations
-            </label>
-            <input
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Booking confirmation #, transit route..."
-              className={`w-full ${
-                isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
-              } border rounded-xl text-xs p-2 outline-none placeholder:text-slate-400 font-medium`}
-            />
-          </div>
-
-          <div className="flex justify-end pt-1">
-            <button
-              type="button"
-              onClick={handleSaveDetails}
-              className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black text-xs font-bold rounded-full transition-all cursor-pointer shadow-sm"
-            >
-              Save Changes
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={handleSaveDetails}
+                className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black text-xs font-bold rounded-full transition-all cursor-pointer shadow-sm"
+              >
+                Save Changes
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
-// ─── Interactive Apple OS Liquid Calendar Modal ───
+// ─── Interactive Apple OS Liquid Calendar Modal (Fits Naturally Without Sliders/Scrollbars) ───
 function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRange, isDark }) {
   const [selectedStart, setSelectedStart] = useState(
     startDate || new Date().toISOString().split('T')[0]
@@ -261,6 +272,16 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
     const d = selectedStart ? new Date(selectedStart) : new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
+
+  // ESC key listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -315,54 +336,84 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div
-        className={`w-full max-w-sm apple-liquid-glass rounded-[28px] p-5 shadow-2xl border ${
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md select-none"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300, mass: 0.8 }}
+        className={`w-full max-w-[360px] sm:max-w-[380px] apple-liquid-glass rounded-[28px] p-5 shadow-2xl border ${
           isDark ? 'border-white/15 text-white' : 'border-black/10 text-slate-900'
-        } space-y-4`}
+        } space-y-3.5 my-auto relative`}
       >
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
           <div className="flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <h3 className="text-sm font-bold uppercase tracking-wider">
-              Travel Dates
-            </h3>
+            <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <CalendarIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider">
+                Travel Dates
+              </h3>
+              <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">
+                Tap start & end dates
+              </p>
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white"
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${
+              isDark
+                ? 'bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white border-white/15'
+                : 'bg-black/5 hover:bg-black/10 text-slate-700 hover:text-black border-black/10'
+            }`}
+            title="Close (Esc)"
           >
-            ✕
+            <CloseIcon className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Month Navigation */}
         <div className="flex items-center justify-between px-1">
-          <span className="text-xs font-bold text-slate-800 dark:text-white">{monthYearStr}</span>
-          <div className="flex items-center gap-1">
+          <span className="text-xs font-bold text-slate-900 dark:text-white">{monthYearStr}</span>
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 text-xs font-bold"
+              className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-white/10 hover:bg-white/20 border-white/15 text-white'
+                  : 'bg-black/5 hover:bg-black/10 border-black/10 text-slate-900'
+              } text-xs font-bold`}
             >
               ‹
             </button>
             <button
               type="button"
               onClick={handleNextMonth}
-              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 text-xs font-bold"
+              className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+                isDark
+                  ? 'bg-white/10 hover:bg-white/20 border-white/15 text-white'
+                  : 'bg-black/5 hover:bg-black/10 border-black/10 text-slate-900'
+              } text-xs font-bold`}
             >
               ›
             </button>
           </div>
         </div>
 
-        {/* Calendar Day Grid */}
+        {/* Calendar Day Grid (Breathable and zero scrollbar) */}
         <div className="space-y-1">
           <div className="grid grid-cols-7 gap-1 text-center">
             {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
-              <span key={d} className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">
+              <span key={d} className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 py-0.5">
                 {d}
               </span>
             ))}
@@ -388,12 +439,14 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
                   key={`day-${dayNum}`}
                   type="button"
                   onClick={() => handleDayClick(dayNum)}
-                  className={`h-8 rounded-full text-xs font-semibold flex items-center justify-center transition-all cursor-pointer ${
+                  className={`h-8 w-8 mx-auto rounded-full text-xs font-semibold flex items-center justify-center transition-all cursor-pointer select-none active:scale-95 ${
                     isStart || isEnd
-                      ? 'bg-emerald-500 text-white font-bold shadow-md'
+                      ? 'bg-emerald-500 text-slate-950 font-black shadow-md scale-105'
                       : isInRange
-                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
-                      : 'hover:bg-black/5 dark:hover:bg-white/10 text-slate-700 dark:text-zinc-300'
+                      ? 'bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-bold'
+                      : isDark
+                      ? 'hover:bg-white/10 text-zinc-300'
+                      : 'hover:bg-black/5 text-slate-700'
                   }`}
                 >
                   {dayNum}
@@ -405,30 +458,34 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
 
         {/* Selection Summary Pill */}
         <div className="p-2.5 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-between text-xs font-semibold">
-          <span className="text-slate-600 dark:text-zinc-400">Duration:</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+          <span className="text-slate-500 dark:text-zinc-400 text-[11px]">Duration:</span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">
             {calculateDays()} Days Scheduled
           </span>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 pt-1">
+        {/* Actions (Always clean and visible) */}
+        <div className="flex items-center gap-2 pt-1 border-t border-black/10 dark:border-white/10">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-full text-xs font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 text-slate-600 dark:text-zinc-300 transition-all cursor-pointer"
+            className={`flex-1 py-2 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+              isDark
+                ? 'border-white/15 text-zinc-300 hover:bg-white/10'
+                : 'border-black/15 text-slate-700 hover:bg-black/5'
+            }`}
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleApply}
-            className="flex-1 py-2.5 rounded-full text-xs font-bold bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-zinc-200 text-white dark:text-black transition-all cursor-pointer shadow-md"
+            className="flex-1 py-2 rounded-full text-xs font-bold bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-zinc-200 text-white dark:text-black transition-all cursor-pointer shadow-md"
           >
             Apply Dates
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -509,7 +566,11 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className={`h-full flex flex-col ${isDark ? 'text-white' : 'text-slate-900'} font-sans select-none overflow-hidden`}>
+    <motion.div
+      layout="position"
+      transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
+      className={`h-full flex flex-col ${isDark ? 'text-white' : 'text-slate-900'} font-sans select-none overflow-hidden`}
+    >
       {/* ─── Top Navigation Header ─── */}
       <div
         className={`p-3.5 sm:p-4 border-b ${
@@ -567,7 +628,7 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
         </div>
       </div>
 
-      {/* ─── Day Selector Tabs ─── */}
+      {/* ─── Day Selector Tabs with Layout Animation ─── */}
       <div
         className={`flex items-center gap-2 p-3 border-b ${
           isDark ? 'border-white/10 bg-[#0E0E14]/80' : 'border-black/10 bg-[#F4F5F7]/80'
@@ -576,10 +637,12 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
         {days.map((day, idx) => {
           const isSelected = day.id === activeDay.id;
           return (
-            <button
+            <motion.button
+              layout="position"
               key={day.id}
               onClick={() => setSelectedDayId(day.id)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap border ${
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap border ${
                 isSelected
                   ? isDark
                     ? 'bg-white text-black font-bold border-white shadow-sm'
@@ -597,13 +660,17 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
               >
                 ({day.activities?.length || 0})
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>
 
-      {/* ─── Main Schedule Workspace ─── */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 no-scrollbar">
+      {/* ─── Main Schedule Workspace (Smooth Ease-in-out layout transitions) ─── */}
+      <motion.div
+        layout="position"
+        transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
+        className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 no-scrollbar"
+      >
         {/* Day Header Actions */}
         <div className="flex items-center justify-between">
           <div>
@@ -645,52 +712,74 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Activity Timeline List */}
-        {(!activeDay.activities || activeDay.activities.length === 0) ? (
-          <div className="py-12 text-center rounded-3xl border border-dashed border-black/10 dark:border-white/10 p-6 space-y-2">
-            <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-              No stops scheduled for this day yet.
-            </p>
-            <p className="text-[11px] text-slate-400 dark:text-zinc-500">
-              Drop a waypoint on the 3D map or click "+ Custom Event" above.
-            </p>
-          </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={activeDay.activities.map((a) => a.uid)}
-              strategy={verticalListSortingStrategy}
+        {/* Activity Timeline with PopLayout AnimatePresence */}
+        <AnimatePresence mode="popLayout">
+          {(!activeDay.activities || activeDay.activities.length === 0) ? (
+            <motion.div
+              key="empty-state"
+              layout="position"
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+              className="py-12 text-center rounded-3xl border border-dashed border-black/10 dark:border-white/10 p-6 space-y-2"
             >
-              <div className="space-y-2.5">
-                {activeDay.activities.map((act) => (
-                  <SortableActivityCard
-                    key={act.uid}
-                    activity={act}
-                    dayId={activeDay.id}
-                    onRemove={removeActivity}
-                    onUpdate={updateActivity}
-                    formatPrice={formatPrice}
-                    isDark={isDark}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        )}
-      </div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                No stops scheduled for this day yet.
+              </p>
+              <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+                Drop a waypoint on the 3D map or click "+ Custom Event" above.
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="activities-list"
+              layout="position"
+              transition={{ duration: 0.28, ease: [0.25, 1, 0.5, 1] }}
+            >
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={activeDay.activities.map((a) => a.uid)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2.5">
+                    {activeDay.activities.map((act) => (
+                      <SortableActivityCard
+                        key={act.uid}
+                        activity={act}
+                        dayId={activeDay.id}
+                        onRemove={removeActivity}
+                        onUpdate={updateActivity}
+                        formatPrice={formatPrice}
+                        isDark={isDark}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
       {/* ─── Add Custom Activity Modal ─── */}
       <AnimatePresence>
         {showAddCustomModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm select-none"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowAddCustomModal(false);
+            }}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300, mass: 0.8 }}
               className={`w-full max-w-sm apple-liquid-glass rounded-[28px] p-5 shadow-2xl border ${
                 isDark ? 'border-white/15 text-white' : 'border-black/10 text-slate-900'
               } space-y-4`}
@@ -704,13 +793,13 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
                   onClick={() => setShowAddCustomModal(false)}
                   className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white"
                 >
-                  ✕
+                  <CloseIcon className="w-3.5 h-3.5" />
                 </button>
               </div>
 
               <form onSubmit={handleAddCustom} className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider block mb-1 text-slate-600 dark:text-zinc-400">
                     Event Title
                   </label>
                   <input
@@ -718,35 +807,16 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
                     required
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="e.g. Sunset Boat Cruise, Ramen Tasting..."
+                    placeholder="e.g. Sunset Boat Cruise"
                     className={`w-full ${
                       isDark ? 'bg-white/10 text-white border-white/15' : 'bg-black/5 text-slate-900 border-black/15'
-                    } border rounded-full px-3.5 py-2 text-xs outline-none font-medium`}
+                    } border rounded-xl text-xs p-2.5 outline-none font-medium`}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
-                      Category
-                    </label>
-                    <select
-                      value={customType}
-                      onChange={(e) => setCustomType(e.target.value)}
-                      className={`w-full ${
-                        isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
-                      } border rounded-full px-3 py-2 text-xs outline-none font-medium`}
-                    >
-                      <option value="activity">Sight / Activity</option>
-                      <option value="food">Dining / Food</option>
-                      <option value="stay">Hotel / Stay</option>
-                      <option value="transport">Transit</option>
-                      <option value="rest">Leisure</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider block mb-1 text-slate-600 dark:text-zinc-400">
                       Duration (Hrs)
                     </label>
                     <input
@@ -758,24 +828,43 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
                       onChange={(e) => setCustomDuration(e.target.value)}
                       className={`w-full ${
                         isDark ? 'bg-white/10 text-white border-white/15' : 'bg-black/5 text-slate-900 border-black/15'
-                      } border rounded-full px-3.5 py-2 text-xs outline-none font-semibold`}
+                      } border rounded-xl text-xs p-2.5 outline-none font-medium`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider block mb-1 text-slate-600 dark:text-zinc-400">
+                      Est. Cost ($)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={customCost}
+                      onChange={(e) => setCustomCost(e.target.value)}
+                      className={`w-full ${
+                        isDark ? 'bg-white/10 text-white border-white/15' : 'bg-black/5 text-slate-900 border-black/15'
+                      } border rounded-xl text-xs p-2.5 outline-none font-medium`}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
-                    Est. Cost ($)
+                  <label className="text-[10px] font-bold uppercase tracking-wider block mb-1 text-slate-600 dark:text-zinc-400">
+                    Category
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={customCost}
-                    onChange={(e) => setCustomCost(e.target.value)}
+                  <select
+                    value={customType}
+                    onChange={(e) => setCustomType(e.target.value)}
                     className={`w-full ${
-                      isDark ? 'bg-white/10 text-white border-white/15' : 'bg-black/5 text-slate-900 border-black/15'
-                    } border rounded-full px-3.5 py-2 text-xs outline-none font-semibold`}
-                  />
+                      isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+                    } border rounded-xl text-xs p-2.5 outline-none font-medium`}
+                  >
+                    <option value="activity">Sight / Attraction</option>
+                    <option value="food">Dining / Cuisine</option>
+                    <option value="stay">Hotel / Stay</option>
+                    <option value="transport">Transit</option>
+                    <option value="rest">Leisure / Break</option>
+                  </select>
                 </div>
 
                 <div className="flex items-center gap-2 pt-2">
@@ -799,15 +888,19 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
         )}
       </AnimatePresence>
 
-      {/* ─── Travel Dates Calendar Modal ─── */}
-      <TravelCalendarModal
-        isOpen={showCalendarModal}
-        onClose={() => setShowCalendarModal(false)}
-        startDate={startDate}
-        endDate={endDate}
-        onSaveDateRange={setDateRange}
-        isDark={isDark}
-      />
-    </div>
+      {/* ─── Travel Dates Calendar Modal (Z-[9999], Mobile Viewport Safe, Zero Sliders) ─── */}
+      <AnimatePresence>
+        {showCalendarModal && (
+          <TravelCalendarModal
+            isOpen={showCalendarModal}
+            onClose={() => setShowCalendarModal(false)}
+            startDate={startDate}
+            endDate={endDate}
+            onSaveDateRange={(s, e) => setDateRange(s, e)}
+            isDark={isDark}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
