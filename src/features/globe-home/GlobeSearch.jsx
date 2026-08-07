@@ -24,22 +24,19 @@ const ENCOURAGING_PLACEHOLDERS = [
 export default function GlobeSearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
 
+  const containerRef = useRef(null);
   const inputRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 
-  const {
-    flyToDestination,
-    showQuiz,
-    openCompare,
-  } = useApp();
-
+  const { flyToDestination, showQuiz, openCompare } = useApp();
   const { compareList } = useCompare();
 
-  // Animated rotating encouraging placeholder
+  // Animated rotating placeholder
   useEffect(() => {
     if (query.trim()) return;
     const interval = setInterval(() => {
@@ -48,28 +45,55 @@ export default function GlobeSearch() {
     return () => clearInterval(interval);
   }, [query]);
 
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
+
   const handleSearch = useCallback(async (text) => {
-    if (!text.trim()) {
+    const trimmed = text.trim();
+    if (!trimmed) {
       setResults([]);
       setIsSearching(false);
       return;
     }
 
-    setIsSearching(true);
-
+    const q = trimmed.toLowerCase();
     const localDests = getDestinations().filter(
       (d) =>
-        d.name.toLowerCase().includes(text.toLowerCase()) ||
-        d.country?.toLowerCase().includes(text.toLowerCase()) ||
-        d.type?.some((t) => t.toLowerCase().includes(text.toLowerCase()))
+        d.name.toLowerCase().includes(q) ||
+        d.type?.some((t) => t.toLowerCase().includes(q)) ||
+        (d.country && d.country.toLowerCase().includes(q))
     );
 
+    // Show instant local matches immediately
+    setResults(localDests.slice(0, 6));
+    setSelectedIndex(0);
+
+    setIsSearching(true);
     try {
-      const geoResults = await geocode(text);
+      const geoResults = await geocode(trimmed);
       const combined = [
         ...localDests.map((d) => ({ ...d, source: 'curated' })),
-        ...(geoResults || [])
-          .filter((g) => !localDests.some((ld) => ld.name.toLowerCase() === g.name.toLowerCase()))
+        ...(Array.isArray(geoResults) ? geoResults : [])
+          .filter(
+            (g) =>
+              !localDests.some(
+                (ld) =>
+                  ld.name.toLowerCase().includes(g.name.toLowerCase()) ||
+                  g.name.toLowerCase().includes(ld.name.toLowerCase())
+              )
+          )
           .map((g) => ({
             id: `geo-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             name: g.name,
@@ -80,6 +104,7 @@ export default function GlobeSearch() {
             budgetTier: 'mid',
             crowdLevel: 'medium',
             source: 'geocoded',
+            activities: [],
           })),
       ];
 
@@ -96,10 +121,26 @@ export default function GlobeSearch() {
     setQuery(val);
     setIsOpen(true);
 
+    // Immediate instant local filter
+    if (!val.trim()) {
+      setResults([]);
+      return;
+    }
+
+    const q = val.trim().toLowerCase();
+    const instantLocal = getDestinations().filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.type?.some((t) => t.toLowerCase().includes(q)) ||
+        (d.country && d.country.toLowerCase().includes(q))
+    );
+    setResults(instantLocal.slice(0, 6));
+    setSelectedIndex(0);
+
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     searchTimeoutRef.current = setTimeout(() => {
       handleSearch(val);
-    }, 200);
+    }, 250);
   };
 
   const handleSelectResult = (dest) => {
@@ -108,8 +149,66 @@ export default function GlobeSearch() {
     flyToDestination(dest);
   };
 
+  const handleKeyDown = async (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (results.length > 0) {
+        setSelectedIndex((prev) => (prev + 1) % results.length);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (results.length > 0) {
+        setSelectedIndex((prev) => (prev <= 0 ? results.length - 1 : prev - 1));
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+
+      if (results.length > 0) {
+        const target = results[selectedIndex] || results[0];
+        handleSelectResult(target);
+        return;
+      }
+
+      // If no results rendered yet, geocode query immediately on Enter
+      if (query.trim()) {
+        const trimmed = query.trim();
+        setIsSearching(true);
+        try {
+          const geoResults = await geocode(trimmed);
+          if (Array.isArray(geoResults) && geoResults.length > 0) {
+            const first = geoResults[0];
+            handleSelectResult({
+              id: `geo-${Date.now()}`,
+              name: first.name,
+              country: first.country || '',
+              lat: first.lat,
+              lng: first.lng,
+              type: ['custom'],
+              budgetTier: 'mid',
+              crowdLevel: 'medium',
+              source: 'geocoded',
+              activities: [],
+            });
+          }
+        } catch {
+          // If all geocoding fails, fallback to local match
+          const fallback = getDestinations().find((d) =>
+            d.name.toLowerCase().includes(trimmed.toLowerCase())
+          );
+          if (fallback) {
+            handleSelectResult(fallback);
+          }
+        } finally {
+          setIsSearching(false);
+        }
+      }
+    }
+  };
+
   return (
-    <div className="relative w-full max-w-xl mx-auto select-none font-sans px-2">
+    <div ref={containerRef} className="relative w-full max-w-xl mx-auto select-none font-sans px-2">
       {/* ─── Apple OS 26 Liquid Glass Search Capsule ─── */}
       <div className="relative apple-liquid-glass rounded-full p-2 pl-3.5 pr-2 flex items-center gap-2.5 shadow-2xl transition-all">
         {/* Soft Glowing Search Glyph */}
@@ -124,6 +223,7 @@ export default function GlobeSearch() {
             type="text"
             value={query}
             onChange={onInputChange}
+            onKeyDown={handleKeyDown}
             onFocus={() => setIsOpen(true)}
             className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-900 dark:text-white outline-none z-10"
           />
@@ -200,23 +300,32 @@ export default function GlobeSearch() {
             transition={{ duration: 0.18 }}
             className="absolute top-full inset-x-2 mt-2 apple-liquid-glass rounded-[24px] p-2 shadow-2xl z-50 max-h-[50vh] sm:max-h-80 overflow-y-auto no-scrollbar"
           >
-            {isSearching ? (
+            {isSearching && results.length === 0 ? (
               <div className="p-4 text-center text-xs font-semibold text-slate-500 dark:text-zinc-400">
                 Searching destinations worldwide...
               </div>
             ) : results.length === 0 ? (
               <div className="p-4 text-center text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                No matching locations found for "{query}"
+                Press Enter to search "{query}" globally
               </div>
             ) : (
               <div className="space-y-1">
-                {results.map((dest) => {
+                {results.map((dest, idx) => {
                   const photo = getDestinationPhoto(dest);
+                  const isSelected = idx === selectedIndex;
+                  const countryLabel =
+                    dest.country ||
+                    (dest.name.includes(',') ? dest.name.split(',')[1].trim() : 'Destination');
+
                   return (
                     <div
                       key={dest.id}
                       onClick={() => handleSelectResult(dest)}
-                      className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer flex items-center gap-3 transition-colors group"
+                      className={`p-2 rounded-xl cursor-pointer flex items-center gap-3 transition-colors group ${
+                        isSelected
+                          ? 'bg-black/10 dark:bg-white/15'
+                          : 'hover:bg-black/5 dark:hover:bg-white/10'
+                      }`}
                     >
                       {photo ? (
                         <img
@@ -234,11 +343,11 @@ export default function GlobeSearch() {
                           {dest.name}
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
-                          {dest.country || 'Custom Location'} {dest.type && `• ${dest.type.join(', ')}`}
+                          {countryLabel} {dest.type && dest.type.length > 0 && `• ${dest.type.join(', ')}`}
                         </div>
                       </div>
                       <span className="text-xs text-slate-400 dark:text-zinc-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                        →
+                        ↵
                       </span>
                     </div>
                   );

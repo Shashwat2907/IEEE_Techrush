@@ -2,13 +2,24 @@ import { ENDPOINTS } from '../config/api';
 import destinationsData from '../data/destinations.json';
 
 /**
- * Geocode a query string to lat/lng using Nominatim (free, no API key)
- * @param {string} query - place name or address
- * @returns {Promise<{lat: number, lng: number, name: string}|null>}
+ * Normalize longitude to [-180, 180] and latitude to [-85, 85]
+ */
+export function normalizeCoordinates(lat, lng) {
+  const normalizedLng = ((((lng + 180) % 360) + 360) % 360) - 180;
+  const clampedLat = Math.max(-85, Math.min(85, lat));
+  return { lat: clampedLat, lng: normalizedLng };
+}
+
+/**
+ * Geocode a query string to a list of matching places
+ * @param {string} query - place name, city, landmark, or address
+ * @returns {Promise<Array<{lat: number, lng: number, name: string, country: string, displayName: string}>>}
  */
 export async function geocode(query) {
+  if (!query || !query.trim()) return [];
+
   try {
-    const url = `${ENDPOINTS.GEOCODING}/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1`;
+    const url = `${ENDPOINTS.GEOCODING}/search?format=json&q=${encodeURIComponent(query.trim())}&limit=6&addressdetails=1`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);
 
@@ -21,35 +32,45 @@ export async function geocode(query) {
     if (!res.ok) throw new Error(`Geocoding failed: ${res.status}`);
 
     const data = await res.json();
-    if (data.length === 0) return geocodeFallback(query);
+    if (!data || data.length === 0) return geocodeFallback(query);
 
-    const item = data[0];
-    const name = formatDisplayName(item);
+    return data.map((item) => {
+      const coords = normalizeCoordinates(parseFloat(item.lat), parseFloat(item.lon));
+      const formattedName = formatDisplayName(item);
+      const country = item.address?.country || '';
 
-    return {
-      lat: parseFloat(item.lat),
-      lng: parseFloat(item.lon),
-      name: name || item.display_name,
-    };
+      return {
+        lat: coords.lat,
+        lng: coords.lng,
+        name: formattedName || item.display_name.split(',')[0].trim(),
+        country,
+        displayName: item.display_name || formattedName,
+      };
+    });
   } catch (err) {
-    console.warn('Geocoding error, falling back to mock:', err.message);
+    console.warn('Geocoding error, falling back to local database:', err.message);
     return geocodeFallback(query);
   }
 }
 
 /**
- * Fallback: search destinations.json for a matching name
+ * Fallback: search destinations.json for matching names
  */
 function geocodeFallback(query) {
   const q = query.toLowerCase().trim();
-  const match = destinationsData.find(d =>
-    d.name.toLowerCase().includes(q) ||
-    (d.country && d.country.toLowerCase().includes(q))
+  const matches = destinationsData.filter(
+    (d) =>
+      d.name.toLowerCase().includes(q) ||
+      (d.country && d.country.toLowerCase().includes(q))
   );
-  if (match) {
-    return { lat: match.lat, lng: match.lng, name: match.name };
-  }
-  return null;
+
+  return matches.slice(0, 5).map((d) => ({
+    lat: d.lat,
+    lng: d.lng,
+    name: d.name,
+    country: d.country || '',
+    displayName: `${d.name}, ${d.country || ''}`,
+  }));
 }
 
 /**
@@ -58,9 +79,11 @@ function geocodeFallback(query) {
  * @param {number} lng
  * @returns {Promise<{name: string, displayName: string, city: string, country: string}>}
  */
-export async function reverseGeocode(lat, lng) {
+export async function reverseGeocode(rawLat, rawLng) {
+  const { lat, lng } = normalizeCoordinates(rawLat, rawLng);
+
   try {
-    const url = `${ENDPOINTS.GEOCODING}/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`;
+    const url = `${ENDPOINTS.GEOCODING}/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);
 
@@ -76,7 +99,13 @@ export async function reverseGeocode(lat, lng) {
     if (!data || data.error) return reverseGeocodeFallback(lat, lng);
 
     const name = formatDisplayName(data);
-    const city = data.address?.city || data.address?.town || data.address?.municipality || data.address?.village || data.address?.state || '';
+    const city =
+      data.address?.city ||
+      data.address?.town ||
+      data.address?.municipality ||
+      data.address?.village ||
+      data.address?.state ||
+      '';
     const country = data.address?.country || '';
 
     return {
@@ -97,20 +126,30 @@ export async function reverseGeocode(lat, lng) {
 function formatDisplayName(item) {
   if (!item) return '';
   const addr = item.address || {};
-  
+
   // If specific POI or attraction exists
-  const poi = addr.tourism || addr.historic || addr.leisure || addr.amenity || addr.building || item.name;
+  const poi =
+    addr.tourism ||
+    addr.historic ||
+    addr.leisure ||
+    addr.amenity ||
+    addr.building ||
+    addr.natural ||
+    item.name;
   const road = addr.road || addr.pedestrian || addr.street;
   const suburb = addr.suburb || addr.neighbourhood || addr.quarter;
   const city = addr.city || addr.town || addr.municipality || addr.village;
+  const state = addr.state;
   const country = addr.country;
 
   const parts = [];
-  if (poi) parts.push(poi);
+  if (poi && poi !== city && poi !== country) parts.push(poi);
   else if (road) parts.push(road);
-  
-  if (suburb && !parts.includes(suburb)) parts.push(suburb);
+
+  if (suburb && !parts.includes(suburb) && suburb !== city) parts.push(suburb);
   if (city && !parts.includes(city)) parts.push(city);
+  else if (state && !parts.includes(state)) parts.push(state);
+
   if (parts.length === 0 && country) parts.push(country);
 
   if (parts.length > 0) {
@@ -129,7 +168,6 @@ function formatDisplayName(item) {
  * Fallback when reverse geocoding is unavailable
  */
 function reverseGeocodeFallback(lat, lng) {
-  // Find nearest destination from our curated database
   let closest = null;
   let minDist = Infinity;
 
@@ -143,17 +181,17 @@ function reverseGeocodeFallback(lat, lng) {
     }
   }
 
-  if (closest && minDist < 0.8) {
+  if (closest && minDist < 1.2) {
     return {
-      name: `Near ${closest.name}`,
-      displayName: `${closest.name} (${lat.toFixed(3)}°, ${lng.toFixed(3)}°)`,
+      name: closest.name,
+      displayName: `${closest.name}, ${closest.country || ''}`,
       city: closest.name.split(',')[0],
-      country: closest.name.split(',')[1] || '',
+      country: closest.country || '',
     };
   }
 
   return {
-    name: `Location (${lat.toFixed(3)}°, ${lng.toFixed(3)}°)`,
+    name: `Waypoint (${lat.toFixed(2)}°, ${lng.toFixed(2)}°)`,
     displayName: `Lat: ${lat.toFixed(4)}°, Lng: ${lng.toFixed(4)}°`,
     city: '',
     country: '',

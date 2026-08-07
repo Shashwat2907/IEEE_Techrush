@@ -345,12 +345,16 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
     const handleMoveEnd = () => {
       map.off('moveend', handleMoveEnd);
       arriveAtDestination(flightTarget);
-      onToggleDrawer('overview');
+      if (onOpenDrawer) {
+        onOpenDrawer('overview');
+      } else if (onToggleDrawer) {
+        onToggleDrawer('overview');
+      }
     };
 
     map.on('moveend', handleMoveEnd);
     return () => map.off('moveend', handleMoveEnd);
-  }, [flightTarget, isTransitioning, mapLoaded, arriveAtDestination, onToggleDrawer, viewDimension]);
+  }, [flightTarget, isTransitioning, mapLoaded, arriveAtDestination, onOpenDrawer, onToggleDrawer, viewDimension]);
 
   // ─── Return to Globe View ───
   const handleReturnToGlobe = useCallback(() => {
@@ -534,7 +538,10 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
 
       if (dist > 8 || dt > 450) return;
 
-      const { lng, lat } = e.lngLat;
+      const rawLng = e.lngLat.lng;
+      const rawLat = e.lngLat.lat;
+      const lng = ((((rawLng + 180) % 360) + 360) % 360) - 180;
+      const lat = Math.max(-85, Math.min(85, rawLat));
 
       // MODE 1: Destination View — Waypoint Drop
       if (isDestinationView) {
@@ -662,6 +669,7 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
     placeMarker,
     clearMarker,
     addActivity,
+    onOpenDrawer,
     onToggleDrawer,
     createPinPopupContent,
     flyToDestination,

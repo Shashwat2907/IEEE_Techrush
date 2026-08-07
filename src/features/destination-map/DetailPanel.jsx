@@ -30,6 +30,18 @@ export default function DetailPanel({
 
   const photoUrl = useMemo(() => getDestinationPhoto(destination), [destination]);
 
+  const displayActivities = useMemo(() => {
+    if (destination?.activities && destination.activities.length > 0) {
+      return destination.activities;
+    }
+    const cleanName = destination?.name?.split(',')[0] || 'Local Area';
+    return [
+      { name: `Explore ${cleanName} Historic District & Architecture`, durationHrs: 2.5, cost: 0, type: 'activity' },
+      { name: `Local Markets & Culinary Tasting in ${cleanName}`, durationHrs: 2.0, cost: 25, type: 'food' },
+      { name: `Panoramic Sunset & Scenic Landscape Walk`, durationHrs: 2.0, cost: 0, type: 'activity' },
+    ];
+  }, [destination]);
+
   useEffect(() => {
     let isMounted = true;
     if (destination?.lat !== undefined && destination?.lng !== undefined) {
@@ -262,11 +274,11 @@ export default function DetailPanel({
         </div>
 
         {/* Curated Sights & Experiences */}
-        {destination.activities && destination.activities.length > 0 && (
+        {displayActivities && displayActivities.length > 0 && (
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
-                Curated Sights ({destination.activities.length})
+                {destination.activities?.length ? `Curated Sights (${destination.activities.length})` : 'Suggested Highlights'}
               </span>
               <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">
                 Quick Stage
@@ -274,7 +286,7 @@ export default function DetailPanel({
             </div>
 
             <div className="space-y-2">
-              {destination.activities.map((act, idx) => {
+              {displayActivities.map((act, idx) => {
                 const isAdded = addedActivities.has(idx);
                 return (
                   <div
