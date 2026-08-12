@@ -58,7 +58,7 @@ const VOYAGER_SOURCE = {
   maxzoom: 19,
 };
 
-export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDrawer }) {
+export default function MapLibreGlobe() {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -81,6 +81,9 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
     routeFlythroughId,
     showCrowdHeatmap,
     toggleCrowdHeatmap,
+    activeDrawer,
+    setActiveDrawer,
+    toggleDrawer,
   } = useApp();
 
   const { isDark, toggleTheme, setTheme } = useTheme();
@@ -385,16 +388,12 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
     const handleMoveEnd = () => {
       map.off('moveend', handleMoveEnd);
       arriveAtDestination(flightTarget);
-      if (onOpenDrawer) {
-        onOpenDrawer('overview');
-      } else if (onToggleDrawer) {
-        onToggleDrawer('overview');
-      }
+      setActiveDrawer('overview');
     };
 
     map.on('moveend', handleMoveEnd);
     return () => map.off('moveend', handleMoveEnd);
-  }, [flightTarget, isTransitioning, mapLoaded, arriveAtDestination, onOpenDrawer, onToggleDrawer, viewDimension]);
+  }, [flightTarget, isTransitioning, mapLoaded, arriveAtDestination, setActiveDrawer, viewDimension]);
 
   // ─── Return to Globe View ───
   const handleReturnToGlobe = useCallback(() => {
@@ -420,9 +419,9 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
     });
 
     setViewDimension('2D');
-    onToggleDrawer(null);
+    setActiveDrawer(null);
     navigateToGlobe(false);
-  }, [navigateToGlobe, onToggleDrawer]);
+  }, [navigateToGlobe, setActiveDrawer]);
 
   // Pointer tracking
   useEffect(() => {
@@ -621,9 +620,7 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
             lat: activityData.lat,
             lng: activityData.lng,
           });
-          if (onOpenDrawer) {
-            onOpenDrawer('itinerary');
-          }
+          setActiveDrawer('itinerary');
           setTimeout(() => {
             popup.remove();
           }, 400);
@@ -709,8 +706,7 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
     placeMarker,
     clearMarker,
     addActivity,
-    onOpenDrawer,
-    onToggleDrawer,
+    setActiveDrawer,
     createPinPopupContent,
     flyToDestination,
   ]);
@@ -759,6 +755,11 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
               </div>
             </div>
           `;
+          
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            map.flyTo({ center: [actLng, actLat], zoom: 14.5, duration: 1200 });
+          });
 
           const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
             .setLngLat([actLng, actLat])
@@ -889,10 +890,34 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
     const flyNext = () => {
       const stop = stops[index];
       setJourneyStatus(`${index === 0 ? 'Starting at' : 'Navigating to'} ${stop.name} · ${index + 1}/${stops.length}`);
+      
+      markersRef.current.forEach((m, i) => {
+        const el = m.getElement();
+        const pin = el.querySelector('.w-8.h-8') || el.querySelector('div > div.w-8');
+        if (pin) {
+          if (i === index) {
+            pin.classList.add('ring-4', 'ring-emerald-400');
+            pin.classList.remove('border-2', 'border-white/80', 'ring-slate-950/25');
+            pin.classList.add('bg-emerald-500', 'text-slate-950');
+            pin.classList.remove('bg-[#121217]', 'text-white');
+            pin.style.transform = 'scale(1.25)';
+          } else {
+            pin.classList.remove('ring-4', 'ring-emerald-400');
+            pin.classList.add('border-2', 'border-white/80', 'ring-slate-950/25');
+            pin.classList.add('bg-[#121217]', 'text-white');
+            pin.classList.remove('bg-emerald-500', 'text-slate-950');
+            pin.style.transform = 'scale(1)';
+          }
+        }
+      });
+
       map.flyTo({ center: [stop.lng, stop.lat], zoom: 14.5, pitch: 58, bearing: -28 + index * 18, duration: 1600, essential: true });
       index += 1;
       if (index < stops.length) flythroughTimerRef.current = window.setTimeout(flyNext, 1700);
-      else flythroughTimerRef.current = window.setTimeout(() => setJourneyStatus('Journey complete'), 1700);
+      else flythroughTimerRef.current = window.setTimeout(() => {
+        setJourneyStatus('Journey complete');
+        setActiveDrawer('itinerary');
+      }, 1700);
     };
     try { map.setProjection({ type: 'globe' }); } catch {}
     setViewDimension('3D');
@@ -1048,33 +1073,27 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
                       <button
                         key={item.key}
                         type="button"
-                        onClick={() => onToggleDrawer(item.key)}
-                        className={`relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-xs font-bold transition-colors cursor-pointer z-10 whitespace-nowrap ${
+                        onClick={() => toggleDrawer(item.key)}
+                        className={`relative h-9 sm:h-10 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 rounded-full text-[11px] sm:text-xs font-bold transition-colors cursor-pointer z-10 whitespace-nowrap ${
                           isActive
                             ? 'text-slate-900 dark:text-white font-bold'
                             : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'
                         }`}
                       >
                         {isActive && (
-                          <motion.div
-                            layoutId="activeDockBubble"
-                            transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                            className="absolute inset-0 bg-white dark:bg-white/20 rounded-full -z-10 shadow-md border border-black/5 dark:border-white/15"
+                          <div
+                            className={`absolute inset-0 rounded-full -z-10 shadow-md border transition-all duration-300 ${isDark ? 'bg-white/20 border-white/15' : 'bg-white border-black/5'}`}
                           />
                         )}
-                        <span>{item.icon}</span>
+                        <span className="relative shrink-0">
+                          {item.icon}
+                          {item.count > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-emerald-500 rounded-full text-[8px] font-black text-white flex items-center justify-center leading-none">
+                              {item.count > 9 ? '9+' : item.count}
+                            </span>
+                          )}
+                        </span>
                         <span>{item.label}</span>
-                        {item.count > 0 && (
-                          <span
-                            className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
-                              isActive
-                                ? 'bg-slate-900 text-white dark:bg-emerald-400 dark:text-slate-950'
-                                : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-                            }`}
-                          >
-                            {item.count}
-                          </span>
-                        )}
                       </button>
                     );
                   })}

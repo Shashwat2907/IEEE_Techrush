@@ -24,6 +24,7 @@ export function AppProvider({ children }) {
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [routeFlythroughId, setRouteFlythroughId] = useState(0);
   const [showCrowdHeatmap, setShowCrowdHeatmap] = useState(false);
+  const [activeDrawer, setActiveDrawer] = useState(null);
 
   const openCompare = useCallback(() => setIsCompareOpen(true), []);
   const closeCompare = useCallback(() => setIsCompareOpen(false), []);
@@ -94,6 +95,10 @@ export function AppProvider({ children }) {
   }, []);
 
   const toggleCrowdHeatmap = useCallback(() => setShowCrowdHeatmap((v) => !v), []);
+  
+  const toggleDrawer = useCallback((drawerKey) => {
+    setActiveDrawer((prev) => (prev === drawerKey ? null : drawerKey));
+  }, []);
 
   return (
     <AppContext.Provider
@@ -122,6 +127,9 @@ export function AppProvider({ children }) {
         showCrowdHeatmap,
         setShowCrowdHeatmap,
         toggleCrowdHeatmap,
+        activeDrawer,
+        setActiveDrawer,
+        toggleDrawer,
       }}
     >
       {children}

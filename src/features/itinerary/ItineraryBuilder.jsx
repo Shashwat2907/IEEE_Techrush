@@ -100,6 +100,8 @@ function SortableActivityCard({
   dayId,
   onRemove,
   onUpdate,
+  onMove,
+  days,
   formatPrice,
   isDark,
 }) {
@@ -254,19 +256,40 @@ function SortableActivityCard({
               </div>
             </div>
 
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
-                Notes & Reservations
-              </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Booking confirmation #, transit route..."
-                className={`w-full ${
-                  isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
-                } border rounded-xl text-xs p-2 outline-none placeholder:text-slate-400 font-medium`}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                  Day
+                </label>
+                <select
+                  value={dayId}
+                  onChange={(e) => {
+                    onMove(e.target.value);
+                  }}
+                  className={`w-full ${
+                    isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+                  } border rounded-xl text-xs p-2 outline-none font-medium`}
+                >
+                  {days?.map((d) => (
+                    <option key={d.id} value={d.id}>Day {d.dayNumber}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                  Notes & Reservations
+                </label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Booking info..."
+                  className={`w-full ${
+                    isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+                  } border rounded-xl text-xs p-2 outline-none placeholder:text-slate-400 font-medium`}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end pt-1">
@@ -298,8 +321,12 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
   });
 
   const [viewMonth, setViewMonth] = useState(() => {
-    const d = selectedStart ? new Date(selectedStart) : new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1);
+    if (startDate) {
+      const [y, m] = startDate.split('-').map(Number);
+      return new Date(y, m - 1, 1);
+    }
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
   });
 
   // ESC key listener
@@ -331,14 +358,16 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
   };
 
   const handleDayClick = (dayNum) => {
-    const clickedDate = new Date(year, month, dayNum);
-    const clickedStr = clickedDate.toISOString().split('T')[0];
+    const pad = (n) => String(n).padStart(2, '0');
+    const clickedStr = `${year}-${pad(month + 1)}-${pad(dayNum)}`;
+    // Parse dates without UTC offset for comparison
+    const parseLocal = (s) => { const [y,mo,d] = s.split('-').map(Number); return new Date(y, mo-1, d); };
 
     if (!selectedStart || (selectedStart && selectedEnd)) {
       setSelectedStart(clickedStr);
       setSelectedEnd(null);
     } else if (selectedStart && !selectedEnd) {
-      if (new Date(clickedStr) < new Date(selectedStart)) {
+      if (parseLocal(clickedStr) < parseLocal(selectedStart)) {
         setSelectedStart(clickedStr);
       } else {
         setSelectedEnd(clickedStr);
@@ -347,12 +376,13 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
   };
 
   const handleApply = () => {
+    const pad = (n) => String(n).padStart(2, '0');
     if (selectedStart && selectedEnd) {
       onSaveDateRange(selectedStart, selectedEnd);
     } else if (selectedStart) {
-      const d = new Date(selectedStart);
-      d.setDate(d.getDate() + 2);
-      onSaveDateRange(selectedStart, d.toISOString().split('T')[0]);
+      const [y, mo, d] = selectedStart.split('-').map(Number);
+      const end = new Date(y, mo - 1, d + 2);
+      onSaveDateRange(selectedStart, `${end.getFullYear()}-${pad(end.getMonth()+1)}-${pad(end.getDate())}`);
     }
     onClose();
   };
@@ -360,7 +390,9 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
   const calculateDays = () => {
     if (!selectedStart) return 1;
     if (!selectedEnd) return 1;
-    const diff = Math.ceil((new Date(selectedEnd) - new Date(selectedStart)) / (1000 * 60 * 60 * 24)) + 1;
+    const [sy, sm, sd] = selectedStart.split('-').map(Number);
+    const [ey, em, ed] = selectedEnd.split('-').map(Number);
+    const diff = Math.ceil((new Date(ey, em-1, ed) - new Date(sy, sm-1, sd)) / (1000 * 60 * 60 * 24)) + 1;
     return Math.max(1, diff);
   };
 
@@ -452,14 +484,22 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
             ))}
             {Array.from({ length: totalDaysInMonth }).map((_, i) => {
               const dayNum = i + 1;
-              const dateStr = new Date(year, month, dayNum).toISOString().split('T')[0];
+              const pad = (n) => String(n).padStart(2, '0');
+              const dateStr = `${year}-${pad(month + 1)}-${pad(dayNum)}`;
               const isStart = selectedStart === dateStr;
               const isEnd = selectedEnd === dateStr;
               const isInRange =
                 selectedStart &&
                 selectedEnd &&
-                new Date(dateStr) >= new Date(selectedStart) &&
-                new Date(dateStr) <= new Date(selectedEnd);
+                (() => {
+                  const pad = (n) => String(n).padStart(2, '0');
+                  const [sy, sm, sd] = selectedStart.split('-').map(Number);
+                  const [ey, em, ed] = selectedEnd.split('-').map(Number);
+                  const startMs = new Date(sy, sm-1, sd).getTime();
+                  const endMs = new Date(ey, em-1, ed).getTime();
+                  const dayMs = new Date(year, month, dayNum).getTime();
+                  return dayMs >= startMs && dayMs <= endMs;
+                })();
 
               return (
                 <button
@@ -532,7 +572,7 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
     updateActivity,
     reorderActivities,
   } = useItinerary();
-  const { startRouteFlythrough } = useApp();
+  const { startRouteFlythrough, toggleDrawer } = useApp();
 
   const { formatPrice } = useCurrency();
   const { isDark } = useTheme();
@@ -749,17 +789,16 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={handleOptimizeRoute} className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer border ${isDark ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15' : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'}`}>Optimize</button>
-            <button type="button" onClick={startRouteFlythrough} className="text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950">Start journey</button>
+          <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
+            <button type="button" onClick={handleOptimizeRoute} className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer border shrink-0 ${isDark ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15' : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'}`}>Optimize</button>
+            <button type="button" onClick={() => {
+              toggleDrawer(null);
+              startRouteFlythrough();
+            }} className="text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 shrink-0">Preview Journey</button>
             <button
               type="button"
               onClick={() => setShowAddCustomModal(true)}
-              className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
-                isDark
-                  ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15'
-                  : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'
-              }`}
+              className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer border flex items-center gap-1 shrink-0 ${isDark ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15' : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'}`}
             >
               <PlusIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Custom Event</span>
@@ -831,6 +870,8 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
                         dayId={activeDay.id}
                         onRemove={removeActivity}
                         onUpdate={updateActivity}
+                        onMove={(targetDayId) => moveActivity(activeDay.id, targetDayId, act.uid)}
+                        days={days}
                         formatPrice={formatPrice}
                         isDark={isDark}
                       />

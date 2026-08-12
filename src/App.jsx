@@ -35,11 +35,12 @@ function TripNestMain() {
     openPremade,
     closeCompare,
     setSelectedDestination,
+    activeDrawer,
+    setActiveDrawer,
   } = useApp();
 
   const { isDark, toggleTheme } = useTheme();
   const { days } = useItinerary();
-  const [activeDrawer, setActiveDrawer] = useState(null); // 'overview' | 'itinerary' | 'packing' | 'budget' | null
   const [liveModeDismissed, setLiveModeDismissed] = useState(false);
 
   const tripDays = useMemo(() => days?.length || 3, [days]);
@@ -68,15 +69,7 @@ function TripNestMain() {
     <div className={`relative w-screen h-screen overflow-hidden ${isDark ? 'dark bg-[#09090B] text-white' : 'light bg-[#F8F9FA] text-[#0F172A]'} bg-tactile-surface font-sans select-none`}>
       {/* ─── Full-Screen Map / Globe Stage (Always stays full-screen behind sidebar) ─── */}
       <div className="absolute inset-0 w-full h-full">
-        <MapLibreGlobe
-          activeDrawer={activeDrawer}
-          onOpenDrawer={(drawerKey) => {
-            setActiveDrawer(drawerKey);
-          }}
-          onToggleDrawer={(drawerKey) => {
-            setActiveDrawer((prev) => (prev === drawerKey ? null : drawerKey));
-          }}
-        />
+        <MapLibreGlobe />
       </div>
 
       {/* ─── Top Right Theme Toggle (Orbit View) ─── */}

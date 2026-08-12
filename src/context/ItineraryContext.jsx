@@ -63,7 +63,8 @@ export const ACTIVITY_TYPES = {
 
 function formatDayDate(startDateStr, dayIndex) {
   if (!startDateStr) return null;
-  const d = new Date(startDateStr);
+  const [year, month, day] = startDateStr.split('-').map(Number);
+  const d = new Date(year, month - 1, day);
   d.setDate(d.getDate() + dayIndex);
   return {
     dateStr: d.toISOString().split('T')[0],
