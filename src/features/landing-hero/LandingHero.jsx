@@ -5,15 +5,15 @@ import SignInModal from '../../components/ui/SignInModal';
 
 /* ─── Images matching reference screenshot ─── */
 const HERO_IMG  = 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?q=90&w=2400&auto=format&fit=crop';
-const MAP_BG    = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Blue_Marble_2002.png/1280px-Blue_Marble_2002.png';
+const MAP_BG    = '/textures/custom_map.png';
 const CTA_IMG   = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=85&w=2000&auto=format&fit=crop';
 
 /* ─── Data ─── */
 const STATS = [
-  { icon: '🌍', num: 'Globe',    sub: 'Interactive 3D Map' },
-  { icon: '✨', num: 'AI Built', sub: 'Smart Itineraries' },
-  { icon: '⚖️', num: 'Compare',  sub: 'Side-by-Side View' },
-  { icon: '💰', num: 'Budget',   sub: 'Live Cost Tracking' },
+  { num: 'Globe',    sub: 'Interactive 3D Map' },
+  { num: 'AI Built', sub: 'Smart Itineraries' },
+  { num: 'Compare',  sub: 'Side-by-Side View' },
+  { num: 'Budget',   sub: 'Live Cost Tracking' },
 ];
 
 /* Positions chosen to match the reference image layout */
@@ -143,11 +143,6 @@ export default function LandingHero() {
         >
           {/* Logo */}
           <button onClick={() => wrapRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} className="flex items-center gap-2.5 cursor-pointer group">
-            <div className="w-9 h-9 rounded-full border-2 flex items-center justify-center group-hover:scale-110 transition-transform" style={{ borderColor: C.accent }}>
-              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" style={{ color: C.accent }}>
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-            </div>
             <div className="flex flex-col leading-none">
               <span className="text-[15px] font-black tracking-[0.16em] uppercase text-white">TripNest</span>
               <span className="text-[7px] tracking-[0.26em] uppercase font-semibold" style={{ color: C.accent }}>Explore the World</span>
@@ -160,7 +155,7 @@ export default function LandingHero() {
             style={{ backgroundColor: 'rgba(20,24,32,0.65)', borderColor: 'rgba(255,255,255,0.08)' }}
             onMouseLeave={() => setHoveredNav(null)}
           >
-            {[['Destinations', () => scrollTo(mapRef)], ['Stories', () => scrollTo(diarRef)], ['Journal', handleExplore], ['About', () => scrollTo(aboutRef)]].map(([lbl, fn]) => {
+            {[['Destinations', () => scrollTo(mapRef)], ['Stories', () => scrollTo(diarRef)], ['About', () => scrollTo(aboutRef)]].map(([lbl, fn]) => {
               const isHovered = hoveredNav === lbl;
               return (
                 <button
@@ -200,22 +195,16 @@ export default function LandingHero() {
         {/* Hero body */}
         <div className="relative z-20 flex-1 flex flex-col justify-center px-6 md:px-10 pb-16 pt-2">
 
-          {/* Badge */}
-          <motion.div initial={{ opacity: 0, x: -22 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.28 }} className="flex items-center gap-2 mb-7 self-start">
-            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-sm -rotate-1 bg-white/90 text-black">
-              Smart Travel Planner
-            </span>
-            <span className="text-[10px] font-semibold tracking-widest text-white/40">AI-Powered 2026</span>
-          </motion.div>
+
 
           {/* Headline clip-up animation */}
-          {['Your Next', 'Story Starts'].map((line, i) => (
+          {['Plan Your'].map((line, i) => (
             <div key={line} className="overflow-hidden">
               <motion.h1
-                initial={{ y: '108%' }}
+                initial={{ y: '120%' }}
                 animate={{ y: 0 }}
                 transition={{ duration: 0.92, ease: [0.16, 1, 0.3, 1], delay: 0.3 + i * 0.13 }}
-                className="font-black leading-[0.9] tracking-tight"
+                className="font-black leading-none tracking-tight pb-2"
                 style={{ fontSize: 'clamp(2.6rem,7.5vw,6.5rem)' }}
               >
                 {line}
@@ -224,13 +213,13 @@ export default function LandingHero() {
           ))}
           <div className="overflow-hidden mb-7">
             <motion.h1
-              initial={{ y: '108%' }}
+              initial={{ y: '120%' }}
               animate={{ y: 0 }}
-              transition={{ duration: 0.92, ease: [0.16, 1, 0.3, 1], delay: 0.56 }}
-              className="font-black leading-[0.9] tracking-tight italic text-white/80"
+              transition={{ duration: 0.92, ease: [0.16, 1, 0.3, 1], delay: 0.43 }}
+              className="font-black leading-none tracking-tight italic text-white/80 pb-4"
               style={{ fontSize: 'clamp(2.6rem,7.5vw,6.5rem)' }}
             >
-              Here.
+              Trip.
             </motion.h1>
           </div>
 
@@ -294,12 +283,11 @@ export default function LandingHero() {
 
         {/* Stats bar */}
         <div className="relative z-10 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-          <div className="max-w-5xl mx-auto px-6 py-7 grid grid-cols-2 md:grid-cols-4 gap-5">
+          <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
             {STATS.map((s, i) => (
-              <FadeUp key={s.sub} delay={i * 0.08} className="flex flex-col items-center gap-1.5 text-center">
-                <span className="text-xl">{s.icon}</span>
-                <span className="text-3xl font-black text-white">{s.num}</span>
-                <span className="text-[9px] font-bold tracking-widest uppercase text-white/40">{s.sub}</span>
+              <FadeUp key={s.sub} delay={i * 0.08} className="flex flex-col items-center justify-center text-center p-6 rounded-2xl border border-white/20 bg-white/5 shadow-[0_0_15px_rgba(255,255,255,0.07)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(255,255,255,0.25)] hover:border-white/50 cursor-pointer group">
+                <span className="text-3xl font-black text-white mb-2 group-hover:scale-105 transition-transform">{s.num}</span>
+                <span className="text-[9px] font-bold tracking-widest uppercase text-white/50">{s.sub}</span>
               </FadeUp>
             ))}
           </div>
@@ -307,11 +295,11 @@ export default function LandingHero() {
 
         {/* Journey Map */}
         <div className="relative z-10 flex-1 flex items-center py-14 md:py-16">
-          <div className="max-w-7xl mx-auto w-full px-6 md:px-10 grid md:grid-cols-2 gap-12 items-center">
+          <div className="max-w-[100rem] mx-auto w-full px-6 md:px-12 grid md:grid-cols-12 gap-8 md:gap-10 items-center">
 
             {/* Left text */}
-            <FadeUp>
-              <h2 className="text-5xl md:text-6xl font-black leading-[0.9] mb-4 text-white">
+            <FadeUp className="md:col-span-4 lg:col-span-3">
+              <h2 className="text-5xl md:text-7xl font-black leading-[0.9] mb-4 text-white">
                 Journey<br />
                 <span className="italic" style={{ color: 'rgba(255,255,255,0.35)' }}>Map</span>
               </h2>
@@ -324,81 +312,12 @@ export default function LandingHero() {
             </FadeUp>
 
             {/* Right — Map canvas */}
-            <FadeUp delay={0.16}>
-              <div className="relative w-full rounded-xl overflow-hidden border" style={{ aspectRatio: '16/10', borderColor: 'rgba(255,255,255,0.10)', backgroundColor: '#0a1225' }}>
+            <FadeUp delay={0.16} className="md:col-span-8 lg:col-span-9">
+              <div className="relative w-full rounded-2xl overflow-hidden border shadow-2xl" style={{ aspectRatio: '2/1', borderColor: 'rgba(255,255,255,0.12)', backgroundColor: '#0a1225' }}>
                 {/* Real satellite world map */}
-                <img src={MAP_BG} alt="World Map" className="absolute inset-0 w-full h-full object-cover opacity-70" />
+                <img src={MAP_BG} alt="World Map" className="absolute inset-0 w-full h-full object-cover opacity-90" />
                 {/* Subtle dark overlay for readability */}
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(8,16,32,0.45) 0%, rgba(8,16,32,0.30) 50%, rgba(8,16,32,0.45) 100%)' }} />
-
-                {/* SVG dotted route lines */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  {[
-                    'M 54,58 Q 50,42 57,26',  // Cape Town to Santorini
-                    'M 57,26 Q 61,28 63,36',  // Santorini to Dubai
-                    'M 63,36 Q 74,45 85,51',  // Dubai to Bali
-                    'M 85,51 Q 93,42 92,31',  // Bali to Kyoto
-                  ].map((d, i) => (
-                    <motion.path
-                      key={i}
-                      initial={{ pathLength: 0 }}
-                      whileInView={{ pathLength: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 1.6, ease: 'easeInOut', delay: 0.35 + i * 0.38 }}
-                      d={d}
-                      fill="none"
-                      stroke="rgba(255,255,255,0.45)"
-                      strokeWidth="1.2"
-                      strokeDasharray="0.1 3"
-                      strokeLinecap="round"
-                    />
-                  ))}
-                  {/* Small airplane icon on path */}
-                  <motion.text
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 1.8 }}
-                    x="74" y="44" fontSize="4" fill="rgba(255,255,255,0.6)" textAnchor="middle"
-                  >✈</motion.text>
-                </svg>
-
-                {/* Destination pins with ALWAYS-VISIBLE labels (matching reference) */}
-                {PINS.map((p, i) => (
-                  <motion.button
-                    key={p.id}
-                    initial={{ opacity: 0, scale: 0 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.2 + i * 0.13, type: 'spring', stiffness: 260 }}
-                    onClick={handleExplore}
-                    className="absolute cursor-pointer group"
-                    style={{ top: p.t, left: p.l, transform: 'translate(-50%, -50%)' }}
-                  >
-                    <div className="flex flex-col items-center">
-                      {/* Name label ABOVE pin (like reference) */}
-                      <div className="mb-1 text-center">
-                        <div className="text-[9px] font-black text-white leading-none">{p.name}</div>
-                        <div className="text-[7px] font-medium leading-none" style={{ color: 'rgba(255,255,255,0.5)' }}>{p.country}</div>
-                      </div>
-                      {/* Photo circle */}
-                      <motion.div whileHover={{ scale: 1.22 }} transition={{ type: 'spring', stiffness: 300 }} className="rounded-full overflow-hidden border-2" style={{ width: 44, height: 44, borderColor: 'rgba(255,255,255,0.6)' }}>
-                        <img src={p.img} alt={p.name} className="w-full h-full object-cover" />
-                      </motion.div>
-                      {/* Pin stem */}
-                      <div className="w-px h-2.5 bg-white/40" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-white/60" />
-                    </div>
-                  </motion.button>
-                ))}
-
-                {/* Adventure Awaits stamp (like reference) */}
-                <div className="absolute bottom-3 right-3 opacity-20">
-                  <div className="w-14 h-14 rounded-full border-2 border-white/30 flex flex-col items-center justify-center text-white/30">
-                    <div className="text-[5px] font-black tracking-widest uppercase">Adventure</div>
-                    <div className="text-[5px] font-black tracking-widest uppercase">Awaits</div>
-                  </div>
-                </div>
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(8,16,32,0.3) 0%, rgba(8,16,32,0.1) 50%, rgba(8,16,32,0.3) 100%)' }} />
               </div>
             </FadeUp>
           </div>
@@ -500,26 +419,13 @@ export default function LandingHero() {
           </FadeUp>
         </div>
 
-        {/* Category strip */}
-        <div className="relative z-10 border-t py-8" style={{ backgroundColor: C.diaries, borderColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="max-w-4xl mx-auto px-6 grid grid-cols-5 gap-3">
-            {CATS.map((c, i) => (
-              <FadeUp key={c.l} delay={i * 0.07}>
-                <motion.button whileHover={{ y: -5 }} onClick={handleExplore} className="flex flex-col items-center gap-2 cursor-pointer group w-full">
-                  <div className="w-11 h-11 rounded-full border flex items-center justify-center text-xl transition-all border-white/10 bg-white/5">{c.e}</div>
-                  <div className="text-[10px] font-black transition-colors" style={{ color: 'rgba(255,255,255,0.72)' }}>{c.l}</div>
-                  <div className="text-[8px]" style={{ color: C.faint }}>{c.s}</div>
-                </motion.button>
-              </FadeUp>
-            ))}
-          </div>
-        </div>
+
 
         {/* ── ABOUT SECTION ── */}
         <div ref={aboutRef} className="relative z-10 border-t py-14 md:py-20" style={{ backgroundColor: C.diaries, borderColor: 'rgba(255,255,255,0.06)' }}>
           <div className="max-w-3xl mx-auto px-6 md:px-10 text-center">
             <FadeUp>
-              <h2 className="text-3xl md:text-4xl font-black mb-6 text-white">About <span className="text-white/70">TripNest</span></h2>
+              <h2 className="text-4xl md:text-5xl mb-6 text-white" style={{ fontFamily: '"Playfair Display", "Times New Roman", Times, serif' }}>About <span className="italic">TripNest</span></h2>
               <p className="text-sm md:text-base leading-relaxed mb-6" style={{ color: C.muted }}>
                 TripNest is your AI-powered travel companion that transforms the way you plan, explore, and experience the world.
                 We combine real-time data, smart itinerary planning, and crowd insights to craft personalized journeys
@@ -527,15 +433,14 @@ export default function LandingHero() {
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-10">
                 {[
-                  { icon: '🌍', title: 'Smart Globe Explorer', desc: 'Spin the interactive 3D globe to discover destinations with real-time weather, crowd levels, and travel data.' },
-                  { icon: '🗓️', title: 'AI Itinerary Builder', desc: 'Get personalized day-by-day travel plans crafted by AI, optimized for your preferences and budget.' },
-                  { icon: '📊', title: 'Live Crowd Insights', desc: 'See real-time crowd levels at popular attractions so you can avoid the rush and enjoy hidden gems.' },
+                  { title: 'Smart Globe Explorer', desc: 'Spin the interactive 3D globe to discover destinations with real-time weather, crowd levels, and travel data.' },
+                  { title: 'AI Itinerary Builder', desc: 'Get personalized day-by-day travel plans crafted by AI, optimized for your preferences and budget.' },
+                  { title: 'Live Crowd Insights', desc: 'See real-time crowd levels at popular attractions so you can avoid the rush and enjoy hidden gems.' },
                 ].map((feat, i) => (
-                  <FadeUp key={feat.title} delay={i * 0.1}>
-                    <div className="rounded-xl p-5 border text-center bg-white/[0.03] border-white/10">
-                      <div className="text-3xl mb-3">{feat.icon}</div>
-                      <h3 className="text-sm font-black text-white mb-2">{feat.title}</h3>
-                      <p className="text-xs leading-relaxed" style={{ color: C.muted }}>{feat.desc}</p>
+                  <FadeUp key={feat.title} delay={i * 0.1} className="flex flex-col h-full">
+                    <div className="flex-1 flex flex-col justify-center rounded-2xl p-6 border border-white/20 bg-white/5 shadow-[0_0_15px_rgba(255,255,255,0.07)] text-center transition-all duration-300 hover:shadow-[0_0_25px_rgba(255,255,255,0.25)] hover:border-white/50 cursor-pointer group">
+                      <h3 className="text-lg font-black text-white mb-3 group-hover:scale-105 transition-transform">{feat.title}</h3>
+                      <p className="text-xs leading-relaxed text-white/60">{feat.desc}</p>
                     </div>
                   </FadeUp>
                 ))}

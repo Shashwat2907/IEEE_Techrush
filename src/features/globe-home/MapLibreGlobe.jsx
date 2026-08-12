@@ -794,7 +794,7 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
 
   return (
     <ErrorBoundary name="MapLibre Globe">
-      <div className="relative w-full h-full bg-[#0a1128] overflow-hidden select-none font-sans">
+      <div className="relative w-full h-full bg-black overflow-hidden select-none font-sans">
         {/* Map Canvas */}
         <div ref={mapContainerRef} className="w-full h-full" />
 
