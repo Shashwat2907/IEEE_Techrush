@@ -1,5 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useCompare } from '../../context/CompareContext';
 import { geocode } from '../../services/geocode';
@@ -28,6 +29,38 @@ export default function GlobeSearch() {
   const [isSearching, setIsSearching] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
+  const location = useLocation();
+  const [showIncomingPlane, setShowIncomingPlane] = useState(location.state?.incomingPlane || false);
+  const [showBurst, setShowBurst] = useState(false);
+
+  const planePath = useMemo(() => {
+    const startY = -50 - Math.random() * 150; 
+    const startRotate = 10 + Math.random() * 30; 
+    return {
+      initial: { opacity: 0, scale: 0.5, x: "-70vw", y: startY, rotate: startRotate },
+      animate: { 
+        opacity: 1, 
+        scale: [0.5, 4, 3], 
+        x: ["-70vw", "-20vw", 0], 
+        y: [startY, startY * 0.4, 0], 
+        rotate: [startRotate, startRotate * 0.2, 0] 
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showIncomingPlane) {
+      const timer = setTimeout(() => {
+        setShowIncomingPlane(false);
+        setShowBurst(true);
+        setTimeout(() => {
+          setShowBurst(false);
+        }, 1200);
+      }, 1000); // Fly in duration
+      return () => clearTimeout(timer);
+    }
+  }, [showIncomingPlane]);
 
   const containerRef = useRef(null);
   const inputRef = useRef(null);
@@ -212,8 +245,82 @@ export default function GlobeSearch() {
       {/* ─── Apple OS 26 Liquid Glass Search Capsule ─── */}
       <div className="relative apple-liquid-glass rounded-full p-2 pl-3.5 pr-2 flex items-center gap-2.5 shadow-2xl transition-all">
         {/* Soft Glowing Search Glyph */}
-        <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-          <SearchIcon className="w-4 h-4" />
+        <div className="relative w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+          <AnimatePresence>
+            {!showIncomingPlane && (
+              <motion.div
+                initial={location.state?.incomingPlane ? { opacity: 0, scale: 0 } : false}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <SearchIcon className="w-4 h-4" />
+              </motion.div>
+            )}
+            
+            {showIncomingPlane && (
+              <motion.svg 
+                key="incoming-plane"
+                initial={planePath.initial}
+                animate={planePath.animate}
+                exit={{ opacity: 0, scale: 0, rotate: -45 }}
+                transition={{ duration: 1.2, ease: "easeOut" }}
+                className="absolute inset-0 w-10 h-10 m-auto z-50 drop-shadow-[0_15px_30px_rgba(52,211,153,0.8)]" 
+                viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"
+              >
+                <g transform="translate(5, 20)">
+                  {/* Tail */}
+                  <path d="M 5,30 L 15,5 L 25,5 L 25,30 Z" fill="#e2e8f0" />
+                  <path d="M 22,5 L 25,5 L 25,30 L 22,30 Z" fill="#ef4444" />
+                  
+                  {/* Back Wing */}
+                  <path d="M 40,35 L 20,15 L 30,15 L 50,35 Z" fill="#cbd5e1" />
+                  
+                  {/* Fuselage */}
+                  <path d="M 5,35 C 5,25 65,25 75,30 C 85,35 85,45 75,50 C 65,55 5,55 5,35 Z" fill="#ffffff" />
+                  
+                  {/* Red Stripe on fuselage */}
+                  <path d="M 10,40 L 75,40" stroke="#ef4444" strokeWidth="1.5" fill="none" />
+                  
+                  {/* Cockpit Window */}
+                  <path d="M 68,30 C 72,30 75,32 75,35 L 70,35 Z" fill="#38bdf8" />
+                  
+                  {/* Passenger Windows */}
+                  <circle cx="30" cy="34" r="1" fill="#38bdf8" />
+                  <circle cx="35" cy="34" r="1" fill="#38bdf8" />
+                  <circle cx="40" cy="34" r="1" fill="#38bdf8" />
+                  <circle cx="45" cy="34" r="1" fill="#38bdf8" />
+                  <circle cx="50" cy="34" r="1" fill="#38bdf8" />
+                  <circle cx="55" cy="34" r="1" fill="#38bdf8" />
+                  
+                  {/* Front Wing */}
+                  <path d="M 35,45 L 15,70 L 25,70 L 55,45 Z" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="0.5" />
+                  
+                  {/* Front Engine */}
+                  <rect x="30" y="47" width="12" height="6" rx="3" fill="#94a3b8" />
+                  <rect x="40" y="48" width="2" height="4" fill="#334155" />
+                </g>
+              </motion.svg>
+            )}
+            {showBurst && (
+              <div className="absolute inset-0 w-full h-full pointer-events-none">
+                {[...Array(36)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 1, scale: 0, x: 0, y: 0 }}
+                    animate={{ 
+                      opacity: [0, 1, 0], 
+                      scale: [0, 1.5, 0], 
+                      x: [0, (Math.random() - 0.5) * 160, 0],
+                      y: [0, (Math.random() - 0.5) * 160, 0] 
+                    }}
+                    transition={{ duration: 1.2, ease: "easeInOut" }}
+                    className="absolute inset-0 m-auto w-1.5 h-1.5 rounded-full bg-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,1)]"
+                  />
+                ))}
+              </div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Core Input with Animated Placeholder */}

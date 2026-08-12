@@ -136,9 +136,19 @@ export default function PremadeItineraries({ isOpen, onClose, onSelectItinerary 
       exit={{ y: '100%', opacity: 0 }}
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       className={`fixed inset-0 z-[1000] ${
-        isDark ? 'bg-[#09090B] text-white' : 'bg-[#F8F9FA] text-[#0F172A]'
-      } bg-tactile-surface flex flex-col overflow-hidden font-sans select-none`}
+        isDark ? 'text-white' : 'text-[#0F172A]'
+      } flex flex-col overflow-hidden font-sans select-none`}
     >
+      {/* ─── Aurora Borealis Night Sky Background Layer ─── */}
+      <div className="fixed inset-0 w-[100vw] h-[100vh] pointer-events-none z-0 overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1531366936337-7c912a4589a7?q=80&w=2500&auto=format&fit=crop"
+          alt="Aurora Borealis Night Sky"
+          className="absolute inset-0 w-full h-full object-cover scale-110 blur-[18px]"
+        />
+        <div className="absolute inset-0 bg-[#020e18]/75" />
+      </div>
+
       {/* ─── Top Header Bar ─── */}
       <div className={`px-5 sm:px-8 py-4 border-b ${
         isDark ? 'border-white/10 bg-[#111116]/95 text-white' : 'border-black/10 bg-white/95 text-[#0F172A]'

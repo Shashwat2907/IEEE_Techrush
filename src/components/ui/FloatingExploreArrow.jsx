@@ -10,12 +10,12 @@ export default function FloatingExploreArrow({ onClick }) {
       className="pointer-events-auto flex flex-col items-center gap-1 group cursor-pointer"
       title="Explore Trending Destinations & Routes"
     >
-      <span className="text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-400 dark:text-zinc-400 light:text-zinc-600 group-hover:text-white dark:group-hover:text-white light:group-hover:text-black transition-colors">
+      <span className="text-xs font-mono font-bold tracking-[0.2em] uppercase text-zinc-400 dark:text-zinc-400 light:text-zinc-600 group-hover:text-white dark:group-hover:text-white light:group-hover:text-black transition-colors">
         EXPLORE TRENDING
       </span>
-      <div className="w-8 h-8 rounded-lg bg-[#0E0E14]/90 dark:bg-[#0E0E14]/90 light:bg-white/90 border border-white/15 dark:border-white/15 light:border-zinc-300 flex items-center justify-center text-zinc-400 group-hover:text-emerald-400 group-hover:border-emerald-500/50 shadow-lg transition-all">
+      <div className="w-10 h-10 rounded-xl bg-[#0E0E14]/90 dark:bg-[#0E0E14]/90 light:bg-white/90 border border-white/20 dark:border-white/20 light:border-zinc-300 flex items-center justify-center text-zinc-400 group-hover:text-emerald-400 group-hover:border-emerald-500/50 shadow-[0_0_15px_rgba(255,255,255,0.1)] dark:shadow-[0_0_15px_rgba(255,255,255,0.1)] light:shadow-[0_0_15px_rgba(0,0,0,0.1)] group-hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all duration-300">
         <svg
-          className="w-4 h-4 transition-transform group-hover:-translate-y-0.5"
+          className="w-5 h-5 transition-transform group-hover:-translate-y-1"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

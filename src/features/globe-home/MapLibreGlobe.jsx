@@ -161,11 +161,11 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
           },
         ],
         sky: {
-          'sky-color': '#060608',
+          'sky-color': '#0a1128',
           'sky-horizon-blend': 0.3,
-          'horizon-color': '#08080A',
+          'horizon-color': '#0a1128',
           'horizon-fog-blend': 0.5,
-          'fog-color': '#060608',
+          'fog-color': '#0a1128',
           'fog-ground-blend': 0.3,
         },
       },
@@ -794,7 +794,7 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
 
   return (
     <ErrorBoundary name="MapLibre Globe">
-      <div className="relative w-full h-full bg-[#08080A] overflow-hidden select-none font-sans">
+      <div className="relative w-full h-full bg-[#0a1128] overflow-hidden select-none font-sans">
         {/* Map Canvas */}
         <div ref={mapContainerRef} className="w-full h-full" />
 

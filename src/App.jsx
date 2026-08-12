@@ -1,5 +1,6 @@
 import { useState, useMemo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { ItineraryProvider, useItinerary } from './context/ItineraryContext';
 import { CurrencyProvider } from './context/CurrencyContext';
@@ -21,8 +22,10 @@ const BudgetCalculator = lazy(() => import('./features/itinerary/BudgetCalculato
 const PremadeItineraries = lazy(() => import('./features/itinerary/PremadeItineraries'));
 const DiscoveryQuiz = lazy(() => import('./features/discovery-quiz/DiscoveryQuiz'));
 const CompareDrawer = lazy(() => import('./features/destination-map/CompareDrawer'));
+const LandingHero = lazy(() => import('./features/landing-hero/LandingHero'));
 
 function TripNestMain() {
+  const navigate = useNavigate();
   const {
     viewState,
     selectedDestination,
@@ -53,9 +56,9 @@ function TripNestMain() {
   }, [selectedDestination]);
 
   return (
-    <div className={`relative w-screen h-screen overflow-hidden ${isDark ? 'dark bg-[#09090B] text-white' : 'light bg-[#F8F9FA] text-[#0F172A]'} bg-tactile-surface font-sans select-none`}>
+    <div className={`relative w-screen h-screen overflow-hidden ${isDark ? 'dark bg-[#0a1128] text-white' : 'light bg-[#F8F9FA] text-[#0F172A]'} bg-tactile-surface font-sans select-none`}>
       {/* ─── Full-Screen Map / Globe Stage (Always stays full-screen behind sidebar) ─── */}
-      <div className="absolute inset-0 w-full h-full">
+      <div className="absolute inset-0 w-full h-full z-0">
         <MapLibreGlobe
           activeDrawer={activeDrawer}
           onOpenDrawer={(drawerKey) => {
@@ -66,6 +69,28 @@ function TripNestMain() {
           }}
         />
       </div>
+
+      {/* ─── Stars Background Layer (Over Globe, Under UI) ─── */}
+      {!isOverlayHidden && (
+        <StarsBackground className="absolute inset-0 z-[5] pointer-events-none overflow-hidden" />
+      )}
+
+      {/* ─── Top Left Back to Home Button ─── */}
+      {!isOverlayHidden && (
+        <div className="absolute top-5 left-5 z-30 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="group apple-liquid-glass px-4 py-2 rounded-full flex items-center justify-center border border-white/20 dark:border-white/20 light:border-black/10 shadow-lg hover:scale-105 transition-all cursor-pointer text-xs font-semibold tracking-wider uppercase text-zinc-300 hover:text-emerald-400"
+            title="Back to Landing Page"
+          >
+            <svg className="w-3.5 h-3.5 mr-2 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Home
+          </button>
+        </div>
+      )}
 
       {/* ─── Top Right Theme Toggle (Orbit View) ─── */}
       {!isOverlayHidden && (
@@ -285,6 +310,40 @@ function TripNestMain() {
   );
 }
 
+export const StarsBackground = ({ className = "fixed inset-0 z-0 pointer-events-none overflow-hidden" }) => (
+  <div className={className}>
+    {[...Array(50)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+        style={{
+          width: Math.random() * 4 + 1 + 'px',
+          height: Math.random() * 4 + 1 + 'px',
+          top: Math.random() * 100 + '%',
+          left: Math.random() * 100 + '%',
+          opacity: Math.random() * 0.6 + 0.4
+        }}
+        animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.2, 1] }}
+        transition={{ duration: Math.random() * 3 + 1, repeat: Infinity, ease: "easeInOut" }}
+      />
+    ))}
+  </div>
+);
+
+function AppRoutes() {
+  const location = useLocation();
+  return (
+    <Suspense fallback={<div className="w-screen h-screen bg-[#09090B]" />}>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<LandingHero />} />
+          <Route path="/explore" element={<TripNestMain />} />
+        </Routes>
+      </AnimatePresence>
+    </Suspense>
+  );
+}
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -292,7 +351,8 @@ export default function App() {
         <CompareProvider>
           <ItineraryProvider>
             <CurrencyProvider>
-              <TripNestMain />
+              <StarsBackground />
+              <AppRoutes />
             </CurrencyProvider>
           </ItineraryProvider>
         </CompareProvider>
