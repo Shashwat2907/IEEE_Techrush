@@ -56,7 +56,7 @@ function TripNestMain() {
   }, [selectedDestination]);
 
   return (
-    <div className={`relative w-screen h-screen overflow-hidden ${isDark ? 'dark bg-[#0a1128] text-white' : 'light bg-[#F8F9FA] text-[#0F172A]'} bg-tactile-surface font-sans select-none`}>
+    <div className={`relative w-screen h-screen overflow-hidden ${isDark ? 'dark bg-black text-white' : 'light bg-[#F8F9FA] text-[#0F172A]'} bg-tactile-surface font-sans select-none`}>
       {/* ─── Full-Screen Map / Globe Stage (Always stays full-screen behind sidebar) ─── */}
       <div className="absolute inset-0 w-full h-full z-0">
         <MapLibreGlobe
