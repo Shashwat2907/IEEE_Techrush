@@ -1,210 +1,542 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useRef } from 'react';
+import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { StarsBackground } from '../../App';
 
-const DESTINATION_POOL = [
-  { id: 'paris', city: 'Paris', country: 'France', img: 'https://plus.unsplash.com/premium_photo-1718035557075-5111d9d906d2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8cGFyaXMlMjBuaWdodHxlbnwwfHx8fDE3ODY1MzU4OTV8MA&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'dubai', city: 'Dubai', country: 'UAE', img: 'https://plus.unsplash.com/premium_photo-1697729914552-368899dc4757?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8ZHViYWklMjBuaWdodHxlbnwwfHx8fDE3ODY1MzU4OTZ8MA&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'new-york', city: 'New York', country: 'USA', img: 'https://plus.unsplash.com/premium_photo-1714051660720-888e8454a021?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8bmV3JTIweW9yayUyMG5pZ2h0fGVufDB8fHx8MTc4NjUzNTg5Nnww&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'tokyo', city: 'Tokyo', country: 'Japan', img: 'https://plus.unsplash.com/premium_photo-1661914240950-b0124f20a5c1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8dG9reW8lMjBuaWdodHxlbnwwfHx8fDE3ODY1MzU4OTd8MA&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'sydney', city: 'Sydney', country: 'Australia', img: 'https://plus.unsplash.com/premium_photo-1697730262092-03c94e7dd8fa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8c3lkbmV5JTIwbmlnaHR8ZW58MHx8fHwxNzg2NTM1ODk4fDA&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'rome', city: 'Rome', country: 'Italy', img: 'https://plus.unsplash.com/premium_photo-1675975706513-9daba0ec12a8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8cm9tZSUyMG5pZ2h0fGVufDB8fHx8MTc4NjUzNTg5OXww&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'cairo', city: 'Cairo', country: 'Egypt', img: 'https://plus.unsplash.com/premium_photo-1697729777503-5a6ff8d6d877?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8Y2Fpcm8lMjBuaWdodHxlbnwwfHx8fDE3ODY1MzU5MDB8MA&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'rio', city: 'Rio de Janeiro', country: 'Brazil', img: 'https://plus.unsplash.com/premium_photo-1679690867090-4a742837d75b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8cmlvJTIwbmlnaHR8ZW58MHx8fHwxNzg2NTM1OTAwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'machu', city: 'Machu Picchu', country: 'Peru', img: 'https://plus.unsplash.com/premium_photo-1733342585862-075c3a4b1038?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8bWFjaHUlMjBwaWNjaHUlMjBuaWdodHxlbnwwfHx8fDE3ODY1MzU5MDJ8MA&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'santorini', city: 'Santorini', country: 'Greece', img: 'https://plus.unsplash.com/premium_photo-1661964149725-fbf14eabd38c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8c2FudG9yaW5pJTIwbmlnaHR8ZW58MHx8fHwxNzg2NTM1OTAyfDA&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'london', city: 'London', country: 'UK', img: 'https://plus.unsplash.com/premium_photo-1682056762907-23d08f913805?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8bG9uZG9uJTIwbmlnaHR8ZW58MHx8fHwxNzg2NTM1OTAzfDA&ixlib=rb-4.1.0&q=80&w=1080' },
-  { id: 'bali', city: 'Bali', country: 'Indonesia', img: 'https://plus.unsplash.com/premium_photo-1678303396234-4180231353df?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8MXx8YmFsaSUyMG5pZ2h0fGVufDB8fHx8MTc4NjUzNTkwNHww&ixlib=rb-4.1.0&q=80&w=1080' }
+/* ─── Images matching reference screenshot ─── */
+const HERO_IMG  = 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?q=90&w=2400&auto=format&fit=crop';
+const MAP_BG    = 'https://images.unsplash.com/photo-1524661135-423995f22d0b?q=70&w=1800&auto=format&fit=crop';
+const CTA_IMG   = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=85&w=2000&auto=format&fit=crop';
+
+/* ─── Data ─── */
+const STATS = [
+  { icon: '🌐', num: '50+',   sub: 'Destinations' },
+  { icon: '📸', num: '200+',  sub: 'Travel Stories' },
+  { icon: '😊', num: '100K+', sub: 'Happy Travelers' },
+  { icon: '🗺️', num: '10+',   sub: 'Years of Journey' },
 ];
 
+/* Positions chosen to match the reference image layout */
+const PINS = [
+  { id: 'bali',     name: 'Bali',      country: 'Indonesia',    t: '60%', l: '22%', img: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=160&auto=format&fit=crop' },
+  { id: 'dubai',    name: 'Dubai',     country: 'UAE',          t: '42%', l: '48%', img: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=160&auto=format&fit=crop' },
+  { id: 'santorini',name: 'Santorini', country: 'Greece',       t: '22%', l: '68%', img: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=160&auto=format&fit=crop' },
+  { id: 'kyoto',    name: 'Kyoto',     country: 'Japan',        t: '28%', l: '88%', img: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=160&auto=format&fit=crop' },
+  { id: 'capetown', name: 'Cape Town', country: 'South Africa', t: '75%', l: '54%', img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=160&auto=format&fit=crop' },
+];
+
+const DIARIES = [
+  { id: 1, loc: 'Bali, Indonesia',       author: 'Emily R.', quote: '"Waking up to turquoise waters and golden sunrises felt like a dream I never wanted to end."',            img: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=480&auto=format&fit=crop' },
+  { id: 2, loc: 'Santorini, Greece',     author: 'James L.', quote: '"Every corner has a postcard view, but the memories I made here are priceless."',                        img: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=480&auto=format&fit=crop' },
+  { id: 3, loc: 'Cape Town, South Africa', author: 'Sarah K.', quote: '"Between the mountains and the ocean, I found a peace I didn\'t know I was searching for."',            img: 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=480&auto=format&fit=crop' },
+];
+
+const CATS = [
+  { e: '🏔️', l: 'Adventure', s: 'Seek the thrill' },
+  { e: '🏛️', l: 'Culture',   s: 'Embrace the world' },
+  { e: '🌿', l: 'Nature',    s: 'Find your calm' },
+  { e: '🍜', l: 'Food',      s: 'Taste the stories' },
+  { e: '👥', l: 'People',    s: 'Connect deeply' },
+];
+
+/* ─── Scroll-reveal helper ─── */
+function FadeUp({ children, delay = 0, className = '' }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-80px' });
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 44 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1], delay }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ─── Torn-paper divider ─── */
+function TornEdge({ topColor, bottomColor }) {
+  return (
+    <div className="relative w-full pointer-events-none" style={{ height: 52, marginTop: -1 }}>
+      <svg viewBox="0 0 1440 52" preserveAspectRatio="none" style={{ display: 'block', width: '100%', height: '100%' }}>
+        <path
+          d="M0,0 L0,28 C80,48 160,8 240,28 C320,48 400,8 480,28 C560,48 640,8 720,28 C800,48 880,8 960,28 C1040,48 1120,8 1200,28 C1280,48 1360,8 1440,28 L1440,52 L0,52 Z"
+          fill={bottomColor}
+        />
+      </svg>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════ */
 export default function LandingHero() {
   const navigate = useNavigate();
-  const [startIndex, setStartIndex] = useState(0);
-  const [isFlying, setIsFlying] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const wrapRef  = useRef(null);
+  const heroRef  = useRef(null);
+  const mapRef   = useRef(null);
+  const diarRef  = useRef(null);
+  const aboutRef = useRef(null);
 
-  const handleStartExploring = () => {
-    setIsFlying(true);
-    setTimeout(() => {
-      navigate('/explore', { state: { incomingPlane: true } });
-    }, 1000);
+  /* Hero parallax */
+  const { scrollYProgress } = useScroll({ target: heroRef, container: wrapRef, offset: ['start start', 'end start'] });
+  const heroY     = useTransform(scrollYProgress, [0, 1], ['0%', '22%']);
+  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.1]);
+  const heroFade  = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
+
+  const handleExplore = () => {
+    navigate('/explore', { state: { incomingPlane: true } });
   };
 
-  const planePath = useMemo(() => {
-    const endY = -150 - Math.random() * 150;
-    const midY = endY * 0.4;
-    const endRotate = -5 - Math.random() * 20;
-    const midRotate = endRotate * 0.5;
-    return {
-      initial: { opacity: 0, scale: 0.5, x: 0, y: 0, rotate: 0 },
-      animate: { 
-        opacity: 1, 
-        scale: [0.5, 3, 5], 
-        x: [0, "40vw", "120vw"], 
-        y: [0, midY, endY], 
-        rotate: [0, midRotate, endRotate] 
-      }
-    };
-  }, []);
+  const scrollTo = (ref) => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  useEffect(() => {
-    // 5-second rotation (5000ms) for small span change
-    const interval = setInterval(() => {
-      setStartIndex((prev) => (prev + 4) % DESTINATION_POOL.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const activeDestinations = useMemo(() => {
-    const result = [];
-    for (let i = 0; i < 4; i++) {
-      result.push(DESTINATION_POOL[(startIndex + i) % DESTINATION_POOL.length]);
-    }
-    return result;
-  }, [startIndex]);
+  /* ── Colour tokens (dark blue night palette) ── */
+  const C = {
+    hero:    '#060d1f',
+    map:     '#0a1628',
+    diaries: '#081020',
+    accent:  '#38bdf8',
+    gold:    '#67e8f9',
+    text:    'rgba(255,255,255,0.88)',
+    muted:   'rgba(255,255,255,0.50)',
+    faint:   'rgba(255,255,255,0.28)',
+  };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }} 
-      exit={{ opacity: 0 }} 
-      transition={{ duration: 0.5 }}
-      className="relative w-screen min-h-screen bg-[#0a1128] text-white overflow-y-auto overflow-x-hidden flex flex-col items-center justify-between font-sans selection:bg-emerald-500/30"
+    <div
+      ref={wrapRef}
+      className="relative w-screen h-screen overflow-y-auto overflow-x-hidden text-white font-sans"
+      style={{ scrollSnapType: 'y proximity', backgroundColor: C.hero }}
     >
-      <StarsBackground />
 
-      {/* Soft Ambient Background Glow */}
-      <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center">
-        <div className="w-[120%] h-[50%] bg-emerald-500/10 rounded-full blur-[150px] opacity-30 transform -translate-y-20" />
-      </div>
+      {/* ╔══════════════════════════════════════════
+          ║  PART 1 — HERO
+          ╚══════════════════════════════════════════ */}
+      <section ref={heroRef} className="relative w-full min-h-screen flex flex-col overflow-hidden" style={{ scrollSnapAlign: 'start', backgroundColor: C.hero }}>
 
-      <header className="w-full relative z-20 flex flex-col items-center pt-8 md:pt-12 shrink-0">
-        <div className="flex items-center gap-3 md:gap-4 mb-4">
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-transparent border-2 border-emerald-400 flex items-center justify-center">
-            <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-emerald-400" />
-          </div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-[0.25em] uppercase text-white drop-shadow-xl">TripNest</h1>
-        </div>
-        <p className="text-[10px] md:text-xs tracking-[0.3em] font-mono text-emerald-400/80">DISCOVER. PLAN. TAKE OFF.</p>
-      </header>
+        {/* Parallax image */}
+        <motion.div style={{ y: heroY, scale: heroScale }} className="absolute inset-0 will-change-transform">
+          <img
+            src={HERO_IMG}
+            alt="Traveler at golden sunset"
+            className="w-full h-full object-cover object-[center_30%]"
+            fetchpriority="high"
+          />
+          {/* Dark blue night overlays */}
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(6,13,31,0.52) 0%, rgba(6,13,31,0.15) 35%, rgba(6,13,31,0.85) 100%)' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(6,13,31,0.60) 0%, rgba(6,13,31,0.05) 55%)' }} />
+          {/* Subtle blue night tint */}
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,30,80,0.22) 0%, transparent 60%)' }} />
+        </motion.div>
 
-      {/* Center: Carousel & Airplane Graphic */}
-      <div className="relative z-10 w-full max-w-6xl mx-auto flex-1 flex flex-col items-center justify-center mt-8 mb-4 px-4">
-        {/* The 4 Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full h-[65vh] md:h-[80vh] max-h-[800px]">
-          {activeDestinations.map((dest, i) => (
-            <div 
-              key={i} 
-              className={`relative w-full h-full rounded-2xl md:rounded-3xl overflow-hidden border border-emerald-500/20 shadow-[0_0_30px_rgba(0,0,0,0.5)]`}
-            >
-              <AnimatePresence initial={false}>
-                <motion.div
-                  key={dest.id}
-                  initial={{ x: "20%", opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: "-20%", opacity: 0 }}
-                  transition={{ duration: 0.8, ease: "easeInOut" }}
-                  className="absolute inset-0 w-full h-full"
-                >
-                  <img src={dest.img} alt={dest.city} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-b from-[#0a1128]/95 via-[#0a1128]/20 to-[#0a1128]/90" />
-                  
-                  <div className="absolute top-0 left-0 w-full p-5 md:p-8 flex flex-col items-center mt-2">
-                    <div className="flex items-center gap-2 mb-1.5 text-white">
-                      <svg className="w-4 h-4 md:w-5 md:h-5 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.242-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                      <h3 className="text-sm md:text-lg font-black tracking-widest uppercase drop-shadow-md">{dest.city}</h3>
-                    </div>
-                    <p className="text-[9px] md:text-xs tracking-[0.2em] font-mono font-bold text-emerald-400 uppercase drop-shadow-md">{dest.country}</p>
-                  </div>
-                </motion.div>
-              </AnimatePresence>
+        {/* Navbar */}
+        <motion.nav
+          initial={{ opacity: 0, y: -18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.1 }}
+          className="relative z-30 flex items-center justify-between px-6 md:px-10 py-4"
+        >
+          {/* Logo */}
+          <button onClick={() => wrapRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} className="flex items-center gap-2.5 cursor-pointer group">
+            <div className="w-9 h-9 rounded-full border-2 flex items-center justify-center group-hover:scale-110 transition-transform" style={{ borderColor: C.accent }}>
+              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" style={{ color: C.accent }}>
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Call to Action Section (Glassmorphic Bottom Overlay) */}
-      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[100] w-full max-w-lg px-4 pointer-events-none">
-        <div className="pointer-events-auto flex flex-col items-center bg-[#0a1128]/40 backdrop-blur-md border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl">
-          <h2 className="text-[8px] md:text-[10px] tracking-[0.3em] font-mono text-emerald-400 mb-1">EXPLORING</h2>
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight mb-2 drop-shadow-xl text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400">
-            WORLD
-          </h1>
-          <div className="flex items-center gap-4 mb-4 md:mb-6">
-            <div className="w-8 md:w-12 h-[1px] bg-emerald-400/50" />
-            <span className="text-[8px] md:text-[10px] tracking-[0.3em] font-mono text-emerald-400">WITH US</span>
-            <div className="w-8 md:w-12 h-[1px] bg-emerald-400/50" />
-          </div>
-
-          <button 
-            onClick={handleStartExploring}
-            disabled={isFlying}
-            className="group px-6 md:px-8 py-2 md:py-3 rounded-full border border-emerald-400 bg-emerald-500/80 hover:bg-emerald-500/100 transition-all duration-300 flex items-center justify-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.4)] hover:shadow-[0_0_25px_rgba(52,211,153,0.8)] scale-100 hover:scale-105 disabled:opacity-80 disabled:hover:scale-100"
-            aria-label="Start Exploring"
-          >
-            <span className="text-xs md:text-sm font-bold tracking-widest uppercase text-white drop-shadow-md">Start Exploring</span>
-            
-            <div className="relative w-4 h-4 overflow-visible">
-              <AnimatePresence mode="wait">
-                {!isFlying ? (
-                  <motion.svg 
-                    key="arrow"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, scale: 0 }}
-                    className="absolute inset-0 w-4 h-4 text-white transition-transform group-hover:translate-x-1.5" 
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                  </motion.svg>
-                ) : (
-                  <motion.svg 
-                    key="plane"
-                    initial={planePath.initial}
-                    animate={planePath.animate}
-                    transition={{ duration: 1.2, ease: [0.4, 0, 0.2, 1] }}
-                    className="absolute -inset-2 w-10 h-10 z-50 drop-shadow-[0_15px_30px_rgba(52,211,153,0.8)]" 
-                    viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <g transform="translate(5, 20)">
-                      {/* Tail */}
-                      <path d="M 5,30 L 15,5 L 25,5 L 25,30 Z" fill="#e2e8f0" />
-                      <path d="M 22,5 L 25,5 L 25,30 L 22,30 Z" fill="#ef4444" />
-                      
-                      {/* Back Wing */}
-                      <path d="M 40,35 L 20,15 L 30,15 L 50,35 Z" fill="#cbd5e1" />
-                      
-                      {/* Fuselage */}
-                      <path d="M 5,35 C 5,25 65,25 75,30 C 85,35 85,45 75,50 C 65,55 5,55 5,35 Z" fill="#ffffff" />
-                      
-                      {/* Red Stripe on fuselage */}
-                      <path d="M 10,40 L 75,40" stroke="#ef4444" strokeWidth="1.5" fill="none" />
-                      
-                      {/* Cockpit Window */}
-                      <path d="M 68,30 C 72,30 75,32 75,35 L 70,35 Z" fill="#38bdf8" />
-                      
-                      {/* Passenger Windows */}
-                      <circle cx="30" cy="34" r="1" fill="#38bdf8" />
-                      <circle cx="35" cy="34" r="1" fill="#38bdf8" />
-                      <circle cx="40" cy="34" r="1" fill="#38bdf8" />
-                      <circle cx="45" cy="34" r="1" fill="#38bdf8" />
-                      <circle cx="50" cy="34" r="1" fill="#38bdf8" />
-                      <circle cx="55" cy="34" r="1" fill="#38bdf8" />
-                      
-                      {/* Front Wing */}
-                      <path d="M 35,45 L 15,70 L 25,70 L 55,45 Z" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="0.5" />
-                      
-                      {/* Front Engine */}
-                      <rect x="30" y="47" width="12" height="6" rx="3" fill="#94a3b8" />
-                      <rect x="40" y="48" width="2" height="4" fill="#334155" />
-                    </g>
-                  </motion.svg>
-                )}
-              </AnimatePresence>
+            <div className="flex flex-col leading-none">
+              <span className="text-[15px] font-black tracking-[0.16em] uppercase text-white">TripNest</span>
+              <span className="text-[7px] tracking-[0.26em] uppercase font-semibold" style={{ color: C.accent }}>Explore the World</span>
             </div>
           </button>
+
+          {/* Links */}
+          <div className="hidden md:flex items-center gap-6">
+            {[['Destinations', () => scrollTo(mapRef)], ['Stories', () => scrollTo(diarRef)], ['Journal', handleExplore], ['About', () => scrollTo(aboutRef)]].map(([lbl, fn]) => (
+              <button key={lbl} onClick={fn} className="text-[10px] font-bold tracking-[0.2em] uppercase transition-colors cursor-pointer hover:underline underline-offset-4" style={{ color: 'rgba(255,255,255,0.72)', textDecorationColor: C.accent }}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+
+          {/* Sign In button */}
+          <button
+            onClick={handleExplore}
+            className="flex items-center gap-2 px-5 py-2 rounded-full text-[10px] font-black tracking-widest uppercase cursor-pointer transition-all duration-300 hover:scale-105"
+            style={{ border: `2px solid ${C.accent}`, color: C.accent }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = C.accent; e.currentTarget.style.color = '#000'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = C.accent; }}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            Sign In
+          </button>
+        </motion.nav>
+
+        {/* Hero body */}
+        <motion.div style={{ opacity: heroFade }} className="relative z-20 flex-1 flex flex-col justify-center px-6 md:px-10 pb-16 pt-2">
+
+          {/* Badge */}
+          <motion.div initial={{ opacity: 0, x: -22 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.28 }} className="flex items-center gap-2 mb-7 self-start">
+            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-sm -rotate-1" style={{ backgroundColor: C.accent, color: '#000' }}>
+              Smart Travel Planner
+            </span>
+            <span className="text-[10px] font-semibold tracking-widest" style={{ color: 'rgba(255,255,255,0.45)' }}>AI-Powered 2026</span>
+          </motion.div>
+
+          {/* Headline clip-up animation */}
+          {['Your Next', 'Story Starts'].map((line, i) => (
+            <div key={line} className="overflow-hidden">
+              <motion.h1
+                initial={{ y: '108%' }}
+                animate={{ y: 0 }}
+                transition={{ duration: 0.92, ease: [0.16, 1, 0.3, 1], delay: 0.3 + i * 0.13 }}
+                className="font-black leading-[0.9] tracking-tight"
+                style={{ fontSize: 'clamp(2.6rem,7.5vw,6.5rem)', textShadow: '0 2px 20px rgba(0,0,0,0.5)' }}
+              >
+                {line}
+              </motion.h1>
+            </div>
+          ))}
+          <div className="overflow-hidden mb-7">
+            <motion.h1
+              initial={{ y: '108%' }}
+              animate={{ y: 0 }}
+              transition={{ duration: 0.92, ease: [0.16, 1, 0.3, 1], delay: 0.56 }}
+              className="font-black leading-[0.9] tracking-tight italic"
+              style={{ fontSize: 'clamp(2.6rem,7.5vw,6.5rem)', background: 'linear-gradient(130deg,#38bdf8 0%,#818cf8 55%,#c084fc 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+            >
+              Here.
+            </motion.h1>
+          </div>
+
+          {/* Sub + CTA */}
+          <motion.div initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, delay: 0.70 }} className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            <p className="text-sm leading-relaxed max-w-[255px]" style={{ color: C.muted }}>
+              We don't just show you places, we take you on journeys that stay with you forever.
+            </p>
+
+            <button
+              id="hero-cta"
+              onClick={handleExplore}
+              className="relative flex items-center gap-2.5 rounded-full text-[11px] font-black uppercase tracking-widest px-7 py-3.5 cursor-pointer transition-all duration-300 hover:scale-105"
+              style={{ backgroundColor: C.accent, color: '#000', boxShadow: '0 0 32px rgba(56,189,248,0.48)' }}
+            >
+              Explore Journeys
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
+          </motion.div>
+
+          {/* Right italic quote */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }} className="absolute right-7 md:right-12 bottom-16 hidden md:block text-right max-w-[130px]">
+            <p className="text-[11px] italic leading-snug" style={{ color: 'rgba(255,255,255,0.42)' }}>
+              The world is full of stories, go live yours.
+            </p>
+          </motion.div>
+        </motion.div>
+
+        {/* Scroll hint */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.6 }}
+          onClick={() => scrollTo(mapRef)}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 cursor-pointer"
+        >
+          <span className="text-[7px] tracking-[0.3em] uppercase font-bold" style={{ color: 'rgba(255,255,255,0.32)' }}>Scroll</span>
+          <motion.div animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }} className="w-5 h-8 rounded-full border border-white/20 flex items-start justify-center pt-1.5">
+            <div className="w-1 h-1.5 rounded-full bg-white/50" />
+          </motion.div>
+        </motion.div>
+
+        {/* Torn-paper bottom edge */}
+        <div className="absolute bottom-0 left-0 right-0 z-20">
+          <TornEdge topColor="transparent" bottomColor={C.map} />
         </div>
-      </div>
-    </motion.div>
+      </section>
+
+      {/* ╔══════════════════════════════════════════
+          ║  PART 2 — STATS + JOURNEY MAP
+          ╚══════════════════════════════════════════ */}
+      <section
+        ref={mapRef}
+        className="relative w-full min-h-screen flex flex-col"
+        style={{ scrollSnapAlign: 'start', backgroundColor: C.map }}
+      >
+        {/* Night sky texture background */}
+        <div className="absolute inset-0">
+          <img src={MAP_BG} alt="" className="w-full h-full object-cover opacity-[0.12]" />
+          <div className="absolute inset-0" style={{ backgroundColor: `${C.map}dd` }} />
+          {/* Star dot texture */}
+          <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'radial-gradient(circle, rgba(56,189,248,0.9) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+        </div>
+
+        {/* Stats bar */}
+        <div className="relative z-10 border-b" style={{ borderColor: 'rgba(56,189,248,0.18)' }}>
+          <div className="max-w-5xl mx-auto px-6 py-7 grid grid-cols-2 md:grid-cols-4 gap-5">
+            {STATS.map((s, i) => (
+              <FadeUp key={s.sub} delay={i * 0.08} className="flex flex-col items-center gap-1.5 text-center">
+                <span className="text-xl">{s.icon}</span>
+                <span className="text-3xl font-black text-white">{s.num}</span>
+                <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: 'rgba(56,189,248,0.75)' }}>{s.sub}</span>
+              </FadeUp>
+            ))}
+          </div>
+        </div>
+
+        {/* Journey Map */}
+        <div className="relative z-10 flex-1 flex items-center py-14 md:py-16">
+          <div className="max-w-7xl mx-auto w-full px-6 md:px-10 grid md:grid-cols-2 gap-12 items-center">
+
+            {/* Left text */}
+            <FadeUp>
+              <h2 className="text-5xl md:text-6xl font-black leading-[0.9] mb-4 text-white">
+                Journey<br />
+                <span className="italic" style={{ color: 'rgba(255,255,255,0.35)' }}>Map</span>
+              </h2>
+              <p className="text-sm leading-relaxed mb-7 max-w-xs" style={{ color: C.muted }}>
+                Every journey is a story. Here's where the road can take you.
+              </p>
+              <button onClick={handleExplore} className="inline-flex items-center gap-2 text-sm font-bold underline underline-offset-4 cursor-pointer hover:opacity-80 transition-opacity" style={{ color: C.accent, textDecorationColor: C.accent }}>
+                Start exploring →
+              </button>
+            </FadeUp>
+
+            {/* Right — Map canvas */}
+            <FadeUp delay={0.16}>
+              <div className="relative w-full rounded-xl overflow-hidden border shadow-2xl" style={{ aspectRatio: '16/10', borderColor: 'rgba(56,189,248,0.22)', backgroundColor: '#0a1225' }}>
+                {/* Map bg */}
+                <img src={MAP_BG} alt="Map" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(10,18,37,0.55) 0%, rgba(10,18,37,0.3) 100%)' }} />
+
+                {/* SVG dashed route lines (matching reference layout) */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 63" preserveAspectRatio="none">
+                  {[
+                    'M 22,60 C 30,48 40,44 48,42',
+                    'M 48,42 C 58,36 64,28 68,22',
+                    'M 68,22 C 76,20 82,24 88,28',
+                    'M 48,42 C 50,54 52,62 54,75',
+                  ].map((d, i) => (
+                    <motion.path
+                      key={i}
+                      initial={{ pathLength: 0 }}
+                      whileInView={{ pathLength: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1.6, ease: 'easeInOut', delay: 0.35 + i * 0.38 }}
+                      d={d}
+                      fill="none"
+                      stroke="rgba(56,189,248,0.40)"
+                      strokeWidth="0.7"
+                      strokeDasharray="2 1.5"
+                    />
+                  ))}
+                  {/* Small airplane icon on path */}
+                  <motion.text
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 1.8 }}
+                    x="56" y="34" fontSize="4" fill="rgba(56,189,248,0.8)" textAnchor="middle"
+                  >✈</motion.text>
+                </svg>
+
+                {/* Destination pins with ALWAYS-VISIBLE labels (matching reference) */}
+                {PINS.map((p, i) => (
+                  <motion.button
+                    key={p.id}
+                    initial={{ opacity: 0, scale: 0 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.2 + i * 0.13, type: 'spring', stiffness: 260 }}
+                    onClick={handleExplore}
+                    className="absolute cursor-pointer group"
+                    style={{ top: p.t, left: p.l, transform: 'translate(-50%, -50%)' }}
+                  >
+                    <div className="flex flex-col items-center">
+                      {/* Name label ABOVE pin (like reference) */}
+                      <div className="mb-1 text-center">
+                        <div className="text-[9px] font-black text-white leading-none">{p.name}</div>
+                        <div className="text-[7px] font-medium leading-none" style={{ color: 'rgba(255,255,255,0.5)' }}>{p.country}</div>
+                      </div>
+                      {/* Photo circle */}
+                      <motion.div whileHover={{ scale: 1.22 }} transition={{ type: 'spring', stiffness: 300 }} className="rounded-full overflow-hidden border-2 shadow-lg" style={{ width: 44, height: 44, borderColor: C.accent }}>
+                        <img src={p.img} alt={p.name} className="w-full h-full object-cover" />
+                      </motion.div>
+                      {/* Pin stem */}
+                      <div className="w-px h-2.5" style={{ backgroundColor: 'rgba(56,189,248,0.6)' }} />
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: C.accent }} />
+                    </div>
+                  </motion.button>
+                ))}
+
+                {/* Adventure Awaits stamp (like reference) */}
+                <div className="absolute bottom-3 right-3 opacity-20">
+                  <div className="w-14 h-14 rounded-full border-2 border-sky-400 flex flex-col items-center justify-center text-sky-400">
+                    <div className="text-[5px] font-black tracking-widest uppercase">Adventure</div>
+                    <div className="text-[5px] font-black tracking-widest uppercase">Awaits</div>
+                  </div>
+                </div>
+              </div>
+            </FadeUp>
+          </div>
+        </div>
+
+        {/* Torn-paper to section 3 */}
+        <div className="absolute bottom-0 left-0 right-0 z-20">
+          <TornEdge topColor="transparent" bottomColor={C.diaries} />
+        </div>
+      </section>
+
+      {/* ╔══════════════════════════════════════════
+          ║  PART 3 — DIARIES + CTA + FOOTER
+          ╚══════════════════════════════════════════ */}
+      <section
+        ref={diarRef}
+        className="relative w-full min-h-screen flex flex-col"
+        style={{ scrollSnapAlign: 'start', backgroundColor: C.diaries }}
+      >
+        {/* Subtle night texture */}
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, rgba(56,189,248,0.9) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+
+        {/* Traveler Diaries */}
+        <div className="relative z-10 py-14 md:py-18 flex-1">
+          <div className="max-w-7xl mx-auto px-6 md:px-10">
+
+            {/* Section header */}
+            <div className="grid md:grid-cols-2 gap-10 items-start mb-12">
+              <FadeUp>
+                <h2 className="text-5xl md:text-6xl font-black leading-[0.9] text-white">
+                  Traveler<br />
+                  <span className="italic" style={{ color: 'rgba(255,255,255,0.32)' }}>Diaries</span>
+                </h2>
+              </FadeUp>
+              <FadeUp delay={0.1} className="flex flex-col justify-end">
+                <p className="text-sm leading-relaxed mb-5 max-w-xs" style={{ color: C.muted }}>
+                  Real stories from real travelers. Be inspired by their adventures.
+                </p>
+                <button onClick={handleExplore} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border text-sm font-bold cursor-pointer self-start hover:opacity-80 transition-all" style={{ borderColor: C.accent, color: C.accent }}>
+                  Read Diaries →
+                </button>
+              </FadeUp>
+            </div>
+
+            {/* Polaroid cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {DIARIES.map((d, i) => (
+                <FadeUp key={d.id} delay={i * 0.12}>
+                  <motion.div
+                    whileHover={{ y: -7, rotate: i === 1 ? 0 : i === 0 ? -1.2 : 1.2 }}
+                    transition={{ type: 'spring', stiffness: 240 }}
+                    onClick={handleExplore}
+                    className="relative rounded-xl overflow-hidden cursor-pointer group border"
+                    style={{ backgroundColor: '#0c1426', borderColor: 'rgba(56,189,248,0.18)', boxShadow: '0 14px 44px rgba(0,0,0,0.55)' }}
+                  >
+                    {/* Photo */}
+                    <div className="relative h-44 overflow-hidden">
+                      <img src={d.img} alt={d.loc} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      {/* Tape strips like reference */}
+                      <div className="absolute top-2 left-5 w-10 h-3 rounded-sm -rotate-2" style={{ backgroundColor: 'rgba(255,255,255,0.32)', backdropFilter: 'blur(2px)' }} />
+                      <div className="absolute top-2 right-5 w-10 h-3 rounded-sm rotate-2"  style={{ backgroundColor: 'rgba(255,255,255,0.32)', backdropFilter: 'blur(2px)' }} />
+                      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(12,20,38,0.88) 0%, transparent 58%)' }} />
+                      <div className="absolute bottom-2.5 left-3.5 text-xs font-bold" style={{ color: 'rgba(255,255,255,0.78)' }}>{d.loc}</div>
+                    </div>
+                    {/* Content */}
+                    <div className="p-4">
+                      <p className="text-sm italic leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.62)' }}>{d.quote}</p>
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black text-white shrink-0" style={{ background: 'linear-gradient(135deg,#38bdf8,#818cf8)' }}>{d.author[0]}</div>
+                        <span className="text-xs font-semibold" style={{ color: C.faint }}>— {d.author}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                </FadeUp>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Full-bleed CTA — "The World is Waiting" */}
+        <div className="relative w-full" style={{ height: '52vh', minHeight: 380 }}>
+          <img src={CTA_IMG} alt="" className="absolute inset-0 w-full h-full object-cover object-[center_35%]" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(6,13,31,0.72) 0%, rgba(6,13,31,0.5) 40%, rgba(6,13,31,0.88) 100%)' }} />
+          {/* Blue night tint at base */}
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,30,80,0.30) 0%, transparent 50%)' }} />
+
+          <FadeUp className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
+            <h2 className="font-black italic mb-3 leading-tight text-white" style={{ fontSize: 'clamp(2.4rem,6vw,5.5rem)', textShadow: '0 2px 24px rgba(0,0,0,0.6)' }}>
+              The World is Waiting.
+            </h2>
+            <p className="text-sm mb-9 max-w-md leading-relaxed" style={{ color: 'rgba(255,255,255,0.52)' }}>
+              Pack your bag, open your heart, and let's create stories for a lifetime.
+            </p>
+            <button
+              onClick={handleExplore}
+              className="flex items-center gap-3 rounded-full text-[11px] font-black tracking-widest uppercase px-8 py-4 cursor-pointer transition-all duration-300 hover:scale-105 border-2"
+              style={{ borderColor: C.accent, backgroundColor: 'rgba(56,189,248,0.2)', color: '#fff', boxShadow: '0 0 40px rgba(56,189,248,0.32)' }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = C.accent; e.currentTarget.style.color = '#000'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'rgba(56,189,248,0.2)'; e.currentTarget.style.color = '#fff'; }}
+            >
+              Plan Your Journey →
+            </button>
+          </FadeUp>
+        </div>
+
+        {/* Category strip */}
+        <div className="relative z-10 border-t py-8" style={{ backgroundColor: C.diaries, borderColor: 'rgba(56,189,248,0.14)' }}>
+          <div className="max-w-4xl mx-auto px-6 grid grid-cols-5 gap-3">
+            {CATS.map((c, i) => (
+              <FadeUp key={c.l} delay={i * 0.07}>
+                <motion.button whileHover={{ y: -5 }} onClick={handleExplore} className="flex flex-col items-center gap-2 cursor-pointer group w-full">
+                  <div className="w-11 h-11 rounded-full border flex items-center justify-center text-xl transition-all" style={{ borderColor: 'rgba(56,189,248,0.22)', backgroundColor: 'rgba(56,189,248,0.06)' }}>{c.e}</div>
+                  <div className="text-[10px] font-black transition-colors" style={{ color: 'rgba(255,255,255,0.72)' }}>{c.l}</div>
+                  <div className="text-[8px]" style={{ color: C.faint }}>{c.s}</div>
+                </motion.button>
+              </FadeUp>
+            ))}
+          </div>
+        </div>
+
+        {/* ── ABOUT SECTION ── */}
+        <div ref={aboutRef} className="relative z-10 border-t py-14 md:py-20" style={{ backgroundColor: C.diaries, borderColor: 'rgba(56,189,248,0.12)' }}>
+          <div className="max-w-3xl mx-auto px-6 md:px-10 text-center">
+            <FadeUp>
+              <h2 className="text-3xl md:text-4xl font-black mb-6 text-white">About <span style={{ color: C.accent }}>TripNest</span></h2>
+              <p className="text-sm md:text-base leading-relaxed mb-6" style={{ color: C.muted }}>
+                TripNest is your AI-powered travel companion that transforms the way you plan, explore, and experience the world.
+                We combine real-time data, smart itinerary planning, and crowd insights to craft personalized journeys
+                tailored to your interests, budget, and travel style.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-10">
+                {[
+                  { icon: '🌍', title: 'Smart Globe Explorer', desc: 'Spin the interactive 3D globe to discover destinations with real-time weather, crowd levels, and travel data.' },
+                  { icon: '🗓️', title: 'AI Itinerary Builder', desc: 'Get personalized day-by-day travel plans crafted by AI, optimized for your preferences and budget.' },
+                  { icon: '📊', title: 'Live Crowd Insights', desc: 'See real-time crowd levels at popular attractions so you can avoid the rush and enjoy hidden gems.' },
+                ].map((feat, i) => (
+                  <FadeUp key={feat.title} delay={i * 0.1}>
+                    <div className="rounded-xl p-5 border text-center" style={{ backgroundColor: 'rgba(56,189,248,0.05)', borderColor: 'rgba(56,189,248,0.15)' }}>
+                      <div className="text-3xl mb-3">{feat.icon}</div>
+                      <h3 className="text-sm font-black text-white mb-2">{feat.title}</h3>
+                      <p className="text-xs leading-relaxed" style={{ color: C.muted }}>{feat.desc}</p>
+                    </div>
+                  </FadeUp>
+                ))}
+              </div>
+              <motion.p
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4 }}
+                className="mt-10 text-xs italic" style={{ color: C.faint }}
+              >
+                Built with ❤️ for travelers who believe the best stories are lived, not told.
+              </motion.p>
+            </FadeUp>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
   );
 }
