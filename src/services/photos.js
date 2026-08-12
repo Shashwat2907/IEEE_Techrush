@@ -72,3 +72,23 @@ export function getDestinationPhoto(destination) {
 
   return DEFAULT_TRAVEL_PHOTO;
 }
+
+/**
+ * Optional live image enrichment for places outside the curated starter set.
+ * Unsplash is only queried when the user adds a real key; the curated/fallback
+ * image means every arbitrary map location still has a polished card today.
+ */
+export async function fetchDestinationPhoto(destination, accessKey) {
+  const fallback = getDestinationPhoto(destination);
+  if (!accessKey || /^(YOUR_|DUMMY_|MOCK_)/.test(accessKey.trim())) return fallback;
+  try {
+    const query = encodeURIComponent(`${destination?.name || 'travel destination'} travel landscape`);
+    const response = await fetch(`https://api.unsplash.com/photos/random?query=${query}&orientation=landscape`, {
+      headers: { Authorization: `Client-ID ${accessKey.trim()}` },
+    });
+    const photo = response.ok ? await response.json() : null;
+    return photo?.urls?.regular || fallback;
+  } catch {
+    return fallback;
+  }
+}

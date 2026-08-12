@@ -3,8 +3,11 @@ import { useTheme } from '../../context/ThemeContext';
 import { useItinerary } from '../../context/ItineraryContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useCompare } from '../../context/CompareContext';
-import { getDestinationPhoto } from '../../services/photos';
+import { useApp } from '../../context/AppContext';
+import { fetchDestinationPhoto, getDestinationPhoto } from '../../services/photos';
+import { API_KEYS } from '../../config/api';
 import { getWeather } from '../../services/weather';
+import { getDestinationHotspots } from '../../services/destinations';
 import {
   SunIcon,
   MapIcon,
@@ -25,10 +28,12 @@ export default function DetailPanel({
   const { addActivity, days } = useItinerary();
   const { formatPrice } = useCurrency();
   const { isInCompare, addToCompare, removeFromCompare } = useCompare();
+  const { showCrowdHeatmap, toggleCrowdHeatmap } = useApp();
   const [addedActivities, setAddedActivities] = useState(new Set());
   const [liveWeather, setLiveWeather] = useState(null);
 
-  const photoUrl = useMemo(() => getDestinationPhoto(destination), [destination]);
+  const fallbackPhoto = useMemo(() => getDestinationPhoto(destination), [destination]);
+  const [photoUrl, setPhotoUrl] = useState(fallbackPhoto);
 
   const displayActivities = useMemo(() => {
     if (destination?.activities && destination.activities.length > 0) {
@@ -41,6 +46,7 @@ export default function DetailPanel({
       { name: `Panoramic Sunset & Scenic Landscape Walk`, durationHrs: 2.0, cost: 0, type: 'activity' },
     ];
   }, [destination]);
+  const hotspots = useMemo(() => getDestinationHotspots(destination), [destination]);
 
   useEffect(() => {
     let isMounted = true;
@@ -55,6 +61,15 @@ export default function DetailPanel({
       isMounted = false;
     };
   }, [destination?.lat, destination?.lng]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPhotoUrl(fallbackPhoto);
+    fetchDestinationPhoto(destination, API_KEYS.UNSPLASH).then((url) => {
+      if (!cancelled) setPhotoUrl(url);
+    });
+    return () => { cancelled = true; };
+  }, [destination, fallbackPhoto]);
 
   if (!destination) return null;
 
@@ -75,8 +90,23 @@ export default function DetailPanel({
       durationHrs: activity.durationHrs || 2,
       cost: activity.cost || 0,
       type: activity.type || 'activity',
+      lat: activity.lat,
+      lng: activity.lng,
     });
     setAddedActivities((prev) => new Set([...prev, index]));
+  };
+
+  const handleHotspotDrag = (event, hotspot) => {
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData('application/tripnest-hotspot', JSON.stringify({
+      name: hotspot.name,
+      durationHrs: hotspot.durationHrs,
+      cost: hotspot.cost,
+      type: hotspot.type,
+      lat: hotspot.lat,
+      lng: hotspot.lng,
+      notes: hotspot.dietary ? `${hotspot.dietary} · ${hotspot.specialty}` : `Rated ${hotspot.rating}/5`,
+    }));
   };
 
   const weather = liveWeather || weatherData || {
@@ -96,9 +126,7 @@ export default function DetailPanel({
     <div className={`h-full flex flex-col ${isDark ? 'text-white' : 'text-slate-900'} font-sans select-none overflow-hidden`}>
       {/* ─── Top Navigation Header ─── */}
       <div
-        className={`p-3.5 sm:p-4 border-b ${
-          isDark ? 'border-white/10 bg-[#121826]/70' : 'border-black/10 bg-white/70'
-        } backdrop-blur-2xl flex items-center justify-between shrink-0 z-10`}
+        className="p-3.5 sm:p-4 border-b apple-liquid-glass flex items-center justify-between shrink-0 z-10"
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
@@ -170,11 +198,7 @@ export default function DetailPanel({
 
         {/* Destination Editorial Overview */}
         {destination.description && (
-          <div
-            className={`p-4 rounded-2xl border ${
-              isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
-            } backdrop-blur-xl`}
-          >
+          <div className="p-4 rounded-2xl apple-liquid-glass">
             <p className={`text-xs leading-relaxed ${isDark ? 'text-zinc-300' : 'text-slate-700'} font-medium`}>
               {destination.description}
             </p>
@@ -184,11 +208,7 @@ export default function DetailPanel({
         {/* ─── Bento Metrics Grid ─── */}
         <div className="grid grid-cols-2 gap-3">
           {/* Atmosphere & Weather Spec */}
-          <div
-            className={`col-span-2 p-4 rounded-2xl border ${
-              isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
-            } backdrop-blur-xl flex items-center justify-between`}
-          >
+          <div className="col-span-2 p-4 rounded-2xl apple-liquid-glass flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
                 <SunIcon className="w-5 h-5" />
@@ -219,14 +239,20 @@ export default function DetailPanel({
             </div>
           </div>
 
-          {/* Crowd Flux */}
-          <div
-            className={`p-4 rounded-2xl border ${
-              isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
-            } backdrop-blur-xl space-y-1`}
-          >
-            <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
-              Crowd Flux
+          <div className="p-4 rounded-2xl apple-liquid-glass space-y-1 relative">
+            <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider flex justify-between items-center">
+              <span>Crowd Flux</span>
+              <button
+                type="button"
+                onClick={toggleCrowdHeatmap}
+                className={`text-[9px] px-1.5 py-0.5 rounded-sm font-bold transition-colors cursor-pointer ${
+                  showCrowdHeatmap
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-black/10 dark:bg-white/20 text-slate-500 dark:text-zinc-300'
+                }`}
+              >
+                {showCrowdHeatmap ? 'MAP ON' : 'MAP OFF'}
+              </button>
             </div>
             <div className={`text-sm font-bold capitalize ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {crowd.level}
@@ -237,11 +263,7 @@ export default function DetailPanel({
           </div>
 
           {/* Budget Tier */}
-          <div
-            className={`p-4 rounded-2xl border ${
-              isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
-            } backdrop-blur-xl space-y-1`}
-          >
+          <div className="p-4 rounded-2xl apple-liquid-glass space-y-1">
             <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
               Budget Tier
             </div>
@@ -291,11 +313,10 @@ export default function DetailPanel({
                 return (
                   <div
                     key={idx}
-                    className={`p-3.5 rounded-2xl border ${
-                      isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
-                    } backdrop-blur-xl flex items-center justify-between gap-3`}
+                    className="relative overflow-hidden p-3.5 rounded-2xl apple-liquid-glass flex items-center justify-between gap-3"
                   >
-                    <div className="flex-1 min-w-0">
+                    <img src={photoUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-10" />
+                    <div className="relative flex-1 min-w-0">
                       <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'} truncate`}>
                         {act.name}
                       </div>
@@ -307,7 +328,7 @@ export default function DetailPanel({
                     <button
                       type="button"
                       onClick={() => handleAddActivity(act, idx)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                      className={`relative px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
                         isAdded
                           ? 'bg-emerald-500 text-white shadow-sm font-bold'
                           : isDark
@@ -330,14 +351,43 @@ export default function DetailPanel({
             </div>
           </div>
         )}
+
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">Top 5 stays</span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Budget-aware</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {hotspots.stays.map((stay, index) => (
+              <div key={stay.name} draggable onDragStart={(event) => handleHotspotDrag(event, stay)} className="relative overflow-hidden min-w-[178px] p-3 rounded-2xl cursor-grab active:cursor-grabbing apple-liquid-glass">
+                <img src={photoUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-10" />
+                <p className="relative text-xs font-bold truncate">{stay.name}</p>
+                <p className="relative mt-1 text-[10px] text-slate-500 dark:text-zinc-400">★ {stay.rating} · {formatPrice(stay.cost)}/night</p>
+                <button type="button" onClick={() => handleAddActivity(stay, `stay-${index}`)} className={`relative mt-2 text-[10px] font-bold ${addedActivities.has(`stay-${index}`) ? 'text-emerald-500' : 'text-slate-500 dark:text-zinc-300'}`}>{addedActivities.has(`stay-${index}`) ? 'Added' : '+ Add · drag to timeline'}</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">Top 5 foods</span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Veg + non-veg picks</span>
+          </div>
+          <div className="space-y-2">
+            {hotspots.foods.map((food, index) => (
+              <div key={food.name} draggable onDragStart={(event) => handleHotspotDrag(event, food)} className="relative overflow-hidden p-3 rounded-2xl flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing apple-liquid-glass">
+                <img src={photoUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-10" />
+                <div className="relative min-w-0"><p className="text-xs font-bold truncate">{food.name}</p><p className="mt-0.5 text-[10px] text-slate-500 dark:text-zinc-400 truncate">{food.dietary} · {food.specialty}</p></div>
+                <button type="button" onClick={() => handleAddActivity(food, `food-${index}`)} className={`relative shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold ${addedActivities.has(`food-${index}`) ? 'bg-emerald-500 text-white' : 'bg-black/5 dark:bg-white/10 text-slate-700 dark:text-zinc-200'}`}>{addedActivities.has(`food-${index}`) ? 'Added' : '+ Add'}</button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Primary Action Footer */}
-      <div
-        className={`p-4 ${
-          isDark ? 'bg-[#121826]/70 border-white/10' : 'bg-white/70 border-black/10'
-        } border-t backdrop-blur-xl shrink-0`}
-      >
+      <div className="p-4 border-t apple-liquid-glass shrink-0">
         <button
           type="button"
           onClick={onPlanTrip}

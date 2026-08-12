@@ -8,6 +8,8 @@ import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getDestinations, getTrendingDestinations } from '../../services/destinations';
 import { reverseGeocode } from '../../services/geocode';
+import { getCrowdLevel } from '../../services/crowd';
+import { getActivityCoordinates } from '../../services/waypoints';
 import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import {
   GlobeIcon,
@@ -63,6 +65,7 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
   const customMarkerRef = useRef(null);
   const activePopupRef = useRef(null);
   const animFrameRef = useRef(null);
+  const flythroughTimerRef = useRef(null);
   const isInteractingRef = useRef(false);
   const pointerDownRef = useRef({ x: 0, y: 0, time: 0 });
 
@@ -75,6 +78,9 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
     flyToDestination,
     placeMarker,
     clearMarker,
+    routeFlythroughId,
+    showCrowdHeatmap,
+    toggleCrowdHeatmap,
   } = useApp();
 
   const { isDark, toggleTheme, setTheme } = useTheme();
@@ -92,6 +98,8 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
   const [activeTileStyle, setActiveTileStyle] = useState('satellite');
   const [mapLoaded, setMapLoaded] = useState(false);
   const [viewDimension, setViewDimension] = useState('2D');
+  const [crowdStatus, setCrowdStatus] = useState(null);
+  const [journeyStatus, setJourneyStatus] = useState('');
 
   const isDestinationView = selectedDestination !== null && !isTransitioning;
 
@@ -202,6 +210,37 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
           'line-dasharray': [2, 2],
         },
       });
+
+      // Offline-friendly local GeoJSON heat layer. It uses destination crowd
+      // signals and scheduled stops, so it remains useful even without a live API.
+      map.addSource('crowd-heatmap', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({
+        id: 'crowd-heatmap-layer',
+        type: 'heatmap',
+        source: 'crowd-heatmap',
+        layout: { visibility: 'none' },
+        paint: {
+          'heatmap-weight': ['get', 'intensity'],
+          'heatmap-intensity': 1.2,
+          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 16, 10, 44],
+          'heatmap-opacity': 0.72,
+          'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0, 0, 0, 0)', 0.3, '#22c55e', 0.55, '#facc15', 0.78, '#fb923c', 1, '#ef4444'],
+        },
+      });
+      map.addLayer({
+        id: 'crowd-waypoints-layer',
+        type: 'circle',
+        source: 'crowd-heatmap',
+        layout: { visibility: 'none' },
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 6, 12, 14],
+          'circle-color': ['interpolate', ['linear'], ['get', 'intensity'], 0, '#22c55e', 0.55, '#facc15', 0.78, '#fb923c', 1, '#ef4444'],
+          'circle-opacity': 0.3,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 1,
+          'circle-stroke-opacity': 0.65,
+        },
+      });
     });
 
     const handleStartInteract = () => {
@@ -247,6 +286,7 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (activePopupRef.current) activePopupRef.current.remove();
+      if (flythroughTimerRef.current) window.clearTimeout(flythroughTimerRef.current);
       map.remove();
       mapRef.current = null;
     };
@@ -684,8 +724,6 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
     markersRef.current = [];
 
     if (isDestinationView && activeDest) {
-      const baseLat = activeDest.lat;
-      const baseLng = activeDest.lng;
       const routeFeatures = [];
 
       let globalActivityIndex = 0;
@@ -694,27 +732,28 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
         const dayCoords = [];
 
         (day.activities || []).forEach((act) => {
-          const actLat = act.lat || baseLat + Math.sin(globalActivityIndex * 1.4) * 0.032;
-          const actLng = act.lng || baseLng + Math.cos(globalActivityIndex * 1.4) * 0.042;
+          const point = getActivityCoordinates(act, activeDest, globalActivityIndex);
+          if (!point) return;
+          const { lat: actLat, lng: actLng } = point;
           dayCoords.push([actLng, actLat]);
 
           const isStart = globalActivityIndex === 0;
-          const labelText = isStart ? 'Start' : `Stop ${globalActivityIndex}`;
+          const stopNumber = globalActivityIndex + 1;
 
           const el = document.createElement('div');
           el.className = 'group cursor-pointer select-none font-sans';
           el.innerHTML = `
             <div class="relative flex items-center justify-center">
-              <div class="px-2.5 py-1 rounded-md ${
+              <div class="w-8 h-8 rounded-full flex items-center justify-center ${
                 isStart
-                  ? 'bg-emerald-500 text-black font-bold'
-                  : 'bg-[#121217] text-white border border-white/30'
-              } text-xs font-semibold shadow-md group-hover:scale-105 transition-transform">
-                ${labelText}
+                  ? 'bg-emerald-500 text-slate-950 ring-4 ring-emerald-400/25'
+                  : 'bg-[#121217] text-white border-2 border-white/80 ring-4 ring-slate-950/25'
+              } text-xs font-black shadow-xl group-hover:scale-110 transition-transform">
+                ${isStart ? '▶' : stopNumber}
               </div>
               <div class="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
                 <div class="bg-[#121217]/95 backdrop-blur-md border border-white/20 text-white px-3 py-1.5 rounded-md text-xs font-sans whitespace-nowrap shadow-2xl">
-                  <span class="font-bold">${act.name}</span>
+                  <span class="font-bold">${isStart ? 'Start · ' : `Place ${stopNumber} · `}${act.name}</span>
                   <span class="ml-2 text-zinc-400">(${formatPrice(act.cost)})</span>
                 </div>
               </div>
@@ -732,7 +771,7 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
         if (dayCoords.length >= 2) {
           routeFeatures.push({
             type: 'Feature',
-            properties: {},
+            properties: { day: day.dayNumber },
             geometry: {
               type: 'LineString',
               coordinates: dayCoords,
@@ -791,6 +830,74 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
       });
     }
   }, [isDestinationView, activeDest, days, mapLoaded, flyToDestination, formatPrice]);
+
+  // Crowd estimates are always available: live providers can be wired with an
+  // API key later, while this sensible time-and-place model keeps the control
+  // useful offline today.
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeDest) {
+      setCrowdStatus(null);
+      return undefined;
+    }
+    getCrowdLevel(activeDest.id, activeDest).then((result) => {
+      if (!cancelled) setCrowdStatus(result);
+    });
+    const interval = window.setInterval(() => {
+      getCrowdLevel(activeDest.id, activeDest).then((result) => {
+        if (!cancelled) setCrowdStatus(result);
+      });
+    }, 10 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [activeDest]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+    const features = [];
+    if (activeDest) {
+      const baseIntensity = crowdStatus?.percentage ? crowdStatus.percentage / 100 : activeDest.crowdLevel === 'high' ? 1 : activeDest.crowdLevel === 'low' ? 0.25 : 0.58;
+      features.push({ type: 'Feature', properties: { intensity: baseIntensity }, geometry: { type: 'Point', coordinates: [activeDest.lng, activeDest.lat] } });
+      (days || []).flatMap((day) => day.activities || []).forEach((activity, index) => {
+        const point = getActivityCoordinates(activity, activeDest, index);
+        if (!point) return;
+        const { lat, lng } = point;
+        features.push({ type: 'Feature', properties: { intensity: 0.35 + (index % 3) * 0.2 }, geometry: { type: 'Point', coordinates: [lng, lat] } });
+      });
+    }
+    try {
+      map.getSource('crowd-heatmap')?.setData({ type: 'FeatureCollection', features });
+      map.setLayoutProperty('crowd-heatmap-layer', 'visibility', showCrowdHeatmap ? 'visible' : 'none');
+      map.setLayoutProperty('crowd-waypoints-layer', 'visibility', showCrowdHeatmap ? 'visible' : 'none');
+    } catch {}
+  }, [activeDest, crowdStatus, days, mapLoaded, showCrowdHeatmap]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded || !routeFlythroughId || !activeDest) return;
+    const stops = (days || []).flatMap((day) => day.activities || []).map((activity, index) => ({
+      ...activity,
+      ...getActivityCoordinates(activity, activeDest, index),
+    })).filter((activity) => Number.isFinite(Number(activity.lat)) && Number.isFinite(Number(activity.lng)));
+    if (!stops.length) return;
+    if (flythroughTimerRef.current) window.clearTimeout(flythroughTimerRef.current);
+    let index = 0;
+    setJourneyStatus(`Journey started · ${stops.length} places`);
+    const flyNext = () => {
+      const stop = stops[index];
+      setJourneyStatus(`${index === 0 ? 'Starting at' : 'Navigating to'} ${stop.name} · ${index + 1}/${stops.length}`);
+      map.flyTo({ center: [stop.lng, stop.lat], zoom: 14.5, pitch: 58, bearing: -28 + index * 18, duration: 1600, essential: true });
+      index += 1;
+      if (index < stops.length) flythroughTimerRef.current = window.setTimeout(flyNext, 1700);
+      else flythroughTimerRef.current = window.setTimeout(() => setJourneyStatus('Journey complete'), 1700);
+    };
+    try { map.setProjection({ type: 'globe' }); } catch {}
+    setViewDimension('3D');
+    flyNext();
+  }, [routeFlythroughId, activeDest, days, mapLoaded]);
 
   return (
     <ErrorBoundary name="MapLibre Globe">
@@ -891,6 +998,17 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
 
                   <div className="h-4 w-[1px] bg-black/10 dark:bg-white/20 mx-0.5" />
 
+                  <button
+                    type="button"
+                    onClick={toggleCrowdHeatmap}
+                    className={`px-3 py-1 text-xs font-bold rounded-full transition-colors cursor-pointer ${showCrowdHeatmap ? 'bg-orange-500 text-white' : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'}`}
+                    title="Toggle live crowd intensity at your places"
+                  >
+                    {showCrowdHeatmap ? `Crowd ${crowdStatus?.percentage ?? ''}%` : 'Crowd'}
+                  </button>
+
+                  <div className="h-4 w-[1px] bg-black/10 dark:bg-white/20 mx-0.5" />
+
                   {/* Theme Switcher Button */}
                   <button
                     type="button"
@@ -962,6 +1080,16 @@ export default function MapLibreGlobe({ activeDrawer, onOpenDrawer, onToggleDraw
                   })}
                 </div>
               </motion.div>
+
+              {journeyStatus && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-4 py-2 rounded-full bg-slate-950/90 text-white text-xs font-semibold shadow-2xl border border-white/15"
+                >
+                  {journeyStatus}
+                </motion.div>
+              )}
             </>
           )}
         </AnimatePresence>

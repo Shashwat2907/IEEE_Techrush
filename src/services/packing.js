@@ -88,19 +88,30 @@ const TYPE_ITEMS = {
   ],
 };
 
+const CROWD_ITEMS = {
+  high: [
+    { name: 'Small anti-theft day bag', category: 'bags', essential: true },
+    { name: 'Refillable water bottle for queue time', category: 'essentials', essential: true },
+    { name: 'Offline maps and timed-entry tickets', category: 'electronics', essential: true },
+  ],
+  low: [
+    { name: 'Camera / binoculars for quieter exploration', category: 'electronics', essential: false },
+  ],
+};
+
 /**
  * Generate packing list based on destination type, weather, and trip length
  * @param {Object} params - { types: string[], weather: string, tripDays: number }
  * @returns {Array<{name: string, category: string, essential: boolean, packed: boolean}>}
  */
-export function generatePackingList({ types = [], weather = 'mild', tripDays = 5 }) {
+export function generatePackingList({ types = [], weather = 'mild', temperature, crowdLevel = 'medium', tripDays = 5 }) {
   const items = new Map();
 
   // Add base items
   BASE_ITEMS.forEach(item => items.set(item.name, { ...item, packed: false }));
 
   // Add weather-specific items
-  const weatherKey = getWeatherCategory(weather);
+  const weatherKey = getWeatherCategory(weather, temperature);
   (WEATHER_ITEMS[weatherKey] || WEATHER_ITEMS.mild).forEach(item =>
     items.set(item.name, { ...item, packed: false })
   );
@@ -111,6 +122,10 @@ export function generatePackingList({ types = [], weather = 'mild', tripDays = 5
       items.set(item.name, { ...item, packed: false })
     );
   });
+
+  (CROWD_ITEMS[crowdLevel] || []).forEach(item =>
+    items.set(item.name, { ...item, packed: false })
+  );
 
   // Add extra clothing for longer trips
   if (tripDays > 7) {
@@ -125,7 +140,11 @@ export function generatePackingList({ types = [], weather = 'mild', tripDays = 5
   });
 }
 
-function getWeatherCategory(weatherDesc) {
+function getWeatherCategory(weatherDesc, temperature) {
+  if (Number.isFinite(Number(temperature))) {
+    if (Number(temperature) <= 12) return 'cold';
+    if (Number(temperature) >= 27) return 'hot';
+  }
   if (!weatherDesc) return 'mild';
   const w = weatherDesc.toLowerCase();
   if (w.includes('hot') || w.includes('warm') || w.includes('tropical')) return 'hot';

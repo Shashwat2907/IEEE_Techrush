@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from 'react';
+import { useState, useMemo, lazy, Suspense, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppProvider, useApp } from './context/AppContext';
 import { ItineraryProvider, useItinerary } from './context/ItineraryContext';
@@ -12,6 +12,7 @@ import InteractiveTitle from './components/ui/InteractiveTitle';
 import FloatingExploreArrow from './components/ui/FloatingExploreArrow';
 import { getDestinationPhoto } from './services/photos';
 import { SunIcon, MoonIcon } from './components/ui/Icons';
+import LiveTripDashboard from './components/ui/LiveTripDashboard';
 
 // Code-split heavy sidebars and modals
 const DetailPanel = lazy(() => import('./features/destination-map/DetailPanel'));
@@ -39,6 +40,7 @@ function TripNestMain() {
   const { isDark, toggleTheme } = useTheme();
   const { days } = useItinerary();
   const [activeDrawer, setActiveDrawer] = useState(null); // 'overview' | 'itinerary' | 'packing' | 'budget' | null
+  const [liveModeDismissed, setLiveModeDismissed] = useState(false);
 
   const tripDays = useMemo(() => days?.length || 3, [days]);
   const isOverlayHidden = selectedDestination !== null || isTransitioning || flightTarget !== null;
@@ -46,6 +48,16 @@ function TripNestMain() {
 
   // Instantaneous, reactive mobile/desktop breakpoint detection (no reload needed)
   const isMobile = useIsMobile(768);
+  const isTripLive = useMemo(() => {
+    const start = days?.find((day) => day.dateStr)?.dateStr;
+    const end = [...(days || [])].reverse().find((day) => day.dateStr)?.dateStr;
+    const today = new Date().toISOString().split('T')[0];
+    return Boolean(start && end && today >= start && today <= end);
+  }, [days]);
+
+  useEffect(() => {
+    setLiveModeDismissed(false);
+  }, [isTripLive]);
 
   const destPhoto = useMemo(() => {
     if (selectedDestination) return getDestinationPhoto(selectedDestination);
@@ -281,6 +293,13 @@ function TripNestMain() {
           )}
         </AnimatePresence>
       </Suspense>
+
+      {isMobile && isTripLive && !liveModeDismissed && !quizActive && (
+        <LiveTripDashboard onOpenPlanner={() => {
+          setLiveModeDismissed(true);
+          setActiveDrawer('itinerary');
+        }} />
+      )}
     </div>
   );
 }

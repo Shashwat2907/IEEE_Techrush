@@ -22,6 +22,8 @@ export function AppProvider({ children }) {
   const [customMarker, setCustomMarker] = useState(null);
   const [isPremadeOpen, setIsPremadeOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [routeFlythroughId, setRouteFlythroughId] = useState(0);
+  const [showCrowdHeatmap, setShowCrowdHeatmap] = useState(false);
 
   const openCompare = useCallback(() => setIsCompareOpen(true), []);
   const closeCompare = useCallback(() => setIsCompareOpen(false), []);
@@ -87,6 +89,12 @@ export function AppProvider({ children }) {
     setCustomMarker(null);
   }, []);
 
+  const startRouteFlythrough = useCallback(() => {
+    setRouteFlythroughId((value) => value + 1);
+  }, []);
+
+  const toggleCrowdHeatmap = useCallback(() => setShowCrowdHeatmap((v) => !v), []);
+
   return (
     <AppContext.Provider
       value={{
@@ -109,6 +117,11 @@ export function AppProvider({ children }) {
         arriveAtDestination,
         placeMarker,
         clearMarker,
+        routeFlythroughId,
+        startRouteFlythrough,
+        showCrowdHeatmap,
+        setShowCrowdHeatmap,
+        toggleCrowdHeatmap,
       }}
     >
       {children}

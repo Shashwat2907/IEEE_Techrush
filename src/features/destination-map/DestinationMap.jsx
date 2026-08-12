@@ -12,6 +12,7 @@ import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import DetailPanel from './DetailPanel';
 import GlobeFilters from '../globe-home/GlobeFilters';
 import { MAP_TILES } from '../../config/api';
+import { getActivityCoordinates } from '../../services/waypoints';
 import {
   GlobeIcon,
   SatelliteIcon,
@@ -72,15 +73,7 @@ function WeatherLayer({ visible }) {
 function ItineraryRoute({ destination, activities }) {
   if (!destination || !activities || activities.length === 0) return null;
 
-  const markers = activities.map((activity, i) => {
-    const angle = (i / Math.max(activities.length, 1)) * Math.PI * 2;
-    const radius = 0.016 + (i % 3) * 0.007;
-    return {
-      ...activity,
-      lat: destination.lat + Math.sin(angle) * radius,
-      lng: destination.lng + Math.cos(angle) * radius,
-    };
-  });
+  const markers = activities.map((activity, i) => ({ ...activity, ...getActivityCoordinates(activity, destination, i) }));
 
   const positions = [[destination.lat, destination.lng], ...markers.map(m => [m.lat, m.lng])];
 
@@ -141,7 +134,7 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
   useEffect(() => {
     if (!destination) return;
     setIsLoading(true);
-    setDestination(destination.id, destination.name);
+    setDestination(destination);
     Promise.all([
       getWeather(destination.lat, destination.lng),
       getCrowdLevel(destination.id),
@@ -245,12 +238,6 @@ export default function DestinationMap({ onOpenItinerary, onOpenPacking, onOpenC
         {/* ─── Top Floating Navigation Island ─── */}
         <div className="absolute top-0 inset-x-0 z-[1000] pointer-events-none p-4 sm:p-5">
           <div className="max-w-7xl mx-auto flex items-start justify-between gap-3">
-            {/* Left: Back to 3D Globe */}
-            <button
-              onClick={() => navigateToGlobe(true)}
-              className="glass pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-white text-sm font-medium hover:border-accent-sky/50 hover:bg-surface-raised transition-all duration-200 shadow-xl group"
-              title="Return to 3D Globe (or zoom out)"
-            >
             {/* Left: Back to 3D Globe */}
             <button
               onClick={() => navigateToGlobe(true)}

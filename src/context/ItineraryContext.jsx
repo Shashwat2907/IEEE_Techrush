@@ -1,4 +1,6 @@
 import { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import { decompressFromEncodedURIComponent } from 'lz-string';
+import { addWaypoint } from '../services/waypoints';
 
 const ItineraryContext = createContext(null);
 
@@ -21,6 +23,18 @@ function saveToStorage(state) {
   }
 }
 
+function getSharedItinerary() {
+  try {
+    const payload = new URLSearchParams(window.location.search).get('trip');
+    if (!payload) return null;
+    const decoded = decompressFromEncodedURIComponent(payload);
+    const parsed = decoded ? JSON.parse(decoded) : null;
+    return parsed && Array.isArray(parsed.days) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 const DEFAULT_DAYS = [
   { id: 'day-1', dayNumber: 1, label: 'Day 1', activities: [] },
   { id: 'day-2', dayNumber: 2, label: 'Day 2', activities: [] },
@@ -30,6 +44,8 @@ const DEFAULT_DAYS = [
 const initialState = {
   destinationId: null,
   destinationName: '',
+  destinationLat: null,
+  destinationLng: null,
   startDate: null, // 'YYYY-MM-DD'
   endDate: null,   // 'YYYY-MM-DD'
   days: DEFAULT_DAYS,
@@ -59,14 +75,34 @@ function formatDayDate(startDateStr, dayIndex) {
 function itineraryReducer(state, action) {
   switch (action.type) {
     case 'SET_DESTINATION': {
-      if (state.destinationId === action.payload.id) {
+      if (state.destinationId === action.payload.id && state.days.some((day) => (day.activities || []).length > 0)) {
         return state;
       }
+      const destination = action.payload;
+      const itineraryDestination = { id: destination.id, name: destination.name, lat: destination.lat, lng: destination.lng };
+      const suppliedActivities = Array.isArray(destination.activities) && destination.activities.length
+        ? destination.activities
+        : [
+            { name: `Orientation walk in ${destination.name?.split(',')[0] || 'the city'}`, durationHrs: 1.5, cost: 0, type: 'activity' },
+            { name: 'Local food discovery', durationHrs: 1.5, cost: 20, type: 'food' },
+            { name: 'Scenic golden-hour viewpoint', durationHrs: 1.5, cost: 0, type: 'activity' },
+          ];
+      const starterActivities = suppliedActivities.slice(0, 3).map((activity, index) =>
+        addWaypoint({
+          ...activity,
+          uid: `suggested-${destination.id}-${index}`,
+          startHour: 9 + index * (Number(activity.durationHrs) || 2),
+          type: activity.type || (index === 1 ? 'food' : 'activity'),
+          notes: activity.notes || 'Suggested for your first day — fully editable.',
+        }, itineraryDestination, index)
+      );
       return {
         ...state,
         destinationId: action.payload.id,
         destinationName: action.payload.name,
-        days: state.days.map((d, i) => ({ ...d, dayNumber: i + 1, activities: [] })),
+        destinationLat: Number.isFinite(Number(destination.lat)) ? Number(destination.lat) : null,
+        destinationLng: Number.isFinite(Number(destination.lng)) ? Number(destination.lng) : null,
+        days: state.days.map((d, i) => ({ ...d, dayNumber: i + 1, activities: i === 0 ? starterActivities : [] })),
       };
     }
 
@@ -186,6 +222,8 @@ function itineraryReducer(state, action) {
 
     case 'ADD_ACTIVITY': {
       const { dayId, activity } = action.payload;
+      const activityUid = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const destination = { id: state.destinationId, name: state.destinationName, lat: state.destinationLat, lng: state.destinationLng };
       return {
         ...state,
         days: state.days.map((day) =>
@@ -194,14 +232,14 @@ function itineraryReducer(state, action) {
                 ...day,
                 activities: [
                   ...(day.activities || []),
-                  {
+                  addWaypoint({
                     ...activity,
-                    uid: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                    uid: activityUid,
                     startHour: getNextAvailableHour(day.activities || []),
                     type: activity.type || 'activity',
                     notes: activity.notes || '',
                     location: activity.location || '',
-                  },
+                  }, destination, (day.activities || []).length),
                 ],
               }
             : day
@@ -279,6 +317,36 @@ function itineraryReducer(state, action) {
       };
     }
 
+    case 'IMPORT_SHARED': {
+      const incoming = action.payload;
+      if (!incoming || !Array.isArray(incoming.days)) return state;
+      const days = incoming.days.slice(0, 14).map((day, index) => ({
+        id: day.id || `day-import-${Date.now()}-${index}`,
+        dayNumber: index + 1,
+        label: `Day ${index + 1}`,
+        dateStr: day.dateStr,
+        formattedDate: day.formattedDate,
+        dayOfWeek: day.dayOfWeek,
+        activities: (day.activities || []).map((activity) => ({
+          ...activity,
+          uid: activity.uid || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: activity.type || 'activity',
+          durationHrs: Number(activity.durationHrs) || 2,
+          cost: Number(activity.cost) || 0,
+          startHour: Number(activity.startHour) || 9,
+        })),
+      }));
+      return {
+        ...initialState,
+        destinationId: incoming.destinationId || null,
+        destinationName: incoming.destinationName || '',
+        startDate: incoming.startDate || null,
+        endDate: incoming.endDate || null,
+        days: days.length ? days : DEFAULT_DAYS,
+        tripDays: days.length || DEFAULT_DAYS.length,
+      };
+    }
+
     case 'LOAD_STATE':
       return { ...action.payload };
 
@@ -337,7 +405,7 @@ export function getTripBudget(days) {
 }
 
 export function ItineraryProvider({ children }) {
-  const stored = loadFromStorage();
+  const stored = getSharedItinerary() || loadFromStorage();
   const [state, dispatch] = useReducer(itineraryReducer, stored || initialState);
 
   // Persist to localStorage on every change
@@ -345,9 +413,17 @@ export function ItineraryProvider({ children }) {
     saveToStorage(state);
   }, [state]);
 
+  // A shared URL is a one-time, backend-free handoff. Remove the payload after
+  // it has been persisted locally so refreshes continue from localStorage.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('trip')) {
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+    }
+  }, []);
+
   const setDestination = useCallback((idOrDest, name) => {
     if (typeof idOrDest === 'object' && idOrDest !== null) {
-      dispatch({ type: 'SET_DESTINATION', payload: { id: idOrDest.id, name: idOrDest.name } });
+      dispatch({ type: 'SET_DESTINATION', payload: idOrDest });
     } else {
       dispatch({ type: 'SET_DESTINATION', payload: { id: idOrDest, name } });
     }
@@ -408,9 +484,15 @@ export function ItineraryProvider({ children }) {
     });
   }, []);
 
+  const importSharedItinerary = useCallback((sharedState) => {
+    dispatch({ type: 'IMPORT_SHARED', payload: sharedState });
+  }, []);
+
   const destination = {
     id: state.destinationId,
     name: state.destinationName,
+    lat: state.destinationLat,
+    lng: state.destinationLng,
   };
 
   return (
@@ -430,6 +512,7 @@ export function ItineraryProvider({ children }) {
         reorderActivities,
         clearItinerary,
         loadPremadeItinerary,
+        importSharedItinerary,
         getDayTotals,
         getTripBudget,
       }}
