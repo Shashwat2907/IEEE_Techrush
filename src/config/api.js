@@ -6,10 +6,13 @@ export const API_KEYS = {
     return import.meta.env.VITE_OPENWEATHERMAP_KEY || '';
   },
   get OPENAI() {
-    return import.meta.env.VITE_OPENAI_KEY || '';
+    return import.meta.env.VITE_OPENAI_KEY || 'YOUR_OPENAI_API_KEY';
   },
   get GEMINI() {
-    return import.meta.env.VITE_GEMINI_KEY || '';
+    return import.meta.env.VITE_GEMINI_KEY || 'AIzaSyMockGeminiKeyForTripNestApp123';
+  },
+  get UNSPLASH() {
+    return import.meta.env.VITE_UNSPLASH_ACCESS_KEY || 'YOUR_UNSPLASH_ACCESS_KEY';
   },
   GEOCODING: 'nominatim',
 };

@@ -19,6 +19,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { useItinerary, ACTIVITY_TYPES } from '../../context/ItineraryContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useApp } from '../../context/AppContext';
+import { generateActivities } from '../../services/itineraryAI';
+import TripShareModal from '../../components/ui/TripShareModal';
 import {
   CalendarIcon,
   CloseIcon,
@@ -59,12 +62,46 @@ function formatHour(hour) {
   return `${h12}${mStr} ${period}`;
 }
 
+function distanceBetween(a, b) {
+  const rad = Math.PI / 180;
+  const lat1 = Number(a.lat) * rad;
+  const lat2 = Number(b.lat) * rad;
+  const dLat = lat2 - lat1;
+  const dLng = (Number(b.lng) - Number(a.lng)) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function optimizeByNearestStop(activities) {
+  const located = activities.filter((item) => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng)));
+  if (located.length < 2) return activities;
+  const unlocated = activities.filter((item) => !located.includes(item));
+  const result = [located[0]];
+  const remaining = located.slice(1);
+  while (remaining.length) {
+    const previous = result[result.length - 1];
+    let nearestIndex = 0;
+    for (let index = 1; index < remaining.length; index += 1) {
+      if (distanceBetween(previous, remaining[index]) < distanceBetween(previous, remaining[nearestIndex])) nearestIndex = index;
+    }
+    result.push(remaining.splice(nearestIndex, 1)[0]);
+  }
+  let startHour = 9;
+  return [...result, ...unlocated].map((activity) => {
+    const next = { ...activity, startHour };
+    startHour += Number(activity.durationHrs) || 2;
+    return next;
+  });
+}
+
 // ─── Sortable Activity Item Component with Ultra-Smooth Spring Transitions ───
 function SortableActivityCard({
   activity,
   dayId,
   onRemove,
   onUpdate,
+  onMove,
+  days,
   formatPrice,
   isDark,
 }) {
@@ -106,11 +143,7 @@ function SortableActivityCard({
       transition={{ duration: 0.28, ease: [0.25, 1, 0.5, 1] }}
       ref={setNodeRef}
       style={style}
-      className={`rounded-2xl transition-shadow duration-200 border ${
-        isDark
-          ? 'bg-[#121826]/75 border-white/10 hover:border-white/20'
-          : 'bg-white/85 border-black/10 hover:border-black/20 shadow-sm'
-      } backdrop-blur-xl overflow-hidden`}
+      className="rounded-2xl transition-shadow duration-200 apple-liquid-glass overflow-hidden"
     >
       {/* Primary Row */}
       <div className="p-3.5 flex items-center gap-3">
@@ -186,9 +219,7 @@ function SortableActivityCard({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
-            className={`p-4 border-t ${
-              isDark ? 'border-white/10 bg-[#16161E]' : 'border-black/10 bg-slate-50'
-            } space-y-3 overflow-hidden`}
+            className="p-4 border-t apple-liquid-glass space-y-3 overflow-hidden"
           >
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -225,19 +256,40 @@ function SortableActivityCard({
               </div>
             </div>
 
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
-                Notes & Reservations
-              </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Booking confirmation #, transit route..."
-                className={`w-full ${
-                  isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
-                } border rounded-xl text-xs p-2 outline-none placeholder:text-slate-400 font-medium`}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                  Day
+                </label>
+                <select
+                  value={dayId}
+                  onChange={(e) => {
+                    onMove(e.target.value);
+                  }}
+                  className={`w-full ${
+                    isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+                  } border rounded-xl text-xs p-2 outline-none font-medium`}
+                >
+                  {days?.map((d) => (
+                    <option key={d.id} value={d.id}>Day {d.dayNumber}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider block mb-1">
+                  Notes & Reservations
+                </label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Booking info..."
+                  className={`w-full ${
+                    isDark ? 'bg-[#1A1A22] text-white border-white/15' : 'bg-white text-slate-900 border-black/15'
+                  } border rounded-xl text-xs p-2 outline-none placeholder:text-slate-400 font-medium`}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end pt-1">
@@ -269,8 +321,12 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
   });
 
   const [viewMonth, setViewMonth] = useState(() => {
-    const d = selectedStart ? new Date(selectedStart) : new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1);
+    if (startDate) {
+      const [y, m] = startDate.split('-').map(Number);
+      return new Date(y, m - 1, 1);
+    }
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
   });
 
   // ESC key listener
@@ -302,14 +358,16 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
   };
 
   const handleDayClick = (dayNum) => {
-    const clickedDate = new Date(year, month, dayNum);
-    const clickedStr = clickedDate.toISOString().split('T')[0];
+    const pad = (n) => String(n).padStart(2, '0');
+    const clickedStr = `${year}-${pad(month + 1)}-${pad(dayNum)}`;
+    // Parse dates without UTC offset for comparison
+    const parseLocal = (s) => { const [y,mo,d] = s.split('-').map(Number); return new Date(y, mo-1, d); };
 
     if (!selectedStart || (selectedStart && selectedEnd)) {
       setSelectedStart(clickedStr);
       setSelectedEnd(null);
     } else if (selectedStart && !selectedEnd) {
-      if (new Date(clickedStr) < new Date(selectedStart)) {
+      if (parseLocal(clickedStr) < parseLocal(selectedStart)) {
         setSelectedStart(clickedStr);
       } else {
         setSelectedEnd(clickedStr);
@@ -318,12 +376,13 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
   };
 
   const handleApply = () => {
+    const pad = (n) => String(n).padStart(2, '0');
     if (selectedStart && selectedEnd) {
       onSaveDateRange(selectedStart, selectedEnd);
     } else if (selectedStart) {
-      const d = new Date(selectedStart);
-      d.setDate(d.getDate() + 2);
-      onSaveDateRange(selectedStart, d.toISOString().split('T')[0]);
+      const [y, mo, d] = selectedStart.split('-').map(Number);
+      const end = new Date(y, mo - 1, d + 2);
+      onSaveDateRange(selectedStart, `${end.getFullYear()}-${pad(end.getMonth()+1)}-${pad(end.getDate())}`);
     }
     onClose();
   };
@@ -331,7 +390,9 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
   const calculateDays = () => {
     if (!selectedStart) return 1;
     if (!selectedEnd) return 1;
-    const diff = Math.ceil((new Date(selectedEnd) - new Date(selectedStart)) / (1000 * 60 * 60 * 24)) + 1;
+    const [sy, sm, sd] = selectedStart.split('-').map(Number);
+    const [ey, em, ed] = selectedEnd.split('-').map(Number);
+    const diff = Math.ceil((new Date(ey, em-1, ed) - new Date(sy, sm-1, sd)) / (1000 * 60 * 60 * 24)) + 1;
     return Math.max(1, diff);
   };
 
@@ -347,9 +408,7 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 12 }}
         transition={{ type: 'spring', damping: 28, stiffness: 300, mass: 0.8 }}
-        className={`w-full max-w-[360px] sm:max-w-[380px] apple-liquid-glass rounded-[28px] p-5 shadow-2xl border ${
-          isDark ? 'border-white/15 text-white' : 'border-black/10 text-slate-900'
-        } space-y-3.5 my-auto relative`}
+        className={`w-full max-w-[360px] sm:max-w-[380px] apple-liquid-glass rounded-[28px] p-5 space-y-3.5 my-auto relative ${isDark ? 'text-white' : 'text-slate-900'}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
@@ -425,14 +484,22 @@ function TravelCalendarModal({ isOpen, onClose, startDate, endDate, onSaveDateRa
             ))}
             {Array.from({ length: totalDaysInMonth }).map((_, i) => {
               const dayNum = i + 1;
-              const dateStr = new Date(year, month, dayNum).toISOString().split('T')[0];
+              const pad = (n) => String(n).padStart(2, '0');
+              const dateStr = `${year}-${pad(month + 1)}-${pad(dayNum)}`;
               const isStart = selectedStart === dateStr;
               const isEnd = selectedEnd === dateStr;
               const isInRange =
                 selectedStart &&
                 selectedEnd &&
-                new Date(dateStr) >= new Date(selectedStart) &&
-                new Date(dateStr) <= new Date(selectedEnd);
+                (() => {
+                  const pad = (n) => String(n).padStart(2, '0');
+                  const [sy, sm, sd] = selectedStart.split('-').map(Number);
+                  const [ey, em, ed] = selectedEnd.split('-').map(Number);
+                  const startMs = new Date(sy, sm-1, sd).getTime();
+                  const endMs = new Date(ey, em-1, ed).getTime();
+                  const dayMs = new Date(year, month, dayNum).getTime();
+                  return dayMs >= startMs && dayMs <= endMs;
+                })();
 
               return (
                 <button
@@ -505,12 +572,17 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
     updateActivity,
     reorderActivities,
   } = useItinerary();
+  const { startRouteFlythrough, toggleDrawer } = useApp();
 
   const { formatPrice } = useCurrency();
   const { isDark } = useTheme();
   const [selectedDayId, setSelectedDayId] = useState(days?.[0]?.id || 'day-1');
   const [showAddCustomModal, setShowAddCustomModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [magicPrompt, setMagicPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationNote, setGenerationNote] = useState('');
 
   // Custom Activity Inputs
   const [customName, setCustomName] = useState('');
@@ -563,6 +635,35 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
     setShowAddCustomModal(false);
   };
 
+  const handleMagicGenerate = async () => {
+    if (isGenerating) return;
+    setIsGenerating(true);
+    const request = magicPrompt.trim() || 'A balanced local day with food, a signature experience, and a scenic finish';
+    const result = await generateActivities(request, destination);
+    result.activities.forEach((activity) => addActivity(activeDay.id, activity));
+    setGenerationNote(`${result.activities.length} stops added via ${result.source}.`);
+    setMagicPrompt('');
+    setIsGenerating(false);
+  };
+
+  const handleOptimizeRoute = () => {
+    const optimized = optimizeByNearestStop(activeDay.activities || []);
+    if (optimized !== activeDay.activities) {
+      reorderActivities(activeDay.id, optimized);
+      setGenerationNote('Route ordered by the nearest next waypoint.');
+    } else {
+      setGenerationNote('Add at least two mapped stops to optimize this route.');
+    }
+  };
+
+  const handleHotspotDrop = (event) => {
+    event.preventDefault();
+    try {
+      const hotspot = JSON.parse(event.dataTransfer.getData('application/tripnest-hotspot'));
+      if (hotspot?.name) addActivity(activeDay.id, hotspot);
+    } catch {}
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -573,9 +674,7 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
     >
       {/* ─── Top Navigation Header ─── */}
       <div
-        className={`p-3.5 sm:p-4 border-b ${
-          isDark ? 'border-white/10 bg-[#121826]/70' : 'border-black/10 bg-white/70'
-        } backdrop-blur-2xl flex items-center justify-between shrink-0 z-10`}
+        className="p-3.5 sm:p-4 border-b apple-liquid-glass flex items-center justify-between shrink-0 z-10"
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
@@ -592,6 +691,14 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowShareModal(true)}
+            className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer border ${isDark ? 'bg-white/10 text-white border-white/15 hover:bg-white/20' : 'bg-black/5 text-slate-800 border-black/10 hover:bg-black/10'}`}
+            title="Share itinerary with Magic QR"
+          >
+            QR
+          </button>
           {/* Travel Dates Calendar Trigger */}
           <button
             type="button"
@@ -630,9 +737,7 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
 
       {/* ─── Day Selector Tabs with Layout Animation ─── */}
       <div
-        className={`flex items-center gap-2 p-3 border-b ${
-          isDark ? 'border-white/10 bg-[#0E0E14]/80' : 'border-black/10 bg-[#F4F5F7]/80'
-        } overflow-x-auto no-scrollbar shrink-0`}
+        className="flex items-center gap-2 p-3 border-b apple-liquid-glass overflow-x-auto no-scrollbar shrink-0"
       >
         {days.map((day, idx) => {
           const isSelected = day.id === activeDay.id;
@@ -670,6 +775,8 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
         layout="position"
         transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
         className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 no-scrollbar"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={handleHotspotDrop}
       >
         {/* Day Header Actions */}
         <div className="flex items-center justify-between">
@@ -682,15 +789,16 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
+            <button type="button" onClick={handleOptimizeRoute} className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer border shrink-0 ${isDark ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15' : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'}`}>Optimize</button>
+            <button type="button" onClick={() => {
+              toggleDrawer(null);
+              startRouteFlythrough();
+            }} className="text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 shrink-0">Preview Journey</button>
             <button
               type="button"
               onClick={() => setShowAddCustomModal(true)}
-              className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
-                isDark
-                  ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15'
-                  : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'
-              }`}
+              className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer border flex items-center gap-1 shrink-0 ${isDark ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15' : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'}`}
             >
               <PlusIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Custom Event</span>
@@ -710,6 +818,14 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
               </button>
             )}
           </div>
+        </div>
+
+        <div className="rounded-2xl p-3 apple-liquid-glass">
+          <div className="flex gap-2">
+            <input value={magicPrompt} onChange={(e) => setMagicPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleMagicGenerate()} placeholder="Ask Magic: vegetarian food, museums, a sunset walk…" className={`min-w-0 flex-1 bg-transparent outline-none text-xs font-medium ${isDark ? 'placeholder:text-zinc-500' : 'placeholder:text-slate-400'}`} />
+            <button type="button" onClick={handleMagicGenerate} disabled={isGenerating} className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-violet-500 text-white disabled:opacity-40">{isGenerating ? 'Thinking…' : magicPrompt.trim() ? 'Generate' : 'Surprise me'}</button>
+          </div>
+          {generationNote && <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400">{generationNote}</p>}
         </div>
 
         {/* Activity Timeline with PopLayout AnimatePresence */}
@@ -754,6 +870,8 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
                         dayId={activeDay.id}
                         onRemove={removeActivity}
                         onUpdate={updateActivity}
+                        onMove={(targetDayId) => moveActivity(activeDay.id, targetDayId, act.uid)}
+                        days={days}
                         formatPrice={formatPrice}
                         isDark={isDark}
                       />
@@ -887,6 +1005,13 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
           </div>
         )}
       </AnimatePresence>
+
+      <TripShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        itinerary={{ destinationId: destination?.id, destinationName: destination?.name, startDate, endDate, days }}
+        isDark={isDark}
+      />
 
       {/* ─── Travel Dates Calendar Modal (Z-[9999], Mobile Viewport Safe, Zero Sliders) ─── */}
       <AnimatePresence>

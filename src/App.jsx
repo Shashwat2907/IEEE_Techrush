@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from 'react';
+import { useState, useMemo, lazy, Suspense, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -13,6 +13,7 @@ import InteractiveTitle from './components/ui/InteractiveTitle';
 import FloatingExploreArrow from './components/ui/FloatingExploreArrow';
 import { getDestinationPhoto } from './services/photos';
 import { SunIcon, MoonIcon } from './components/ui/Icons';
+import LiveTripDashboard from './components/ui/LiveTripDashboard';
 
 // Code-split heavy sidebars and modals
 const DetailPanel = lazy(() => import('./features/destination-map/DetailPanel'));
@@ -37,11 +38,13 @@ function TripNestMain() {
     openPremade,
     closeCompare,
     setSelectedDestination,
+    activeDrawer,
+    setActiveDrawer,
   } = useApp();
 
   const { isDark, toggleTheme } = useTheme();
   const { days } = useItinerary();
-  const [activeDrawer, setActiveDrawer] = useState(null); // 'overview' | 'itinerary' | 'packing' | 'budget' | null
+  const [liveModeDismissed, setLiveModeDismissed] = useState(false);
 
   const tripDays = useMemo(() => days?.length || 3, [days]);
   const isOverlayHidden = selectedDestination !== null || isTransitioning || flightTarget !== null;
@@ -49,6 +52,16 @@ function TripNestMain() {
 
   // Instantaneous, reactive mobile/desktop breakpoint detection (no reload needed)
   const isMobile = useIsMobile(768);
+  const isTripLive = useMemo(() => {
+    const start = days?.find((day) => day.dateStr)?.dateStr;
+    const end = [...(days || [])].reverse().find((day) => day.dateStr)?.dateStr;
+    const today = new Date().toISOString().split('T')[0];
+    return Boolean(start && end && today >= start && today <= end);
+  }, [days]);
+
+  useEffect(() => {
+    setLiveModeDismissed(false);
+  }, [isTripLive]);
 
   const destPhoto = useMemo(() => {
     if (selectedDestination) return getDestinationPhoto(selectedDestination);
@@ -138,9 +151,8 @@ function TripNestMain() {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: '100%', opacity: 0 }}
               transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.8 }}
-              className={`fixed top-4 right-4 bottom-4 w-[460px] max-w-[calc(100vw-2rem)] z-40 apple-liquid-glass rounded-[28px] overflow-hidden shadow-2xl flex flex-col border ${
-                isDark ? 'border-white/15 text-white' : 'border-black/10 text-[#0F172A]'
-              }`}
+              className={`fixed top-4 right-4 bottom-4 w-[460px] max-w-[calc(100vw-2rem)] z-40 apple-liquid-glass rounded-[28px] overflow-hidden shadow-2xl flex flex-col border ${isDark ? 'border-white/15 text-white' : 'border-black/10 text-[#0F172A]'
+                }`}
             >
               {/* Contextual Ambient Destination Photo Underlay */}
               {destPhoto && (
@@ -229,9 +241,8 @@ function TripNestMain() {
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.8 }}
                 onClick={(e) => e.stopPropagation()}
-                className={`w-full h-[92vh] max-h-[94vh] apple-liquid-glass rounded-t-[28px] border-t ${
-                  isDark ? 'border-white/15 text-white' : 'border-black/10 text-black'
-                } flex flex-col overflow-hidden shadow-2xl`}
+                className={`w-full h-[92vh] max-h-[94vh] apple-liquid-glass rounded-t-[28px] border-t ${isDark ? 'border-white/15 text-white' : 'border-black/10 text-black'
+                  } flex flex-col overflow-hidden shadow-2xl`}
               >
                 {/* Subtle Grab Handle */}
                 <div className="w-12 h-1 bg-white/30 dark:bg-white/30 light:bg-black/20 rounded-full mx-auto my-2.5 shrink-0" />
@@ -306,6 +317,13 @@ function TripNestMain() {
           )}
         </AnimatePresence>
       </Suspense>
+
+      {isMobile && isTripLive && !liveModeDismissed && !quizActive && (
+        <LiveTripDashboard onOpenPlanner={() => {
+          setLiveModeDismissed(true);
+          setActiveDrawer('itinerary');
+        }} />
+      )}
     </div>
   );
 }

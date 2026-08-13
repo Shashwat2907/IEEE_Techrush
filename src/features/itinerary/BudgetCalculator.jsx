@@ -89,11 +89,7 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
   return (
     <div className={`h-full flex flex-col ${isDark ? 'text-white' : 'text-slate-900'} font-sans select-none overflow-hidden`}>
       {/* ─── Top Navigation Header ─── */}
-      <div
-        className={`p-3.5 sm:p-4 border-b ${
-          isDark ? 'border-white/10 bg-[#121826]/70' : 'border-black/10 bg-white/70'
-        } backdrop-blur-2xl flex items-center justify-between shrink-0 z-10`}
-      >
+      <div className="p-3.5 sm:p-4 border-b apple-liquid-glass flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <DollarIcon className="w-4 h-4" />
@@ -140,11 +136,7 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
         {/* ─── Financial Metric Bento Cards ─── */}
         <div className="grid grid-cols-2 gap-3">
           {/* Target Budget Input Card */}
-          <div
-            className={`p-3.5 rounded-2xl border ${
-              isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
-            } backdrop-blur-xl space-y-1.5`}
-          >
+          <div className="p-3.5 rounded-2xl apple-liquid-glass space-y-1.5">
             <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
               Target Budget
             </div>
@@ -162,11 +154,7 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
           </div>
 
           {/* Committed Total Spend Card */}
-          <div
-            className={`p-3.5 rounded-2xl border ${
-              isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
-            } backdrop-blur-xl space-y-1.5`}
-          >
+          <div className="p-3.5 rounded-2xl apple-liquid-glass space-y-1.5">
             <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
               Scheduled Spend
             </div>
@@ -176,11 +164,7 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
           </div>
 
           {/* Daily Run Rate */}
-          <div
-            className={`p-3.5 rounded-2xl border ${
-              isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
-            } backdrop-blur-xl space-y-1.5`}
-          >
+          <div className="p-3.5 rounded-2xl apple-liquid-glass space-y-1.5">
             <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
               Daily Run Rate
             </div>
@@ -216,11 +200,7 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
         </div>
 
         {/* ─── Category Breakdown Section ─── */}
-        <div
-          className={`p-4 rounded-3xl border ${
-            isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
-          } backdrop-blur-xl space-y-3.5`}
-        >
+        <div className="p-4 rounded-3xl apple-liquid-glass space-y-3.5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-white">
             Category Allocation
           </h3>
@@ -266,11 +246,7 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
         </div>
 
         {/* ─── Day-by-Day Spend Allocation ─── */}
-        <div
-          className={`p-4 rounded-3xl border ${
-            isDark ? 'bg-[#121826]/75 border-white/10' : 'bg-white/80 border-black/10 shadow-sm'
-          } backdrop-blur-xl space-y-3.5`}
-        >
+        <div className="p-4 rounded-3xl apple-liquid-glass space-y-3.5">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-white">
               Daily Spend Curve

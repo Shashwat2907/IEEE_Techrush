@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '../../context/ThemeContext';
 import { BackpackIcon, CloseIcon, PlusIcon, TrashIcon, CheckIcon } from '../../components/ui/Icons';
+import { generatePackingList } from '../../services/packing';
+import { getWeather } from '../../services/weather';
+import { getCrowdLevel } from '../../services/crowd';
 
 const DEFAULT_CATEGORIES = [
   { id: 'all', label: 'All' },
@@ -11,15 +14,31 @@ const DEFAULT_CATEGORIES = [
   { id: 'toiletries', label: 'Hygiene' },
 ];
 
-const BASE_ESSENTIALS = [
-  { id: 'passport', name: 'Passport & Visa Documentation', category: 'essentials', essential: true },
-  { id: 'cards', name: 'Credit / Travel Forex Cards & Cash', category: 'essentials', essential: true },
-  { id: 'phone-charger', name: 'Phone, Power Bank & Cables', category: 'electronics', essential: true },
-  { id: 'adapter', name: 'Universal Travel Power Adapter', category: 'electronics', essential: true },
-  { id: 'toothbrush', name: 'Toothbrush & Travel Paste', category: 'toiletries', essential: true },
-  { id: 'sunscreen', name: 'SPF 50 Sunscreen', category: 'toiletries', essential: false },
-  { id: 'meds', name: 'Personal Medication & First Aid', category: 'essentials', essential: true },
-];
+const CATEGORY_MAP = {
+  documents: 'essentials', personal: 'toiletries', health: 'toiletries', protection: 'toiletries',
+  accessories: 'clothing', footwear: 'clothing', bags: 'essentials', gear: 'essentials',
+  activities: 'essentials', food: 'essentials', electronics: 'electronics', clothing: 'clothing', essentials: 'essentials',
+};
+
+function makeId(name) {
+  return `suggested-${String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
+}
+
+function buildAdaptiveItems(destination, weatherData, crowdData, tripDays) {
+  return generatePackingList({
+    types: destination?.type || [],
+    weather: weatherData?.condition || weatherData?.description || 'mild',
+    temperature: weatherData?.temp,
+    crowdLevel: crowdData?.level || destination?.crowdLevel || 'medium',
+    tripDays,
+  }).map((item) => ({
+    ...item,
+    id: makeId(item.name),
+    category: CATEGORY_MAP[item.category] || 'essentials',
+    qty: /clothes|shirt|shorts|socks|underwear/i.test(item.name) ? Math.max(1, Math.ceil(tripDays / 2)) : 1,
+    source: 'recommended',
+  }));
+}
 
 export default function PackingList({ destination, weatherData, tripDays = 3, isOpen, onClose }) {
   const { isDark } = useTheme();
@@ -29,6 +48,8 @@ export default function PackingList({ destination, weatherData, tripDays = 3, is
   );
 
   const [activeCategory, setActiveCategory] = useState('all');
+  const [liveWeather, setLiveWeather] = useState(weatherData || null);
+  const [liveCrowd, setLiveCrowd] = useState(null);
 
   const [items, setItems] = useState(() => {
     try {
@@ -36,33 +57,7 @@ export default function PackingList({ destination, weatherData, tripDays = 3, is
       if (stored) return JSON.parse(stored);
     } catch {}
 
-    const initial = [...BASE_ESSENTIALS.map((it) => ({ ...it, packed: false, qty: 1 }))];
-
-    initial.push(
-      { id: 'tops', name: 'Daily Shirts / Tops', category: 'clothing', essential: true, packed: false, qty: Math.max(3, tripDays + 1) },
-      { id: 'bottoms', name: 'Pants / Shorts / Skirts', category: 'clothing', essential: true, packed: false, qty: Math.max(2, Math.ceil(tripDays / 2)) },
-      { id: 'undergarments', name: 'Undergarments & Socks', category: 'clothing', essential: true, packed: false, qty: tripDays + 2 },
-      { id: 'shoes', name: 'Walking Shoes / Sneakers', category: 'clothing', essential: true, packed: false, qty: 1 }
-    );
-
-    const temp = weatherData?.temperature || 20;
-    if (temp < 12) {
-      initial.push(
-        { id: 'jacket', name: 'Heavy Insulated Jacket / Fleece', category: 'clothing', essential: true, packed: false, qty: 1 },
-        { id: 'gloves', name: 'Warm Beanie & Gloves', category: 'clothing', essential: false, packed: false, qty: 1 }
-      );
-    } else if (temp > 26) {
-      initial.push(
-        { id: 'swimwear', name: 'Swimwear & Beach Towel', category: 'clothing', essential: false, packed: false, qty: 1 },
-        { id: 'sunglasses', name: 'UV Sunglasses & Sun Hat', category: 'essentials', essential: false, packed: false, qty: 1 }
-      );
-    }
-
-    if (weatherData?.condition?.toLowerCase().includes('rain')) {
-      initial.push({ id: 'umbrella', name: 'Compact Windproof Umbrella / Raincoat', category: 'essentials', essential: true, packed: false, qty: 1 });
-    }
-
-    return initial;
+    return [];
   });
 
   const [newItemName, setNewItemName] = useState('');
@@ -75,6 +70,39 @@ export default function PackingList({ destination, weatherData, tripDays = 3, is
       localStorage.setItem(storageKey, JSON.stringify(items));
     } catch {}
   }, [items, storageKey]);
+
+  useEffect(() => {
+    setLiveWeather(weatherData || null);
+  }, [weatherData]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!destination || !Number.isFinite(Number(destination.lat)) || !Number.isFinite(Number(destination.lng))) return undefined;
+    Promise.all([getWeather(destination.lat, destination.lng), getCrowdLevel(destination.id, destination)])
+      .then(([weather, crowd]) => {
+        if (!cancelled) {
+          if (!weatherData) setLiveWeather(weather);
+          setLiveCrowd(crowd);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [destination, weatherData]);
+
+  // Refresh recommendations whenever trip conditions change, while retaining
+  // packed checkboxes and every user-created item.
+  useEffect(() => {
+    const suggested = buildAdaptiveItems(destination, liveWeather, liveCrowd, tripDays);
+    setItems((previous) => {
+      const existing = new Map(previous.map((item) => [item.id, item]));
+      const recommended = suggested.map((item) => {
+        const prior = existing.get(item.id);
+        return prior ? { ...item, packed: prior.packed, qty: prior.qty || item.qty } : { ...item, packed: false };
+      });
+      const custom = previous.filter((item) => item.source === 'custom' || String(item.id).startsWith('custom-'));
+      return [...recommended, ...custom];
+    });
+  }, [destination, liveWeather, liveCrowd, tripDays]);
 
   const togglePacked = useCallback((itemId) => {
     setItems((prev) =>
@@ -108,6 +136,7 @@ export default function PackingList({ destination, weatherData, tripDays = 3, is
       category: newItemCategory,
       qty: Math.max(1, parseInt(newItemQty, 10) || 1),
       packed: false,
+      source: 'custom',
     };
 
     setItems((prev) => [...prev, newItem]);
@@ -141,11 +170,7 @@ export default function PackingList({ destination, weatherData, tripDays = 3, is
   return (
     <div className={`h-full flex flex-col ${isDark ? 'text-white' : 'text-slate-900'} font-sans select-none overflow-hidden`}>
       {/* ─── Top Navigation Header ─── */}
-      <div
-        className={`p-3.5 sm:p-4 border-b ${
-          isDark ? 'border-white/10 bg-[#121826]/70' : 'border-black/10 bg-white/70'
-        } backdrop-blur-2xl flex items-center justify-between shrink-0 z-10`}
-      >
+      <div className="p-3.5 sm:p-4 border-b apple-liquid-glass flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <BackpackIcon className="w-4 h-4" />
@@ -155,7 +180,7 @@ export default function PackingList({ destination, weatherData, tripDays = 3, is
               Packing Manifest
             </span>
             <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium truncate block">
-              {destination?.name || 'Active Trip'}
+              {destination?.name || 'Active Trip'} · {liveWeather?.temp ?? '—'}° · {liveCrowd?.label || 'Crowd-aware'}
             </span>
           </div>
         </div>
@@ -184,11 +209,7 @@ export default function PackingList({ destination, weatherData, tripDays = 3, is
       </div>
 
       {/* ─── Packing Telemetry & Category Filter Bar ─── */}
-      <div
-        className={`p-4 border-b ${
-          isDark ? 'border-white/10 bg-[#0E0E14]/80' : 'border-black/10 bg-[#F4F5F7]/80'
-        } space-y-3 shrink-0`}
-      >
+      <div className="p-4 border-b apple-liquid-glass space-y-3 shrink-0">
         {/* Progress bar */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs font-bold">
@@ -248,15 +269,13 @@ export default function PackingList({ destination, weatherData, tripDays = 3, is
           filteredItems.map((item) => (
             <div
               key={item.id}
-              className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+              className={`p-3 rounded-2xl transition-all flex items-center justify-between gap-3 ${
                 item.packed
                   ? isDark
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-zinc-300'
-                    : 'bg-emerald-50/80 border-emerald-300 text-slate-700'
-                  : isDark
-                  ? 'bg-[#121826]/75 border-white/10 hover:border-white/20'
-                  : 'bg-white/80 border-black/10 hover:border-black/20 shadow-sm'
-              } backdrop-blur-xl`}
+                    ? 'bg-emerald-500/10 border border-emerald-500/30 text-zinc-300'
+                    : 'bg-emerald-50/80 border border-emerald-300 text-slate-700'
+                  : 'apple-liquid-glass'
+              }`}
             >
               {/* Checkbox & Name */}
               <div
@@ -326,9 +345,7 @@ export default function PackingList({ destination, weatherData, tripDays = 3, is
       {/* ─── Add Item Input Bar ─── */}
       <form
         onSubmit={handleAddItem}
-        className={`p-3.5 border-t ${
-          isDark ? 'border-white/10 bg-[#121826]/90' : 'border-black/10 bg-white/90'
-        } backdrop-blur-2xl flex items-center gap-2 shrink-0`}
+        className="p-3.5 border-t apple-liquid-glass flex items-center gap-2 shrink-0"
       >
         <input
           type="text"
