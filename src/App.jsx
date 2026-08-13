@@ -83,13 +83,13 @@ function TripNestMain() {
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="group apple-liquid-glass px-4 py-2 rounded-full flex items-center justify-center border border-white/20 dark:border-white/20 light:border-black/10 shadow-lg hover:scale-105 transition-all cursor-pointer text-xs font-semibold tracking-wider uppercase text-slate-700 dark:text-zinc-300 hover:text-emerald-500 dark:hover:text-emerald-400"
+            className="group apple-liquid-glass p-2 sm:px-4 sm:py-2 rounded-full flex items-center justify-center border border-white/20 dark:border-white/20 light:border-black/10 shadow-lg hover:scale-105 transition-all cursor-pointer text-xs font-semibold tracking-wider uppercase text-slate-700 dark:text-zinc-300 hover:text-emerald-500 dark:hover:text-emerald-400"
             title="Back to Landing Page"
           >
-            <svg className="w-3.5 h-3.5 mr-2 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-3.5 sm:h-3.5 sm:mr-2 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Home
+            <span className="hidden sm:inline">Home</span>
           </button>
         </div>
       )}
