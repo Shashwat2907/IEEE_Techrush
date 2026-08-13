@@ -10,13 +10,19 @@
     "crowdLevel": "medium",
     "bestTimeToVisit": "Nov–Feb",
     "description": "Sun-kissed beaches, Portuguese heritage, and vibrant nightlife on India's western coast.",
+    "budget": { "perDayMin": 30, "perDayMax": 60, "tripTotalMin": 180, "tripTotalMax": 360 },
+    "weather": { "tempMin": 25, "tempMax": 32, "condition": "Humid, occasional showers" },
     "activities": [
-      { "name": "Beach hopping", "cost": 0, "durationHrs": 3 },
-      { "name": "Fort Aguada visit", "cost": 200, "durationHrs": 2 },
-      { "name": "Spice plantation tour", "cost": 800, "durationHrs": 4 },
-      { "name": "Dudhsagar Falls trek", "cost": 1500, "durationHrs": 6 },
-      { "name": "Old Goa churches walk", "cost": 0, "durationHrs": 3 },
-      { "name": "Sunset cruise on Mandovi", "cost": 500, "durationHrs": 2 }
+      { "id": "g1", "name": "Beach hopping", "cost": 0, "durationHrs": 3, "description": "Explore the pristine white sands of South Goa.", "bestTime": "Morning", "included": "Transport", "location": { "lat": 15.01, "lng": 73.98, "label": "Palolem Beach" } },
+      { "id": "g2", "name": "Fort Aguada visit", "cost": 2, "durationHrs": 2, "description": "17th-century Portuguese fort and lighthouse overlooking the Arabian Sea.", "bestTime": "Late Afternoon", "included": "Entrance fee", "location": { "lat": 15.49, "lng": 73.77, "label": "Candolim" } },
+      { "id": "g3", "name": "Spice plantation tour", "cost": 10, "durationHrs": 4, "description": "Guided walking tour through a dense spice farm.", "bestTime": "Midday", "included": "Lunch, Guide", "location": { "lat": 15.38, "lng": 74.01, "label": "Ponda" } }
+    ],
+    "stays": [
+      { "id": "s1", "name": "Taj Exotica", "type": "Resort", "pricePerNight": 150, "rating": 4.8, "description": "Luxury beachfront resort with lush gardens.", "location": { "lat": 15.24, "lng": 73.93, "label": "Benaulim" } },
+      { "id": "s2", "name": "The Hosteller", "type": "Hostel", "pricePerNight": 15, "rating": 4.5, "description": "Vibrant backpacker hostel near the beach.", "location": { "lat": 15.6, "lng": 73.74, "label": "Anjuna" } }
+    ],
+    "places": [
+      { "id": "p1", "name": "Fontainhas", "description": "Latin quarter with colorful Portuguese villas.", "tag": "Heritage walk", "location": { "lat": 15.498, "lng": 73.83, "label": "Panjim" } }
     ]
   },
   {
@@ -30,13 +36,19 @@
     "crowdLevel": "high",
     "bestTimeToVisit": "Apr–Oct",
     "description": "Island of the Gods — terraced rice paddies, ancient temples, and world-class surf.",
+    "budget": { "perDayMin": 40, "perDayMax": 90, "tripTotalMin": 280, "tripTotalMax": 630 },
+    "weather": { "tempMin": 27, "tempMax": 31, "condition": "Tropical, sunny" },
     "activities": [
-      { "name": "Ubud Monkey Forest", "cost": 8, "durationHrs": 2 },
-      { "name": "Tegallalang Rice Terraces", "cost": 5, "durationHrs": 3 },
-      { "name": "Mount Batur sunrise trek", "cost": 45, "durationHrs": 6 },
-      { "name": "Tanah Lot Temple sunset", "cost": 3, "durationHrs": 2 },
-      { "name": "Uluwatu surf session", "cost": 15, "durationHrs": 4 },
-      { "name": "Seminyak beach club", "cost": 30, "durationHrs": 5 }
+      { "id": "b1", "name": "Ubud Monkey Forest", "cost": 8, "durationHrs": 2, "description": "Encounter hundreds of long-tailed macaques in a sacred forest temple complex.", "bestTime": "Morning", "included": "Entrance fee", "location": { "lat": -8.51, "lng": 115.26, "label": "Ubud" } },
+      { "id": "b2", "name": "Tegallalang Rice Terraces", "cost": 5, "durationHrs": 3, "description": "Iconic stepped rice paddies offering scenic walks and famous swings.", "bestTime": "Early Morning", "included": "None", "location": { "lat": -8.43, "lng": 115.27, "label": "Tegallalang" } },
+      { "id": "b3", "name": "Mount Batur sunrise trek", "cost": 45, "durationHrs": 6, "description": "Hike up an active volcano to watch the sunrise above the clouds.", "bestTime": "2 AM", "included": "Guide, Breakfast, Transport", "location": { "lat": -8.24, "lng": 115.37, "label": "Kintamani" } }
+    ],
+    "stays": [
+      { "id": "s3", "name": "Ubud Hanging Gardens", "type": "Villa", "pricePerNight": 250, "rating": 4.9, "description": "Jungle retreat with world-famous infinity pools.", "location": { "lat": -8.43, "lng": 115.26, "label": "Ubud" } },
+      { "id": "s4", "name": "Kuta Beach Hostel", "type": "Hostel", "pricePerNight": 12, "rating": 4.3, "description": "Surf camp and vibrant party hub.", "location": { "lat": -8.72, "lng": 115.17, "label": "Kuta" } }
+    ],
+    "places": [
+      { "id": "p2", "name": "Campuhan Ridge Walk", "description": "Scenic paved hiking trail through rolling hills and rice paddies.", "tag": "Free, Nature", "location": { "lat": -8.5, "lng": 115.25, "label": "Ubud" } }
     ]
   },
   {
@@ -50,13 +62,19 @@
     "crowdLevel": "medium",
     "bestTimeToVisit": "Mar–May, Oct–Nov",
     "description": "Ancient capital of Japan — thousand temples, bamboo groves, and geisha districts.",
+    "budget": { "perDayMin": 80, "perDayMax": 150, "tripTotalMin": 480, "tripTotalMax": 900 },
+    "weather": { "tempMin": 15, "tempMax": 22, "condition": "Crisp, clear skies" },
     "activities": [
-      { "name": "Fushimi Inari shrine hike", "cost": 0, "durationHrs": 3 },
-      { "name": "Arashiyama Bamboo Grove", "cost": 0, "durationHrs": 2 },
-      { "name": "Kinkaku-ji Golden Pavilion", "cost": 5, "durationHrs": 1.5 },
-      { "name": "Tea ceremony experience", "cost": 40, "durationHrs": 2 },
-      { "name": "Nishiki Market food tour", "cost": 30, "durationHrs": 3 },
-      { "name": "Gion geisha district walk", "cost": 0, "durationHrs": 2 }
+      { "id": "k1", "name": "Fushimi Inari shrine hike", "cost": 0, "durationHrs": 3, "description": "Walk through thousands of vermilion torii gates winding up the sacred mountain.", "bestTime": "Early Morning", "included": "None", "location": { "lat": 34.96, "lng": 135.77, "label": "Fushimi Ward" } },
+      { "id": "k2", "name": "Arashiyama Bamboo Grove", "cost": 0, "durationHrs": 2, "description": "A surreal pathway surrounded by soaring, thick green bamboo stalks.", "bestTime": "Morning", "included": "None", "location": { "lat": 35.01, "lng": 135.67, "label": "Arashiyama" } },
+      { "id": "k3", "name": "Tea ceremony experience", "cost": 40, "durationHrs": 2, "description": "Traditional Japanese matcha preparation ritual in a machiya townhouse.", "bestTime": "Afternoon", "included": "Tea, Sweets", "location": { "lat": 35.0, "lng": 135.77, "label": "Higashiyama" } }
+    ],
+    "stays": [
+      { "id": "s5", "name": "Hiiragiya Ryokan", "type": "Ryokan", "pricePerNight": 400, "rating": 4.9, "description": "Traditional Japanese inn with exceptional kaiseki dining.", "location": { "lat": 35.011, "lng": 135.766, "label": "Nakagyo Ward" } },
+      { "id": "s6", "name": "Piece Hostel", "type": "Hostel", "pricePerNight": 35, "rating": 4.7, "description": "Modern minimalist hostel near the station.", "location": { "lat": 34.982, "lng": 135.757, "label": "Kyoto Station Area" } }
+    ],
+    "places": [
+      { "id": "p3", "name": "Philosopher's Path", "description": "Stone path along a canal lined with hundreds of cherry trees.", "tag": "Scenic walk", "location": { "lat": 35.027, "lng": 135.795, "label": "Sakyo Ward" } }
     ]
   },
   {

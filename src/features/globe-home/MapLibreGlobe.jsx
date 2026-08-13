@@ -84,6 +84,7 @@ export default function MapLibreGlobe() {
     activeDrawer,
     setActiveDrawer,
     toggleDrawer,
+    openPremade,
   } = useApp();
 
   const { isDark, toggleTheme, setTheme } = useTheme();
@@ -988,18 +989,32 @@ export default function MapLibreGlobe() {
                   activeDrawer ? 'md:right-[480px]' : ''
                 }`}
               >
-                {/* Back to Globe Button */}
-                <button
-                  type="button"
-                  onClick={handleReturnToGlobe}
-                  className="pointer-events-auto apple-liquid-glass py-2 px-4 hover:scale-105 cursor-pointer shadow-2xl flex items-center gap-2 rounded-full shrink-0"
-                  title="Return to Globe Orbit"
-                >
-                  <GlobeIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="font-bold text-xs text-slate-900 dark:text-white hidden xs:inline sm:inline">
-                    Orbit View
-                  </span>
-                </button>
+                {/* Left Side Controls */}
+                <div className="flex flex-col items-start gap-2">
+                  {/* Back to Globe Button */}
+                  <button
+                    type="button"
+                    onClick={handleReturnToGlobe}
+                    className="pointer-events-auto apple-liquid-glass py-2 px-4 hover:scale-105 cursor-pointer shadow-2xl flex items-center gap-2 rounded-full shrink-0"
+                    title="Return to Globe Orbit"
+                  >
+                    <GlobeIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="font-bold text-xs text-slate-900 dark:text-white hidden xs:inline sm:inline">
+                      Orbit View
+                    </span>
+                  </button>
+
+                  {/* Explore Trending Button */}
+                  <button
+                    type="button"
+                    onClick={openPremade}
+                    className="pointer-events-auto apple-liquid-glass py-2 px-4 hover:scale-105 cursor-pointer shadow-2xl flex items-center gap-2 rounded-full shrink-0 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 transition-colors"
+                  >
+                    <span className="font-bold text-xs hidden xs:inline sm:inline">
+                      Explore Trending
+                    </span>
+                  </button>
+                </div>
 
                 {/* Map Mode HUD Toolbar with Smooth Liquid Bubble Sliders & Theme Switcher */}
                 <div className="pointer-events-auto flex items-center gap-1 apple-liquid-glass p-1.5 shadow-2xl rounded-full shrink-0">

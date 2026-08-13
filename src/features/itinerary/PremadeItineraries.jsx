@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getDestinations } from '../../services/destinations';
@@ -9,12 +9,8 @@ import {
   CompassIcon,
   CloseIcon,
   SearchIcon,
-  SunIcon,
-  DollarIcon,
-  UsersIcon,
-  CalendarIcon,
-  SparklesIcon,
 } from '../../components/ui/Icons';
+import DestinationDetailPopup from './DestinationDetailPopup';
 
 const CATEGORIES = [
   { id: 'all', label: 'All Catalog' },
@@ -48,18 +44,23 @@ export default function PremadeItineraries({ isOpen, onClose, onSelectItinerary 
   const [selectedSeason, setSelectedSeason] = useState('all');
   const [selectedBudget, setSelectedBudget] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDestination, setSelectedDestination] = useState(null);
 
   // Listen for Escape key to close
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        onClose();
+        if (selectedDestination) {
+          setSelectedDestination(null);
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, selectedDestination]);
 
   const allDestinations = useMemo(() => getDestinations(), []);
 
@@ -324,9 +325,11 @@ export default function PremadeItineraries({ isOpen, onClose, onSelectItinerary 
                 const daysCount = dest.activities?.length || 3;
 
                 return (
-                  <div
+                  <motion.div
+                    layoutId={`dest-card-${dest.id}`}
                     key={dest.id}
-                    className="bento-card overflow-hidden group hover:border-white/30 dark:hover:border-white/30 light:hover:border-black/20 transition-all flex flex-col justify-between shadow-lg"
+                    onClick={() => setSelectedDestination(dest)}
+                    className="bento-card overflow-hidden group hover:border-white/30 dark:hover:border-white/30 light:hover:border-black/20 transition-all flex flex-col justify-between shadow-lg cursor-pointer bg-[#F8F9FA] dark:bg-[#09090B]"
                   >
                     {/* Visual Media Header */}
                     <div className="relative h-56 w-full overflow-hidden bg-black/40">
@@ -399,20 +402,38 @@ export default function PremadeItineraries({ isOpen, onClose, onSelectItinerary 
                       {/* Launch Button */}
                       <button
                         type="button"
-                        onClick={() => handleLaunch(dest)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDestination(dest);
+                        }}
                         className="w-full btn-primary py-3 text-xs font-bold rounded-full flex items-center justify-center gap-2 cursor-pointer mt-2 shadow-md hover:scale-[1.01] transition-transform"
                       >
-                        <span>Explore & Launch Itinerary</span>
+                        <span>Explore</span>
                         <span>→</span>
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
           )}
         </div>
       </div>
+
+      {/* ─── Shared Layout Modal Popup ─── */}
+      <AnimatePresence>
+        {selectedDestination && (
+          <DestinationDetailPopup
+            destination={selectedDestination}
+            isDark={isDark}
+            onClose={() => setSelectedDestination(null)}
+            onViewOnGlobe={() => {
+              flyToDestination(selectedDestination);
+              onClose();
+            }}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
