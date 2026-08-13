@@ -633,6 +633,7 @@ export default function MapLibreGlobe() {
         placeMarker(pinData);
 
         const handleAdd = (activityData) => {
+          console.log('[MapClick] handleAdd called with:', activityData);
           addActivity(activityData.dayId, {
             name: activityData.name,
             durationHrs: activityData.durationHrs,

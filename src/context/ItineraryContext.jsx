@@ -197,28 +197,32 @@ function itineraryReducer(state, action) {
 
     case 'ADD_ACTIVITY': {
       const { dayId, activity } = action.payload;
+      console.log('[ItineraryContext] ADD_ACTIVITY called, dayId:', dayId, 'activity:', activity, 'state.days:', state.days.map(d => d.id));
       const activityUid = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const destination = { id: state.destinationId, name: state.destinationName, lat: state.destinationLat, lng: state.destinationLng };
+      
+      const newDays = state.days.map((day) =>
+        day.id === dayId
+          ? {
+              ...day,
+              activities: [
+                ...(day.activities || []),
+                addWaypoint({
+                  ...activity,
+                  uid: activityUid,
+                  startHour: getNextAvailableHour(day.activities || []),
+                  type: activity.type || 'activity',
+                  notes: activity.notes || '',
+                  location: activity.location || '',
+                }, destination, (day.activities || []).length),
+              ],
+            }
+          : day
+      );
+      console.log('[ItineraryContext] ADD_ACTIVITY resulting newDays:', newDays);
       return {
         ...state,
-        days: state.days.map((day) =>
-          day.id === dayId
-            ? {
-                ...day,
-                activities: [
-                  ...(day.activities || []),
-                  addWaypoint({
-                    ...activity,
-                    uid: activityUid,
-                    startHour: getNextAvailableHour(day.activities || []),
-                    type: activity.type || 'activity',
-                    notes: activity.notes || '',
-                    location: activity.location || '',
-                  }, destination, (day.activities || []).length),
-                ],
-              }
-            : day
-        ),
+        days: newDays,
       };
     }
 

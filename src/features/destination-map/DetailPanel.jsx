@@ -71,9 +71,9 @@ function HotelSlider({ stays, days, isDark, isAddedToItinerary, addingActivity, 
       {/* Card */}
       <motion.div
         layout
-        className={`relative overflow-hidden rounded-2xl apple-liquid-glass border ${
+        className={`relative overflow-visible rounded-2xl apple-liquid-glass border ${
           isDark ? 'border-white/10' : 'border-black/8'
-        }`}
+        } ${isAdding ? 'z-50' : 'z-10'}`}
       >
         {/* Collapsed view — always fully readable */}
         <div className="p-3.5">
