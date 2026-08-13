@@ -173,11 +173,11 @@ export default function MapLibreGlobe() {
           },
         ],
         sky: {
-          'sky-color': '#060608',
+          'sky-color': 'rgba(0,0,0,0)',
           'sky-horizon-blend': 0.3,
-          'horizon-color': '#08080A',
+          'horizon-color': 'rgba(0,0,0,0)',
           'horizon-fog-blend': 0.5,
-          'fog-color': '#060608',
+          'fog-color': 'rgba(0,0,0,0)',
           'fog-ground-blend': 0.3,
         },
       },
@@ -187,7 +187,7 @@ export default function MapLibreGlobe() {
       maxZoom: 18,
       pitch: 0,
       bearing: 0,
-      attributionControl: false,
+      attributionControl: false, alpha: true,
       dragRotate: true,
       touchZoomRotate: true,
     });
@@ -971,7 +971,7 @@ export default function MapLibreGlobe() {
 
   return (
     <ErrorBoundary name="MapLibre Globe">
-      <div className="relative w-full h-full bg-[#08080A] overflow-hidden select-none font-sans">
+      <div className="relative w-full h-full bg-transparent overflow-hidden select-none font-sans">
         {/* Map Canvas */}
         <div ref={mapContainerRef} className="w-full h-full" />
 

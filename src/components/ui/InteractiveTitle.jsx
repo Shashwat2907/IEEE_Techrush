@@ -38,8 +38,8 @@ function ShatterLetter({ char, index, mousePos, isHovered, containerWidth }) {
       }}
       className={`relative font-display text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tight select-none uppercase leading-none transition-colors duration-150 ${
         isHovered && repelForce > 0.2
-          ? 'text-emerald-400 dark:text-emerald-400 light:text-emerald-600 drop-shadow-[0_4px_16px_rgba(16,185,129,0.5)]'
-          : 'text-white dark:text-white light:text-zinc-950'
+          ? 'text-emerald-400 drop-shadow-[0_4px_16px_rgba(16,185,129,0.5)]'
+          : 'text-white'
       }`}
     >
       {char}
