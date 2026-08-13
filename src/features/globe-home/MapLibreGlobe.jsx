@@ -850,7 +850,7 @@ export default function MapLibreGlobe() {
                 : 'bg-zinc-400'
             } group-hover:scale-150 transition-transform"></div>
             <div class="absolute bottom-full mb-1.5 hidden group-hover:flex flex-col items-center pointer-events-none z-50">
-              <div class="bento-glass px-2.5 py-1 text-xs font-semibold whitespace-nowrap shadow-xl">
+              <div class="bento-glass px-2.5 py-1 text-xs font-semibold whitespace-nowrap shadow-xl text-slate-900 dark:text-white">
                 ${dest.name.split(',')[0]}
               </div>
             </div>
