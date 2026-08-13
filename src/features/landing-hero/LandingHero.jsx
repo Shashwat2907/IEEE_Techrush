@@ -20,6 +20,25 @@ function RevealSection({ children, className = '', delay = 0 }) {
 }
 
 /* ─── Card Stacking Feature Cards ─── */
+function FeatureCard({ f, i, scrollYProgress }) {
+  const start = i * 0.08;
+  const y = useTransform(scrollYProgress, [0, 0.3 + start, 0.5 + start], [80 + i * 30, 0, 0]);
+  const scale = useTransform(scrollYProgress, [0, 0.3 + start, 0.5 + start], [0.85, 1, 1]);
+  const opacity = useTransform(scrollYProgress, [0, 0.25 + start, 0.45 + start], [0, 1, 1]);
+  const rotate = useTransform(scrollYProgress, [0, 0.3 + start], [3 - i * 1.5, 0]);
+
+  return (
+    <motion.div
+      style={{ y, scale, opacity, rotate }}
+      className="bg-white/5 border border-white/10 rounded-3xl p-5 md:p-7 text-center backdrop-blur-sm hover:bg-white/10 hover:border-white/25 transition-all duration-300 cursor-default group"
+    >
+      <h3 className="font-bold text-xl md:text-2xl mb-1 group-hover:text-emerald-400 transition-colors">{f.title}</h3>
+      <p className="text-[9px] tracking-[0.25em] text-gray-500 uppercase mb-3">{f.sub}</p>
+      <p className="text-xs text-gray-400 leading-relaxed hidden md:block">{f.desc}</p>
+    </motion.div>
+  );
+}
+
 function StackingFeatureCards({ scrollContainerRef }) {
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -38,31 +57,63 @@ function StackingFeatureCards({ scrollContainerRef }) {
   return (
     <div ref={containerRef} className="relative py-20 px-4 max-w-6xl mx-auto">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-        {features.map((f, i) => {
-          const start = i * 0.08;
-          const y = useTransform(scrollYProgress, [0, 0.3 + start, 0.5 + start], [80 + i * 30, 0, 0]);
-          const scale = useTransform(scrollYProgress, [0, 0.3 + start, 0.5 + start], [0.85, 1, 1]);
-          const opacity = useTransform(scrollYProgress, [0, 0.25 + start, 0.45 + start], [0, 1, 1]);
-          const rotate = useTransform(scrollYProgress, [0, 0.3 + start], [3 - i * 1.5, 0]);
-
-          return (
-            <motion.div
-              key={i}
-              style={{ y, scale, opacity, rotate }}
-              className="bg-white/5 border border-white/10 rounded-3xl p-5 md:p-7 text-center backdrop-blur-sm hover:bg-white/10 hover:border-white/25 transition-all duration-300 cursor-default group"
-            >
-              <h3 className="font-bold text-xl md:text-2xl mb-1 group-hover:text-emerald-400 transition-colors">{f.title}</h3>
-              <p className="text-[9px] tracking-[0.25em] text-gray-500 uppercase mb-3">{f.sub}</p>
-              <p className="text-xs text-gray-400 leading-relaxed hidden md:block">{f.desc}</p>
-            </motion.div>
-          );
-        })}
+        {features.map((f, i) => (
+          <FeatureCard key={i} f={f} i={i} scrollYProgress={scrollYProgress} />
+        ))}
       </div>
     </div>
   );
 }
 
 /* ─── Horizontal Stacking Diary Cards ─── */
+function DiaryCard({ d, i, scrollYProgress, totalDiaries, navigate }) {
+  const step = 1 / totalDiaries;
+  const start = i * step;
+  
+  const xTransform = useTransform(
+    scrollYProgress,
+    [Math.max(0, start - step), start, 1],
+    ['100vw', '0vw', `-${(totalDiaries - 1 - i) * 3}vw`]
+  );
+  
+  const scaleTransform = useTransform(
+    scrollYProgress,
+    [start, 1],
+    [1, 1 - (totalDiaries - 1 - i) * 0.05]
+  );
+
+  const zIndex = i;
+
+  return (
+    <motion.div
+      style={{ x: xTransform, scale: scaleTransform, zIndex }}
+      className="absolute inset-0 bg-[#1A1A1D] rounded-3xl overflow-hidden border border-white/15 shadow-2xl cursor-pointer hover:border-white/40 transition-colors flex flex-col"
+      onClick={() => navigate('/explore')}
+    >
+      <div className="h-3/5 overflow-hidden relative shrink-0">
+        <img
+          src={d.img}
+          className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+          alt={d.place}
+        />
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#1A1A1D] to-transparent h-2/3" />
+        <span className="absolute bottom-4 left-5 font-bold text-lg md:text-xl">{d.place}</span>
+      </div>
+      <div className="p-5 md:p-8 flex flex-col justify-between flex-grow">
+        <p className="italic text-gray-300 md:text-lg leading-relaxed text-sm">
+          {d.quote}
+        </p>
+        <div className="flex items-center mt-4">
+          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold mr-3 shadow-md">
+            {d.initial}
+          </div>
+          <span className="text-gray-400 font-medium text-sm md:text-base">{d.author}</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function StackingDiaryCards({ navigate, scrollContainerRef }) {
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -72,48 +123,12 @@ function StackingDiaryCards({ navigate, scrollContainerRef }) {
   });
 
   const diaries = [
-    {
-      place: 'Bali, Indonesia',
-      img: '/diaries/1.jpg',
-      quote: '"Waking up to turquoise waters and golden sunrises felt like a dream I never wanted to end."',
-      author: 'Emily R.',
-      initial: 'E',
-    },
-    {
-      place: 'Santorini, Greece',
-      img: '/diaries/2.jpg',
-      quote: '"Every corner has a postcard view, but the memories I made here are priceless."',
-      author: 'James L.',
-      initial: 'J',
-    },
-    {
-      place: 'Cape Town, South Africa',
-      img: '/diaries/3.jpg',
-      quote: '"Between the mountains and the ocean, I found a peace I didn\'t know I was searching for."',
-      author: 'Sarah K.',
-      initial: 'S',
-    },
-    {
-      place: 'Kyoto, Japan',
-      img: '/diaries/4.jpg',
-      quote: '"The temples and gardens felt timeless. A journey that truly changed my perspective."',
-      author: 'Michael T.',
-      initial: 'M',
-    },
-    {
-      place: 'Banff, Canada',
-      img: '/diaries/5.jpg',
-      quote: '"Pristine lakes and towering peaks. Nature at its absolute finest."',
-      author: 'Anna B.',
-      initial: 'A',
-    },
-    {
-      place: 'Amalfi Coast, Italy',
-      img: '/diaries/6.jpg',
-      quote: '"The food, the views, the people. Everything was just spectacular."',
-      author: 'David L.',
-      initial: 'D',
-    },
+    { place: 'Bali, Indonesia', img: '/diaries/1.jpg', quote: '"Waking up to turquoise waters and golden sunrises felt like a dream I never wanted to end."', author: 'Emily R.', initial: 'E' },
+    { place: 'Santorini, Greece', img: '/diaries/2.jpg', quote: '"Every corner has a postcard view, but the memories I made here are priceless."', author: 'James L.', initial: 'J' },
+    { place: 'Cape Town, South Africa', img: '/diaries/3.jpg', quote: '"Between the mountains and the ocean, I found a peace I didn\'t know I was searching for."', author: 'Sarah K.', initial: 'S' },
+    { place: 'Kyoto, Japan', img: '/diaries/4.jpg', quote: '"The temples and gardens felt timeless. A journey that truly changed my perspective."', author: 'Michael T.', initial: 'M' },
+    { place: 'Banff, Canada', img: '/diaries/5.jpg', quote: '"Pristine lakes and towering peaks. Nature at its absolute finest."', author: 'Anna B.', initial: 'A' },
+    { place: 'Amalfi Coast, Italy', img: '/diaries/6.jpg', quote: '"The food, the views, the people. Everything was just spectacular."', author: 'David L.', initial: 'D' },
   ];
 
   return (
@@ -130,56 +145,9 @@ function StackingDiaryCards({ navigate, scrollContainerRef }) {
         </div>
 
         <div className="relative w-full max-w-sm md:max-w-xl h-[380px] md:h-[450px]">
-          {diaries.map((d, i) => {
-            const step = 1 / diaries.length;
-            const start = i * step;
-            // The card comes from the right (100vw), reaches 0 when its start threshold hits.
-            // As we scroll further, it slightly shifts left and scales down.
-            
-            const xTransform = useTransform(
-              scrollYProgress,
-              [Math.max(0, start - step), start, 1],
-              ['100vw', '0vw', `-${(diaries.length - 1 - i) * 3}vw`]
-            );
-            
-            const scaleTransform = useTransform(
-              scrollYProgress,
-              [start, 1],
-              [1, 1 - (diaries.length - 1 - i) * 0.05]
-            );
-
-            const zIndex = i;
-
-            return (
-              <motion.div
-                key={i}
-                style={{ x: xTransform, scale: scaleTransform, zIndex }}
-                className="absolute inset-0 bg-[#1A1A1D] rounded-3xl overflow-hidden border border-white/15 shadow-2xl cursor-pointer hover:border-white/40 transition-colors flex flex-col"
-                onClick={() => navigate('/explore')}
-              >
-                <div className="h-3/5 overflow-hidden relative shrink-0">
-                  <img
-                    src={d.img}
-                    className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-                    alt={d.place}
-                  />
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#1A1A1D] to-transparent h-2/3" />
-                  <span className="absolute bottom-4 left-5 font-bold text-lg md:text-xl">{d.place}</span>
-                </div>
-                <div className="p-5 md:p-8 flex flex-col justify-between flex-grow">
-                  <p className="italic text-gray-300 md:text-lg leading-relaxed text-sm">
-                    {d.quote}
-                  </p>
-                  <div className="flex items-center mt-4">
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold mr-3 shadow-md">
-                      {d.initial}
-                    </div>
-                    <span className="text-gray-400 font-medium text-sm md:text-base">{d.author}</span>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
+          {diaries.map((d, i) => (
+            <DiaryCard key={i} d={d} i={i} scrollYProgress={scrollYProgress} totalDiaries={diaries.length} navigate={navigate} />
+          ))}
         </div>
       </div>
     </div>

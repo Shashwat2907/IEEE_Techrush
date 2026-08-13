@@ -16,7 +16,8 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useItinerary, ACTIVITY_TYPES } from '../../context/ItineraryContext';
+import { useItinerary } from '../../context/ItineraryContext';
+import { ACTIVITY_TYPES } from '../../utils/itineraryUtils';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useApp } from '../../context/AppContext';
@@ -796,19 +797,19 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
-            <button type="button" onClick={handleOptimizeRoute} className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer border shrink-0 ${isDark ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15' : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'}`}>Optimize</button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button type="button" onClick={handleOptimizeRoute} className={`text-[10px] sm:text-xs py-1.5 px-2.5 sm:px-3 rounded-full font-bold transition-all cursor-pointer border shrink-0 ${isDark ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15' : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'}`}>Optimize</button>
             <button type="button" onClick={() => {
               toggleDrawer(null);
               startRouteFlythrough();
-            }} className="text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 shrink-0">Preview Journey</button>
+            }} className="text-[10px] sm:text-xs py-1.5 px-2.5 sm:px-3 rounded-full font-bold transition-all cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 shrink-0">Preview</button>
             <button
               type="button"
               onClick={() => setShowAddCustomModal(true)}
-              className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer border flex items-center gap-1 shrink-0 ${isDark ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15' : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'}`}
+              title="Add Custom Event"
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full font-bold transition-all cursor-pointer border flex items-center justify-center shrink-0 ${isDark ? 'bg-white/10 hover:bg-white/15 text-zinc-200 border-white/15' : 'bg-black/5 hover:bg-black/10 text-slate-800 border-black/10'}`}
             >
               <PlusIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Custom Event</span>
             </button>
 
             {days.length > 1 && (
@@ -818,7 +819,7 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
                   removeDay(activeDay.id);
                   setSelectedDayId(days[0].id);
                 }}
-                className="text-xs py-1.5 px-2.5 rounded-full font-bold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full font-bold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer flex items-center justify-center"
                 title="Remove this day"
               >
                 <TrashIcon className="w-3.5 h-3.5" />

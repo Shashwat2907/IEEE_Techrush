@@ -81,7 +81,6 @@ export default function MapLibreGlobe() {
     clearMarker,
     routeFlythroughId,
     showCrowdHeatmap,
-    toggleCrowdHeatmap,
     activeDrawer,
     setActiveDrawer,
     toggleDrawer,
@@ -800,7 +799,6 @@ export default function MapLibreGlobe() {
             const midLat = (p0[1] + p1[1]) / 2;
             const dx = p1[0] - p0[0];
             const dy = p1[1] - p0[1];
-            const offset = Math.sqrt(dx * dx + dy * dy) * 0.15;
             const ctrlLng = midLng + dy * 0.2;
             const ctrlLat = midLat - dx * 0.2;
             for (let t = 0; t <= 1; t += 0.05) {
@@ -967,7 +965,7 @@ export default function MapLibreGlobe() {
     try { map.setProjection({ type: 'globe' }); } catch {}
     setViewDimension('3D');
     flyNext();
-  }, [routeFlythroughId, activeDest, days, mapLoaded]);
+  }, [routeFlythroughId, activeDest, days, mapLoaded, setActiveDrawer]);
 
   return (
     <ErrorBoundary name="MapLibre Globe">

@@ -246,7 +246,7 @@ Return ONLY a JSON array with exactly this structure for each destination:
           Authorization: `Bearer ${apiKey.trim()}`,
         },
         body: JSON.stringify({
-          model: 'llama3-70b-8192',
+          model: 'llama-3.3-70b-versatile',
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.7,
         }),
@@ -283,7 +283,7 @@ export async function generateDestinationOverview(locationName) {
           Authorization: `Bearer ${apiKey.trim()}`,
         },
         body: JSON.stringify({
-          model: 'llama3-70b-8192',
+          model: 'llama-3.3-70b-versatile',
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.7,
         }),
