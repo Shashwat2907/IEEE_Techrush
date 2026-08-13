@@ -19,7 +19,32 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
   const { days, tripDays, destination } = useItinerary();
   const { formatPrice, currency, setCurrency, currencies } = useCurrency();
 
-  const [targetBudget, setTargetBudget] = useState(2500);
+  const [targetBudget, setTargetBudget] = useState(() => {
+    return Number(localStorage.getItem('tripnest_target_budget')) || 2500;
+  });
+
+  const [categoryLimits, setCategoryLimits] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('tripnest_category_limits')) || {
+        stay: 0, food: 0, activity: 0, transport: 0, rest: 0
+      };
+    } catch {
+      return { stay: 0, food: 0, activity: 0, transport: 0, rest: 0 };
+    }
+  });
+
+  const handleTargetBudgetChange = (e) => {
+    const val = Math.max(0, parseFloat(e.target.value) || 0);
+    setTargetBudget(val);
+    localStorage.setItem('tripnest_target_budget', val.toString());
+  };
+
+  const handleCategoryLimitChange = (key, value) => {
+    const val = Math.max(0, parseFloat(value) || 0);
+    const newLimits = { ...categoryLimits, [key]: val };
+    setCategoryLimits(newLimits);
+    localStorage.setItem('tripnest_category_limits', JSON.stringify(newLimits));
+  };
 
   // Total and category calculation
   const { breakdown, totalCommitted, perDay, maxDaySpend } = useMemo(() => {
@@ -145,7 +170,7 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
               <input
                 type="number"
                 value={targetBudget}
-                onChange={(e) => setTargetBudget(Math.max(0, parseFloat(e.target.value) || 0))}
+                onChange={handleTargetBudgetChange}
                 className={`w-full text-base font-bold outline-none bg-transparent ${
                   isDark ? 'text-white' : 'text-slate-900'
                 }`}
@@ -207,7 +232,20 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
 
           <div className="space-y-3">
             {categories.map((cat) => {
-              const pct = totalCommitted > 0 ? Math.round((cat.amount / totalCommitted) * 100) : 0;
+              const limit = categoryLimits[cat.key] || 0;
+              const hasLimit = limit > 0;
+              const isOverLimit = hasLimit && cat.amount > limit;
+              const isNearLimit = hasLimit && !isOverLimit && cat.amount > limit * 0.85;
+              
+              // Progress relative to limit if set, else relative to total committed
+              const progressBase = hasLimit ? limit : Math.max(totalCommitted, 1);
+              const pct = Math.min(100, Math.round((cat.amount / progressBase) * 100));
+
+              // Determine bar color
+              let barColor = cat.color;
+              if (isOverLimit) barColor = '#EF4444'; // Red
+              else if (isNearLimit) barColor = '#F59E0B'; // Amber
+
               return (
                 <div key={cat.key} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
@@ -218,25 +256,46 @@ export default function BudgetCalculator({ isOpen, onClose, onOpenItinerary }) {
                       >
                         {cat.icon}
                       </span>
-                      <span className="font-semibold text-slate-800 dark:text-zinc-200">
-                        {cat.label}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
+                          {cat.label}
+                          {isOverLimit && (
+                            <span className="px-1.5 py-0.5 rounded-sm bg-red-500/20 text-red-500 text-[9px] uppercase tracking-wider font-bold">
+                              Over Limit
+                            </span>
+                          )}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 font-bold">
-                      <span className="text-slate-500 dark:text-zinc-400 text-[11px]">
-                        {pct}%
-                      </span>
-                      <span className="text-slate-900 dark:text-white">
-                        {formatPrice(cat.amount)}
-                      </span>
+                      <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 rounded-lg px-2 py-1">
+                        <span className="text-[10px] text-slate-500">Limit $</span>
+                        <input
+                          type="number"
+                          value={categoryLimits[cat.key] || ''}
+                          onChange={(e) => handleCategoryLimitChange(cat.key, e.target.value)}
+                          placeholder="0"
+                          className="w-12 bg-transparent outline-none text-right font-semibold text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div className="flex flex-col items-end min-w-[60px]">
+                        <span className={`text-slate-900 dark:text-white ${isOverLimit ? 'text-red-500' : ''}`}>
+                          {formatPrice(cat.amount)}
+                        </span>
+                        {hasLimit && (
+                          <span className={`text-[9px] ${isOverLimit ? 'text-red-400' : 'text-slate-500'}`}>
+                            {pct}% of limit
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   <div className="w-full h-1.5 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-300"
-                      style={{ width: `${pct}%`, backgroundColor: cat.color }}
+                      style={{ width: `${pct}%`, backgroundColor: barColor }}
                     />
                   </div>
                 </div>

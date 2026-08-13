@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getDestinations } from '../../services/destinations';
 import { getDestinationPhoto } from '../../services/photos';
+import { generateMatchmakerDestinations } from '../../services/tripAssistantAI';
 import {
   SparklesIcon,
   CloseIcon,
@@ -49,26 +50,38 @@ export default function DiscoveryQuiz() {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [matchedResults, setMatchedResults] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSelectOption = (questionId, optionId) => {
+  const handleSelectOption = async (questionId, optionId) => {
     const nextAnswers = { ...answers, [questionId]: optionId };
     setAnswers(nextAnswers);
 
     if (currentStep < QUIZ_QUESTIONS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Calculate matches
-      const allDests = getDestinations();
-      const scored = allDests.map((dest) => {
-        let score = 0;
-        if (dest.type?.includes(nextAnswers.vibe)) score += 3;
-        if (dest.crowdLevel === nextAnswers.tempo) score += 2;
-        if (dest.budgetTier === nextAnswers.budget) score += 2;
-        return { ...dest, matchScore: score };
+      setIsLoading(true);
+      const res = await generateMatchmakerDestinations({
+        vibe: nextAnswers.vibe,
+        tempo: nextAnswers.tempo,
+        budget: nextAnswers.budget,
       });
-
-      scored.sort((a, b) => b.matchScore - a.matchScore);
-      setMatchedResults(scored.slice(0, 3));
+      setIsLoading(false);
+      
+      if (res.success && res.destinations) {
+        setMatchedResults(res.destinations.slice(0, 3));
+      } else {
+        // Fallback
+        const allDests = getDestinations();
+        const scored = allDests.map((dest) => {
+          let score = 0;
+          if (dest.type?.includes(nextAnswers.vibe)) score += 3;
+          if (dest.crowdLevel === nextAnswers.tempo) score += 2;
+          if (dest.budgetTier === nextAnswers.budget) score += 2;
+          return { ...dest, matchScore: score };
+        });
+        scored.sort((a, b) => b.matchScore - a.matchScore);
+        setMatchedResults(scored.slice(0, 3));
+      }
     }
   };
 
@@ -199,6 +212,16 @@ export default function DiscoveryQuiz() {
                 </div>
               </motion.div>
             </AnimatePresence>
+          ) : isLoading ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="py-16 text-center"
+            >
+              <div className="w-12 h-12 mx-auto mb-4 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              <h3 className="text-xl font-bold mb-2">Analyzing your travel vibe...</h3>
+              <p className="text-sm opacity-60">Consulting AI for the perfect destination match</p>
+            </motion.div>
           ) : (
             /* Results View */
             <div className="space-y-6">

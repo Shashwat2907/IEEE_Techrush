@@ -14,7 +14,7 @@ const DESTINATION_PHOTOS = {
   'machu-picchu-pe': 'https://images.unsplash.com/photo-1526392060635-9d6019884377?auto=format&fit=crop&w=1200&q=80', // Machu Picchu Ruins
   'marrakech-ma': 'https://images.unsplash.com/photo-1597212618440-806262de4f6b?auto=format&fit=crop&w=1200&q=80', // Marrakech Riad / Souks
   'queenstown-nz': 'https://images.unsplash.com/photo-1507699622108-4be3abd695ad?auto=format&fit=crop&w=1200&q=80', // Queenstown Lake & Mountains
-  'cape-town-za': 'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&w=1200&q=80', // Cape Town Table Mountain
+  'cape-town-za': 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?auto=format&fit=crop&w=1200&q=80', // Cape Town Table Mountain
   'tokyo-jp': 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80', // Tokyo Shibuya Night Skyline
   'dubai-ae': 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80', // Dubai Burj Khalifa Skyline
   'maldives-mv': 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=80', // Maldives Overwater Bungalows

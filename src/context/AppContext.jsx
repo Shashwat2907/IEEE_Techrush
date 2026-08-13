@@ -105,6 +105,7 @@ export function AppProvider({ children }) {
       value={{
         viewState,
         selectedDestination,
+        setSelectedDestination,
         flightTarget,
         isTransitioning,
         isReversingTransition,

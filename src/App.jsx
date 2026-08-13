@@ -1,5 +1,6 @@
-import { useState, useMemo, lazy, Suspense, useEffect } from 'react';
+import { useMemo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { ItineraryProvider, useItinerary } from './context/ItineraryContext';
 import { CurrencyProvider } from './context/CurrencyContext';
@@ -12,7 +13,6 @@ import InteractiveTitle from './components/ui/InteractiveTitle';
 import FloatingExploreArrow from './components/ui/FloatingExploreArrow';
 import { getDestinationPhoto } from './services/photos';
 import { SunIcon, MoonIcon } from './components/ui/Icons';
-import LiveTripDashboard from './components/ui/LiveTripDashboard';
 
 // Code-split heavy sidebars and modals
 const DetailPanel = lazy(() => import('./features/destination-map/DetailPanel'));
@@ -22,8 +22,11 @@ const BudgetCalculator = lazy(() => import('./features/itinerary/BudgetCalculato
 const PremadeItineraries = lazy(() => import('./features/itinerary/PremadeItineraries'));
 const DiscoveryQuiz = lazy(() => import('./features/discovery-quiz/DiscoveryQuiz'));
 const CompareDrawer = lazy(() => import('./features/destination-map/CompareDrawer'));
+const LandingHero = lazy(() => import('./features/landing-hero/LandingHero'));
+const AiTripAssistant = lazy(() => import('./features/ai-assistant/AiTripAssistant'));
 
 function TripNestMain() {
+  const navigate = useNavigate();
   const {
     viewState,
     selectedDestination,
@@ -41,7 +44,6 @@ function TripNestMain() {
 
   const { isDark, toggleTheme } = useTheme();
   const { days } = useItinerary();
-  const [liveModeDismissed, setLiveModeDismissed] = useState(false);
 
   const tripDays = useMemo(() => days?.length || 3, [days]);
   const isOverlayHidden = selectedDestination !== null || isTransitioning || flightTarget !== null;
@@ -49,16 +51,6 @@ function TripNestMain() {
 
   // Instantaneous, reactive mobile/desktop breakpoint detection (no reload needed)
   const isMobile = useIsMobile(768);
-  const isTripLive = useMemo(() => {
-    const start = days?.find((day) => day.dateStr)?.dateStr;
-    const end = [...(days || [])].reverse().find((day) => day.dateStr)?.dateStr;
-    const today = new Date().toISOString().split('T')[0];
-    return Boolean(start && end && today >= start && today <= end);
-  }, [days]);
-
-  useEffect(() => {
-    setLiveModeDismissed(false);
-  }, [isTripLive]);
 
   const destPhoto = useMemo(() => {
     if (selectedDestination) return getDestinationPhoto(selectedDestination);
@@ -66,11 +58,41 @@ function TripNestMain() {
   }, [selectedDestination]);
 
   return (
-    <div className={`relative w-screen h-screen overflow-hidden ${isDark ? 'dark bg-[#09090B] text-white' : 'light bg-[#F8F9FA] text-[#0F172A]'} bg-tactile-surface font-sans select-none`}>
+    <div className={`relative w-screen h-screen overflow-hidden ${isDark ? 'dark bg-black text-white' : 'light bg-[#F8F9FA] text-[#0F172A]'} bg-tactile-surface font-sans select-none`}>
       {/* ─── Full-Screen Map / Globe Stage (Always stays full-screen behind sidebar) ─── */}
-      <div className="absolute inset-0 w-full h-full">
-        <MapLibreGlobe />
+      <div className="absolute inset-0 w-full h-full z-0">
+        <MapLibreGlobe
+          activeDrawer={activeDrawer}
+          onOpenDrawer={(drawerKey) => {
+            setActiveDrawer(drawerKey);
+          }}
+          onToggleDrawer={(drawerKey) => {
+            setActiveDrawer((prev) => (prev === drawerKey ? null : drawerKey));
+          }}
+        />
       </div>
+
+      {/* ─── Stars Background Layer (Over Globe, Under UI) ─── */}
+      {!isOverlayHidden && (
+        <StarsBackground className="absolute inset-0 z-[5] pointer-events-none overflow-hidden" />
+      )}
+
+      {/* ─── Top Left Back to Home Button ─── */}
+      {!isOverlayHidden && (
+        <div className="absolute top-5 left-5 z-30 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="group apple-liquid-glass px-4 py-2 rounded-full flex items-center justify-center border border-white/20 dark:border-white/20 light:border-black/10 shadow-lg hover:scale-105 transition-all cursor-pointer text-xs font-semibold tracking-wider uppercase text-slate-700 dark:text-zinc-300 hover:text-emerald-500 dark:hover:text-emerald-400"
+            title="Back to Landing Page"
+          >
+            <svg className="w-3.5 h-3.5 mr-2 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Home
+          </button>
+        </div>
+      )}
 
       {/* ─── Top Right Theme Toggle (Orbit View) ─── */}
       {!isOverlayHidden && (
@@ -111,7 +133,7 @@ function TripNestMain() {
       {/* ─── Desktop Apple OS 26 Liquid Glass Dossier Drawer ─── */}
       {!isMobile && (
         <AnimatePresence>
-          {activeDrawer && selectedDestination && (
+          {activeDrawer && (selectedDestination || activeDrawer === 'ai-assistant') && (
             <motion.aside
               key="desktop-sidebar-container"
               initial={{ x: '100%', opacity: 0 }}
@@ -182,6 +204,13 @@ function TripNestMain() {
                           onOpenItinerary={() => setActiveDrawer('itinerary')}
                         />
                       )}
+                      {activeDrawer === 'ai-assistant' && (
+                        <AiTripAssistant
+                          isOpen={true}
+                          onClose={() => setActiveDrawer(null)}
+                          destination={selectedDestination}
+                        />
+                      )}
                     </Suspense>
                   </motion.div>
                 </AnimatePresence>
@@ -194,7 +223,7 @@ function TripNestMain() {
       {/* ─── Mobile Apple OS Liquid Bottom Drawer (Generous 92vh height, smooth spring) ─── */}
       {isMobile && (
         <AnimatePresence>
-          {activeDrawer && selectedDestination && (
+          {activeDrawer && (selectedDestination || activeDrawer === 'ai-assistant') && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -249,6 +278,13 @@ function TripNestMain() {
                         onOpenItinerary={() => setActiveDrawer('itinerary')}
                       />
                     )}
+                    {activeDrawer === 'ai-assistant' && (
+                      <AiTripAssistant
+                        isOpen={true}
+                        onClose={() => setActiveDrawer(null)}
+                        destination={selectedDestination}
+                      />
+                    )}
                   </Suspense>
                 </div>
               </motion.div>
@@ -286,14 +322,41 @@ function TripNestMain() {
           )}
         </AnimatePresence>
       </Suspense>
-
-      {isMobile && isTripLive && !liveModeDismissed && !quizActive && (
-        <LiveTripDashboard onOpenPlanner={() => {
-          setLiveModeDismissed(true);
-          setActiveDrawer('itinerary');
-        }} />
-      )}
     </div>
+  );
+}
+
+export const StarsBackground = ({ className = "fixed inset-0 z-0 pointer-events-none overflow-hidden" }) => (
+  <div className={className}>
+    {[...Array(50)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+        style={{
+          width: Math.random() * 4 + 1 + 'px',
+          height: Math.random() * 4 + 1 + 'px',
+          top: Math.random() * 100 + '%',
+          left: Math.random() * 100 + '%',
+          opacity: Math.random() * 0.6 + 0.4
+        }}
+        animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.2, 1] }}
+        transition={{ duration: Math.random() * 3 + 1, repeat: Infinity, ease: "easeInOut" }}
+      />
+    ))}
+  </div>
+);
+
+function AppRoutes() {
+  const location = useLocation();
+  return (
+    <Suspense fallback={<div className="w-screen h-screen bg-[#09090B]" />}>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<LandingHero />} />
+          <Route path="/explore" element={<TripNestMain />} />
+        </Routes>
+      </AnimatePresence>
+    </Suspense>
   );
 }
 
@@ -304,7 +367,8 @@ export default function App() {
         <CompareProvider>
           <ItineraryProvider>
             <CurrencyProvider>
-              <TripNestMain />
+              <StarsBackground />
+              <AppRoutes />
             </CurrencyProvider>
           </ItineraryProvider>
         </CompareProvider>

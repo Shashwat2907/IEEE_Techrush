@@ -5,6 +5,7 @@ import { addWaypoint } from '../services/waypoints';
 const ItineraryContext = createContext(null);
 
 const STORAGE_KEY = 'tripnest_itinerary';
+const STORAGE_KEY_LIST = 'tripnest_itinerary_list';
 
 function loadFromStorage() {
   try {
@@ -35,11 +36,7 @@ function getSharedItinerary() {
   }
 }
 
-const DEFAULT_DAYS = [
-  { id: 'day-1', dayNumber: 1, label: 'Day 1', activities: [] },
-  { id: 'day-2', dayNumber: 2, label: 'Day 2', activities: [] },
-  { id: 'day-3', dayNumber: 3, label: 'Day 3', activities: [] },
-];
+const DEFAULT_DAYS = [];
 
 const initialState = {
   destinationId: null,
@@ -81,29 +78,13 @@ function itineraryReducer(state, action) {
       }
       const destination = action.payload;
       const itineraryDestination = { id: destination.id, name: destination.name, lat: destination.lat, lng: destination.lng };
-      const suppliedActivities = Array.isArray(destination.activities) && destination.activities.length
-        ? destination.activities
-        : [
-            { name: `Orientation walk in ${destination.name?.split(',')[0] || 'the city'}`, durationHrs: 1.5, cost: 0, type: 'activity' },
-            { name: 'Local food discovery', durationHrs: 1.5, cost: 20, type: 'food' },
-            { name: 'Scenic golden-hour viewpoint', durationHrs: 1.5, cost: 0, type: 'activity' },
-          ];
-      const starterActivities = suppliedActivities.slice(0, 3).map((activity, index) =>
-        addWaypoint({
-          ...activity,
-          uid: `suggested-${destination.id}-${index}`,
-          startHour: 9 + index * (Number(activity.durationHrs) || 2),
-          type: activity.type || (index === 1 ? 'food' : 'activity'),
-          notes: activity.notes || 'Suggested for your first day — fully editable.',
-        }, itineraryDestination, index)
-      );
       return {
         ...state,
         destinationId: action.payload.id,
         destinationName: action.payload.name,
         destinationLat: Number.isFinite(Number(destination.lat)) ? Number(destination.lat) : null,
         destinationLng: Number.isFinite(Number(destination.lng)) ? Number(destination.lng) : null,
-        days: state.days.map((d, i) => ({ ...d, dayNumber: i + 1, activities: i === 0 ? starterActivities : [] })),
+        days: [],
       };
     }
 
@@ -351,6 +332,34 @@ function itineraryReducer(state, action) {
     case 'LOAD_STATE':
       return { ...action.payload };
 
+    case 'IMPORT_PLAN': {
+      const { planDays, destination } = action.payload;
+      const formattedDays = planDays.map((d, i) => ({
+        id: `day-${Date.now()}-${i}`,
+        dayNumber: i + 1,
+        label: `Day ${i + 1}`,
+        activities: (d.activities || []).map((act, actIdx) => 
+          addWaypoint({
+            name: act.name,
+            durationHrs: act.durationHrs || 2,
+            cost: act.cost || 0,
+            type: act.type || 'activity',
+            notes: act.notes || '',
+            location: act.location || '',
+            lat: act.lat,
+            lng: act.lng,
+            startHour: act.startHour || (9 + actIdx * 2),
+            uid: `imported-${Date.now()}-${i}-${actIdx}`
+          }, destination, actIdx)
+        )
+      }));
+      return {
+        ...state,
+        days: formattedDays,
+        tripDays: formattedDays.length,
+      };
+    }
+
     case 'CLEAR':
       return { ...initialState };
 
@@ -448,6 +457,10 @@ export function ItineraryProvider({ children }) {
     dispatch({ type: 'REMOVE_DAY', payload: dayId });
   }, []);
 
+  const importAiPlan = useCallback((planDays) => {
+    dispatch({ type: 'IMPORT_PLAN', payload: { planDays, destination: { id: state.destinationId, name: state.destinationName, lat: state.destinationLat, lng: state.destinationLng } } });
+  }, [state.destinationId, state.destinationName, state.destinationLat, state.destinationLng]);
+
   const addActivity = useCallback((dayId, activity) => {
     dispatch({ type: 'ADD_ACTIVITY', payload: { dayId, activity } });
   }, []);
@@ -489,6 +502,66 @@ export function ItineraryProvider({ children }) {
     dispatch({ type: 'IMPORT_SHARED', payload: sharedState });
   }, []);
 
+  const exportItinerary = useCallback(() => {
+    const dataStr = JSON.stringify(state, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    const exportFileDefaultName = `tripnest-${state.destinationName?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'itinerary'}.json`;
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  }, [state]);
+
+  const importItinerary = useCallback((file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedState = JSON.parse(e.target.result);
+          dispatch({ type: 'IMPORT_SHARED', payload: importedState });
+          resolve();
+        } catch (error) {
+          reject(new Error('Invalid itinerary file format'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsText(file);
+    });
+  }, []);
+
+  const getSavedItineraries = useCallback(() => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_LIST)) || [];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const saveAsNewItinerary = useCallback((name) => {
+    const currentList = getSavedItineraries();
+    const newItinerary = {
+      id: `saved-${Date.now()}`,
+      name: name || state.destinationName || 'My Trip',
+      date: new Date().toISOString(),
+      state: state,
+    };
+    localStorage.setItem(STORAGE_KEY_LIST, JSON.stringify([newItinerary, ...currentList]));
+  }, [state, getSavedItineraries]);
+
+  const loadItinerary = useCallback((id) => {
+    const currentList = getSavedItineraries();
+    const target = currentList.find(i => i.id === id);
+    if (target && target.state) {
+      dispatch({ type: 'IMPORT_SHARED', payload: target.state });
+    }
+  }, [getSavedItineraries]);
+
+  const deleteItinerary = useCallback((id) => {
+    const currentList = getSavedItineraries();
+    const filtered = currentList.filter(i => i.id !== id);
+    localStorage.setItem(STORAGE_KEY_LIST, JSON.stringify(filtered));
+  }, [getSavedItineraries]);
+
   const destination = {
     id: state.destinationId,
     name: state.destinationName,
@@ -506,6 +579,7 @@ export function ItineraryProvider({ children }) {
         setTripDays,
         addDay,
         removeDay,
+        importAiPlan,
         addActivity,
         updateActivity,
         removeActivity,
@@ -514,6 +588,12 @@ export function ItineraryProvider({ children }) {
         clearItinerary,
         loadPremadeItinerary,
         importSharedItinerary,
+        exportItinerary,
+        importItinerary,
+        getSavedItineraries,
+        saveAsNewItinerary,
+        loadItinerary,
+        deleteItinerary,
         getDayTotals,
         getTripBudget,
       }}

@@ -66,6 +66,7 @@ export default function MapLibreGlobe() {
   const activePopupRef = useRef(null);
   const animFrameRef = useRef(null);
   const flythroughTimerRef = useRef(null);
+  const lastFlythroughIdRef = useRef(0);
   const isInteractingRef = useRef(false);
   const pointerDownRef = useRef({ x: 0, y: 0, time: 0 });
 
@@ -204,13 +205,33 @@ export default function MapLibreGlobe() {
       });
 
       map.addLayer({
+        id: 'itinerary-line-glow',
+        type: 'line',
+        source: 'itinerary-route',
+        paint: {
+          'line-color': '#22c55e',
+          'line-width': 10,
+          'line-opacity': 0.2,
+          'line-blur': 6,
+        },
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+      });
+
+      map.addLayer({
         id: 'itinerary-line',
         type: 'line',
         source: 'itinerary-route',
         paint: {
-          'line-color': '#FF5500',
-          'line-width': 3,
-          'line-dasharray': [2, 2],
+          'line-color': '#22c55e',
+          'line-width': 4,
+          'line-opacity': 0.85,
+        },
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
         },
       });
 
@@ -770,12 +791,32 @@ export default function MapLibreGlobe() {
         });
 
         if (dayCoords.length >= 2) {
+          // Generate smooth curved path between waypoints
+          const curvedCoords = [];
+          for (let ci = 0; ci < dayCoords.length - 1; ci++) {
+            const p0 = dayCoords[ci];
+            const p1 = dayCoords[ci + 1];
+            const midLng = (p0[0] + p1[0]) / 2;
+            const midLat = (p0[1] + p1[1]) / 2;
+            const dx = p1[0] - p0[0];
+            const dy = p1[1] - p0[1];
+            const offset = Math.sqrt(dx * dx + dy * dy) * 0.15;
+            const ctrlLng = midLng + dy * 0.2;
+            const ctrlLat = midLat - dx * 0.2;
+            for (let t = 0; t <= 1; t += 0.05) {
+              const u = 1 - t;
+              const lng = u * u * p0[0] + 2 * u * t * ctrlLng + t * t * p1[0];
+              const lat = u * u * p0[1] + 2 * u * t * ctrlLat + t * t * p1[1];
+              curvedCoords.push([lng, lat]);
+            }
+          }
+          curvedCoords.push(dayCoords[dayCoords.length - 1]);
           routeFeatures.push({
             type: 'Feature',
             properties: { day: day.dayNumber },
             geometry: {
               type: 'LineString',
-              coordinates: dayCoords,
+              coordinates: curvedCoords,
             },
           });
         }
@@ -879,6 +920,8 @@ export default function MapLibreGlobe() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded || !routeFlythroughId || !activeDest) return;
+    if (lastFlythroughIdRef.current === routeFlythroughId) return;
+    
     const stops = (days || []).flatMap((day) => day.activities || []).map((activity, index) => ({
       ...activity,
       ...getActivityCoordinates(activity, activeDest, index),
@@ -919,6 +962,8 @@ export default function MapLibreGlobe() {
         setActiveDrawer('itinerary');
       }, 1700);
     };
+    
+    lastFlythroughIdRef.current = routeFlythroughId;
     try { map.setProjection({ type: 'globe' }); } catch {}
     setViewDimension('3D');
     flyNext();
@@ -1023,17 +1068,6 @@ export default function MapLibreGlobe() {
 
                   <div className="h-4 w-[1px] bg-black/10 dark:bg-white/20 mx-0.5" />
 
-                  <button
-                    type="button"
-                    onClick={toggleCrowdHeatmap}
-                    className={`px-3 py-1 text-xs font-bold rounded-full transition-colors cursor-pointer ${showCrowdHeatmap ? 'bg-orange-500 text-white' : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white'}`}
-                    title="Toggle live crowd intensity at your places"
-                  >
-                    {showCrowdHeatmap ? `Crowd ${crowdStatus?.percentage ?? ''}%` : 'Crowd'}
-                  </button>
-
-                  <div className="h-4 w-[1px] bg-black/10 dark:bg-white/20 mx-0.5" />
-
                   {/* Theme Switcher Button */}
                   <button
                     type="button"
@@ -1067,6 +1101,7 @@ export default function MapLibreGlobe() {
                     },
                     { key: 'packing', icon: <BackpackIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />, label: 'Packing' },
                     { key: 'budget', icon: <DollarIcon className="w-3.5 sm:w-4 h-3.5 sm:h-4" />, label: 'Budget' },
+                    { key: 'ai-assistant', icon: <svg className="w-3.5 sm:w-4 h-3.5 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>, label: 'AI' },
                   ].map((item) => {
                     const isActive = activeDrawer === item.key;
                     return (

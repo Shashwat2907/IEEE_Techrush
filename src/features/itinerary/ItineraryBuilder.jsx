@@ -22,6 +22,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useApp } from '../../context/AppContext';
 import { generateActivities } from '../../services/itineraryAI';
 import TripShareModal from '../../components/ui/TripShareModal';
+import ItineraryManager from './ItineraryManager';
 import {
   CalendarIcon,
   CloseIcon,
@@ -580,6 +581,7 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
   const [showAddCustomModal, setShowAddCustomModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showManagerModal, setShowManagerModal] = useState(false);
   const [magicPrompt, setMagicPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationNote, setGenerationNote] = useState('');
@@ -692,6 +694,17 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
 
         <div className="flex items-center gap-1.5 shrink-0">
           <button
+            onClick={() => setShowManagerModal(true)}
+            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer border shadow-sm ${
+              isDark
+                ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border-purple-500/20'
+                : 'bg-purple-50 hover:bg-purple-100 text-purple-600 border-purple-200'
+            }`}
+            title="Manage Itineraries"
+          >
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+          </button>
+          <button
             type="button"
             onClick={() => setShowShareModal(true)}
             className={`text-xs py-1.5 px-3 rounded-full font-bold transition-all cursor-pointer border ${isDark ? 'bg-white/10 text-white border-white/15 hover:bg-white/20' : 'bg-black/5 text-slate-800 border-black/10 hover:bg-black/10'}`}
@@ -699,7 +712,6 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
           >
             QR
           </button>
-          {/* Travel Dates Calendar Trigger */}
           <button
             type="button"
             onClick={() => setShowCalendarModal(true)}
@@ -714,7 +726,6 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
             <span className="hidden sm:inline">Dates</span>
           </button>
 
-          {/* Quick Add Day Button */}
           <button
             type="button"
             onClick={handleAddDayClick}
@@ -723,7 +734,6 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
             + Day
           </button>
 
-          {/* Close Sidebar Button */}
           <button
             type="button"
             onClick={onClose}
@@ -735,7 +745,6 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
         </div>
       </div>
 
-      {/* ─── Day Selector Tabs with Layout Animation ─── */}
       <div
         className="flex items-center gap-2 p-3 border-b apple-liquid-glass overflow-x-auto no-scrollbar shrink-0"
       >
@@ -770,7 +779,6 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
         })}
       </div>
 
-      {/* ─── Main Schedule Workspace (Smooth Ease-in-out layout transitions) ─── */}
       <motion.div
         layout="position"
         transition={{ duration: 0.3, ease: [0.25, 1, 0.5, 1] }}
@@ -778,7 +786,6 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
         onDragOver={(event) => event.preventDefault()}
         onDrop={handleHotspotDrop}
       >
-        {/* Day Header Actions */}
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
@@ -820,15 +827,8 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
           </div>
         </div>
 
-        <div className="rounded-2xl p-3 apple-liquid-glass">
-          <div className="flex gap-2">
-            <input value={magicPrompt} onChange={(e) => setMagicPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleMagicGenerate()} placeholder="Ask Magic: vegetarian food, museums, a sunset walk…" className={`min-w-0 flex-1 bg-transparent outline-none text-xs font-medium ${isDark ? 'placeholder:text-zinc-500' : 'placeholder:text-slate-400'}`} />
-            <button type="button" onClick={handleMagicGenerate} disabled={isGenerating} className="px-3 py-1.5 rounded-full text-[11px] font-bold bg-violet-500 text-white disabled:opacity-40">{isGenerating ? 'Thinking…' : magicPrompt.trim() ? 'Generate' : 'Surprise me'}</button>
-          </div>
-          {generationNote && <p className="mt-2 text-[10px] text-emerald-600 dark:text-emerald-400">{generationNote}</p>}
-        </div>
 
-        {/* Activity Timeline with PopLayout AnimatePresence */}
+
         <AnimatePresence mode="popLayout">
           {(!activeDay.activities || activeDay.activities.length === 0) ? (
             <motion.div
@@ -884,7 +884,6 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
         </AnimatePresence>
       </motion.div>
 
-      {/* ─── Add Custom Activity Modal ─── */}
       <AnimatePresence>
         {showAddCustomModal && (
           <div
@@ -1005,6 +1004,11 @@ export default function ItineraryBuilder({ isOpen, onClose }) {
           </div>
         )}
       </AnimatePresence>
+
+      <ItineraryManager
+        isOpen={showManagerModal}
+        onClose={() => setShowManagerModal(false)}
+      />
 
       <TripShareModal
         isOpen={showShareModal}

@@ -9,6 +9,7 @@ import { fetchDestinationPhoto, getDestinationPhoto } from '../../services/photo
 import { API_KEYS } from '../../config/api';
 import { getWeather } from '../../services/weather';
 import { getDestinationHotspots } from '../../services/destinations';
+import { generateDestinationOverview } from '../../services/tripAssistantAI';
 import {
   SunIcon,
   MapIcon,
@@ -178,6 +179,7 @@ export default function DetailPanel({
 
   const fallbackPhoto = useMemo(() => getDestinationPhoto(destination), [destination]);
   const [photoUrl, setPhotoUrl] = useState(fallbackPhoto);
+  const [description, setDescription] = useState(destination?.description || '');
 
   const displayActivities = useMemo(() => {
     if (destination?.activities && destination.activities.length > 0) {
@@ -212,6 +214,15 @@ export default function DetailPanel({
     fetchDestinationPhoto(destination, API_KEYS.UNSPLASH).then((url) => {
       if (!cancelled) setPhotoUrl(url);
     });
+    
+    // Fetch overview if missing
+    setDescription(destination?.description || '');
+    if (!destination?.description && destination?.name && destination.name !== 'Resolving Location...') {
+      generateDestinationOverview(destination.name).then(desc => {
+        if (!cancelled && desc) setDescription(desc);
+      });
+    }
+    
     return () => { cancelled = true; };
   }, [destination, fallbackPhoto]);
 
@@ -354,10 +365,10 @@ export default function DetailPanel({
         </div>
 
         {/* Destination Editorial Overview */}
-        {destination.description && (
+        {description && (
           <div className="p-4 rounded-2xl apple-liquid-glass">
             <p className={`text-xs leading-relaxed ${isDark ? 'text-zinc-300' : 'text-slate-700'} font-medium`}>
-              {destination.description}
+              {description}
             </p>
           </div>
         )}
