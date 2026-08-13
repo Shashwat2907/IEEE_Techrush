@@ -19,6 +19,30 @@ import {
   ScaleIcon,
 } from '../../components/ui/Icons';
 
+function CustomDayDropdown({ days, onSelect, onCancel, isDark }) {
+  return (
+    <div className={`absolute right-0 bottom-[calc(100%+8px)] sm:bottom-auto sm:top-[calc(100%+8px)] w-40 rounded-xl border shadow-2xl z-50 flex flex-col overflow-hidden ${isDark ? 'bg-[#1A1A22]/95 border-white/20' : 'bg-white/95 border-black/10'}`} style={{ backdropFilter: 'blur(16px)' }}>
+      <div className={`px-3 py-2 border-b flex justify-between items-center ${isDark ? 'border-white/10' : 'border-black/5'}`}>
+        <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Select Day</span>
+        <button type="button" onClick={(e) => { e.stopPropagation(); onCancel(); }} className={`p-1 rounded-full text-xs transition-colors ${isDark ? 'hover:bg-white/10 text-zinc-400' : 'hover:bg-black/10 text-slate-500'}`}><CloseIcon className="w-3 h-3" /></button>
+      </div>
+      <div className="max-h-48 overflow-y-auto no-scrollbar py-1">
+        {days?.map(d => (
+          <button key={d.id} type="button" onClick={(e) => { e.stopPropagation(); onSelect(d.id); }} className={`w-full text-left px-3 py-2.5 text-xs font-semibold transition-colors ${isDark ? 'text-white hover:bg-white/10' : 'text-slate-900 hover:bg-black/5'}`}>
+            {d.formattedDate ? d.formattedDate : `Day ${d.dayNumber}`}
+          </button>
+        ))}
+      </div>
+      <div className={`p-1 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
+        <button type="button" onClick={(e) => { e.stopPropagation(); onSelect('new'); }} className={`w-full text-center px-3 py-2 text-xs font-bold rounded-lg transition-colors ${isDark ? 'text-emerald-400 hover:bg-white/10' : 'text-emerald-600 hover:bg-black/5'}`}>
+          + New Day
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 function HotelSlider({ stays, days, isDark, isAddedToItinerary, addingActivity, setAddingActivity, addDay, confirmAddActivity, formatPrice, handleAddActivityClick }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -102,33 +126,14 @@ function HotelSlider({ stays, days, isDark, isAddedToItinerary, addingActivity, 
 
         {/* CTA footer */}
         <div className={`px-3.5 pb-3.5 pt-1 flex items-center gap-2 border-t ${ isDark ? 'border-white/8' : 'border-black/6'}`}>
-          {isAdding ? (
-            <>
-              <select
-                className={`flex-1 text-xs px-2 py-1.5 rounded-lg outline-none font-medium ${ isDark ? 'bg-white/10 text-white border border-white/15' : 'bg-black/5 text-black border border-black/10'}`}
-                onChange={(e) => {
-                  if (e.target.value === 'new') {
-                    const newId = addDay();
-                    confirmAddActivity(newId, activeStay);
-                  } else if (e.target.value) {
-                    confirmAddActivity(e.target.value, activeStay);
-                  }
-                }}
-                defaultValue=""
-              >
-                <option value="" disabled>Select a day…</option>
-                {days?.map((d) => (
-                  <option key={d.id} value={d.id}>{d.formattedDate ? d.formattedDate : `Day ${d.dayNumber}`}</option>
-                ))}
-                <option value="new">+ New Day</option>
-              </select>
-              <button type="button" onClick={() => setAddingActivity(null)} className="w-7 h-7 rounded-full bg-black/10 dark:bg-white/10 text-slate-500 flex items-center justify-center text-sm">✕</button>
-            </>
-          ) : (
+          <div className="flex-1 relative flex">
             <button
               type="button"
-              onClick={() => !isAdded && handleAddActivityClick(activeStay)}
-              disabled={isAdded}
+              onClick={() => {
+                if (isAdded) return;
+                if (isAdding) setAddingActivity(null);
+                else handleAddActivityClick(activeStay);
+              }}
               className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 isAdded
                   ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 cursor-default'
@@ -139,7 +144,26 @@ function HotelSlider({ stays, days, isDark, isAddedToItinerary, addingActivity, 
             >
               {isAdded ? '✓ Added to itinerary' : '+ Add to itinerary'}
             </button>
-          )}
+            <AnimatePresence>
+              {isAdding && (
+                <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="absolute bottom-full mb-2 right-0">
+                  <CustomDayDropdown
+                    days={days}
+                    isDark={isDark}
+                    onSelect={(id) => {
+                      if (id === 'new') {
+                        const newId = addDay();
+                        confirmAddActivity(newId, activeStay);
+                      } else {
+                        confirmAddActivity(id, activeStay);
+                      }
+                    }}
+                    onCancel={() => setAddingActivity(null)}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </motion.div>
 
@@ -482,7 +506,7 @@ export default function DetailPanel({
                 return (
                   <div
                     key={idx}
-                    className="relative overflow-hidden p-3.5 rounded-2xl apple-liquid-glass flex items-center justify-between gap-3"
+                    className={`relative overflow-visible p-3.5 rounded-2xl apple-liquid-glass flex items-center justify-between gap-3 ${isAdding ? 'z-50' : 'z-10'}`}
                   >
                     <div className="relative flex-1 min-w-0">
                       <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'} truncate`}>
@@ -493,34 +517,16 @@ export default function DetailPanel({
                       </div>
                     </div>
 
-                    {isAdding ? (
-                      <div className="flex items-center gap-1 shrink-0 z-20">
-                        <select
-                          className={`text-[10px] px-1 py-1 rounded-md outline-none ${isDark ? 'bg-[#1A1A22] text-white' : 'bg-white text-black'}`}
-                          onChange={(e) => {
-                            if (e.target.value === 'new') {
-                              const newId = addDay();
-                              confirmAddActivity(newId, act);
-                            } else if (e.target.value) {
-                              confirmAddActivity(e.target.value, act);
-                            }
-                          }}
-                          defaultValue=""
-                        >
-                          <option value="" disabled>Select Day</option>
-                          {days?.map((d) => (
-                            <option key={d.id} value={d.id}>Day {d.dayNumber}</option>
-                          ))}
-                          <option value="new">+ New Day</option>
-                        </select>
-                        <button type="button" onClick={() => setAddingActivity(null)} className="p-1 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 text-slate-500">✕</button>
-                      </div>
-                    ) : (
+                    <div className="relative">
                       <button
                         type="button"
-                        onClick={() => !isAdded && handleAddActivityClick(act)}
+                        onClick={() => {
+                          if (isAdded) return;
+                          if (isAdding) setAddingActivity(null);
+                          else handleAddActivityClick(act);
+                        }}
                         disabled={isAdded}
-                        className={`relative px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                        className={`relative shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
                           isAdded
                             ? 'bg-emerald-500 text-white shadow-sm font-bold'
                             : isDark
@@ -537,7 +543,22 @@ export default function DetailPanel({
                           <span>+ Add</span>
                         )}
                       </button>
-                    )}
+                      <AnimatePresence>
+                        {isAdding && (
+                          <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="absolute top-full mt-2 right-0">
+                            <CustomDayDropdown
+                              days={days}
+                              isDark={isDark}
+                              onSelect={(id) => {
+                                if (id === 'new') { const newId = addDay(); confirmAddActivity(newId, act); }
+                                else { confirmAddActivity(id, act); }
+                              }}
+                              onCancel={() => setAddingActivity(null)}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
                 );
               })}
@@ -576,33 +597,37 @@ export default function DetailPanel({
               const isAdded = isAddedToItinerary(food.name);
               const isAdding = addingActivity?.name === food.name;
               return (
-                <div key={food.name} draggable onDragStart={(event) => handleHotspotDrag(event, food)} className="relative overflow-hidden p-3 rounded-2xl flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing apple-liquid-glass">
+                <div key={food.name} draggable onDragStart={(event) => handleHotspotDrag(event, food)} className={`relative overflow-visible p-3 rounded-2xl flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing apple-liquid-glass ${isAdding ? 'z-50' : 'z-10'}`}>
                   <div className="relative min-w-0"><p className="text-xs font-bold truncate">{food.name}</p><p className="mt-0.5 text-[10px] text-slate-500 dark:text-zinc-400 truncate">{food.dietary} · {food.specialty}</p></div>
-                  {isAdding ? (
-                    <div className="flex items-center gap-1 shrink-0 z-20">
-                      <select
-                        className={`text-[9px] px-1 py-0.5 rounded-md outline-none ${isDark ? 'bg-[#1A1A22] text-white' : 'bg-white text-black'}`}
-                        onChange={(e) => {
-                          if (e.target.value === 'new') {
-                            const newId = addDay();
-                            confirmAddActivity(newId, food);
-                          } else if (e.target.value) {
-                            confirmAddActivity(e.target.value, food);
-                          }
-                        }}
-                        defaultValue=""
-                      >
-                        <option value="" disabled>Select Day</option>
-                        {days?.map((d) => (
-                          <option key={d.id} value={d.id}>Day {d.dayNumber}</option>
-                        ))}
-                        <option value="new">+ New Day</option>
-                      </select>
-                      <button type="button" onClick={() => setAddingActivity(null)} className="p-1 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 text-slate-500">✕</button>
-                    </div>
-                  ) : (
-                    <button type="button" onClick={() => !isAdded && handleAddActivityClick(food)} disabled={isAdded} className={`relative shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold ${isAdded ? 'bg-emerald-500 text-white' : 'bg-black/5 dark:bg-white/10 text-slate-700 dark:text-zinc-200'}`}>{isAdded ? 'Added' : '+ Add'}</button>
-                  )}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isAdded) return;
+                        if (isAdding) setAddingActivity(null);
+                        else handleAddActivityClick(food);
+                      }}
+                      disabled={isAdded}
+                      className={`relative shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold ${isAdded ? 'bg-emerald-500 text-white' : 'bg-black/5 dark:bg-white/10 text-slate-700 dark:text-zinc-200'}`}
+                    >
+                      {isAdded ? 'Added' : '+ Add'}
+                    </button>
+                    <AnimatePresence>
+                      {isAdding && (
+                        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="absolute top-full mt-2 right-0">
+                          <CustomDayDropdown
+                            days={days}
+                            isDark={isDark}
+                            onSelect={(id) => {
+                              if (id === 'new') { const newId = addDay(); confirmAddActivity(newId, food); }
+                              else { confirmAddActivity(id, food); }
+                            }}
+                            onCancel={() => setAddingActivity(null)}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               );
             })}
